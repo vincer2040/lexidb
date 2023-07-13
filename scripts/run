@@ -1,20 +1,181 @@
 #!/usr/bin/env python3
 
 import socket
+import string
+import random
+import struct
+
+class ProtocolBuilder:
+    def __init__(self):
+        self.buf = b""
+
+    def add_ping(self):
+        self.buf += b"+PING\r\n"
+        return self
+
+    def add_arr(self, arr_len):
+        self.buf += b"*"
+        self.buf += str(arr_len).encode()
+        self.buf += b"\r\n"
+        return self
+
+    def add_str(self, str_to_add, str_len):
+        self.buf += b"$"
+        len_to_str = str(str_len).encode()
+        self.buf += len_to_str
+        self.buf += b"\r\n"
+        self.buf += str_to_add.encode()
+        self.buf += b"\r\n"
+        return self
+
+    def add_int(self, n):
+        self.buf += b":";
+        packed = struct.pack('!q', n)
+        self.buf += packed;
+        self.buf += b"\r\n"
+        return self
+
+    def get(self):
+        return self.buf
+
+class Client:
+    def __init__(self, addr, port):
+        self.addr = addr
+        self.port = port
+
+    def conn(self):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.connect((self.addr, self.port))
+        return self
+
+    def send(self, buf):
+        self.s.send(buf)
+        print(self.s.recv(8192).decode())
+
+    def ping(self):
+        self.s.send(ProtocolBuilder().add_ping().get())
+        print(self.s.recv(9192).decode())
+
+    def set(self, k, v):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("SET", 3).add_str(k, len(k)).add_str(v, len(v)).get())
+        print(self.s.recv(9192).decode())
+
+    def set_int(self, k, v):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("SET", 3).add_str(k, len(k)).add_int(v).get())
+        print(self.s.recv(9192).decode())
+
+    def get(self, k):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("GET", 3).add_str(k, len(k)).get())
+        data = self.s.recv(9192)
+        if (data[0] == 36):
+            print(data.decode())
+        else:
+            int_bytes = data[1:9]
+            int_me = int.from_bytes(int_bytes, byteorder='big', signed = True)
+            print(int_me)
+
+    def keys(self):
+        self.s.send(ProtocolBuilder().add_str("KEYS", 4).get())
+        print(self.s.recv(9182).decode())
+
+    def entries(self):
+        self.s.send(ProtocolBuilder().add_str("ENTRIES", 7).get())
+        print(self.s.recv(9182).decode())
+
+    def delete(self, k):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("DEL", 3).add_str(k, len(k)).get())
+        print(self.s.recv(9182).decode())
+
+    def create_cluster(self, k):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("CREATE.CLUSTER", 14).add_str(k, len(k)).get())
+        print(self.s.recv(9182).decode())
+
+    def set_cluster(self, c, k, v):
+        self.s.send(\
+                ProtocolBuilder()\
+                    .add_arr(4)\
+                    .add_str("SET.CLUSTER", 11)\
+                    .add_str(c, len(c))\
+                    .add_str(k, len(k))\
+                    .add_str(v, len(v))\
+                    .get()\
+                )
+        print(self.s.recv(9182).decode())
+
+    def get_cluster(self, c, k):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("GET.CLUSTER", 11).add_str(c, len(c)).add_str(k, len(k)).get())
+        print(self.s.recv(9182).decode())
+
+    def insert(self, c, v):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("INSERT", 6).add_str(c, len(c)).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
+    def del_cluster(self, c, k):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("DEL.CLUSTER", 11).add_str(c, len(c)).add_str(k, len(k)).get())
+        print(self.s.recv(9182).decode())
+
+    def index(self, c):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("INDEX", 5).add_str(c, len(c)).get())
+        print(self.s.recv(9182).decode())
+
+    def db_push(self, k):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("PUSH", 4).add_str(k, len(k)).get())
+        print(self.s.recv(9182).decode())
+
+    def db_pop(self):
+        self.s.send(ProtocolBuilder().add_str("POP", 3).get())
+        print(self.s.recv(9182).decode())
+
+    def cl(self):
+        self.s.close()
 
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def rand_str(N):
+    return str(''.join(random.choices(string.ascii_letters, k=N)))
 
-serveraddr = ("127.0.0.1", 6969)
 
-sock.connect(serveraddr)
+c = Client("127.0.0.1", 6969).conn()
 
-message = "sup"
+c.ping()
 
-sock.sendall(message.encode())
+c.set("vince", "is cool")
+c.set_int("vince", 4206969)
+c.get("vince")
+c.set("dom", "is cool")
+c.set("madi", "is cool")
+c.set("mom", "is cool")
+c.set("dad", "is cool")
 
-data = sock.recv(4096)
+c.set("frank", "is cool")
+c.set("boller", "is cool")
+c.set("lomein", "is cool")
+c.set("kitty", "is cool")
 
-print("received: ", data.decode())
+c.create_cluster("coolppl")
+c.set_cluster("coolppl", "vince", "is cool")
+c.get_cluster("coolppl", "vince")
+c.insert("coolppl", "vince")
+c.index("coolppl")
+c.set_cluster("coolppl", "mom", "is mom")
+c.db_push("vince")
+c.db_push("dom")
+c.db_pop()
+c.db_pop()
+c.db_pop()
 
-sock.close()
+long_key = rand_str(4095)
+long_cluster_name = rand_str(4095)
+long_push = rand_str(4095)
+c.set(long_key, "is cool")
+c.get(long_key)
+c.create_cluster(long_cluster_name)
+c.db_push(long_push)
+c.db_pop()
+
+long_key = rand_str(4096)
+long_val = rand_str(4096)
+
+c.set(long_key, long_val)
+
+c.cl()
+
