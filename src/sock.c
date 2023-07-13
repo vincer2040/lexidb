@@ -13,7 +13,7 @@ int create_tcp_socket(int nonblocking) {
     return socket(AF_INET, SOCK_STREAM, 0);
 }
 
-/* convert addr string to network byte order uint32_t */
+/* convert addr string to uint32_t rep in host byte order */
 uint32_t parse_addr(char* addr_str, size_t len) {
     uint32_t addr;
     int8_t t;
