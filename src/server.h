@@ -4,15 +4,15 @@
 
 #include "ht.h"
 
-typedef struct{
+typedef struct {
     int sfd;
     uint32_t flags; /* mainly for padding, no use as of now */
     uint32_t port;
     uint16_t addr;
     Ht* ht;
-}Server;
+} Server;
 
-typedef struct{
+typedef struct {
     uint32_t addr;
     uint16_t port;
     uint16_t flags;
@@ -20,7 +20,7 @@ typedef struct{
     size_t read_pos;
     size_t read_cap;
     uint8_t* read_buf;
-}Connection;
+} Connection;
 
 int server(char* addr_str, uint16_t port);
 

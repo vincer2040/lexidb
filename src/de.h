@@ -3,46 +3,47 @@
 
 #include <stdint.h>
 
-#define DE_OK       0
-#define DE_ERR      1
+#define DE_OK 0
+#define DE_ERR 1
 
-#define DE_NONE     0
-#define DE_READ     1
-#define DE_WRITE    2
-#define DE_BOTH     4
+#define DE_NONE 0
+#define DE_READ 1
+#define DE_WRITE 2
+#define DE_BOTH 4
 
 struct De;
 
 typedef void DeFileFn(struct De* de, int fd, void* client_data, uint32_t flags);
 
-typedef struct{
+typedef struct {
     int epollfd;
     struct epoll_event* events;
-}DeApi;
+} DeApi;
 
-typedef struct{
+typedef struct {
     uint32_t flags;
     DeFileFn* read_fn;
     DeFileFn* write_fn;
     void* client_data;
-}DeFileEvent;
+} DeFileEvent;
 
-typedef struct{
+typedef struct {
     int fd;
     uint32_t flags;
-}DeFired;
+} DeFired;
 
-typedef struct De{
+typedef struct De {
     int maxfd;
     int nnem;
     DeFileEvent* events;
     DeFired* fired;
     DeApi* api;
-}De;
+} De;
 
 extern De* de_create(int nnem);
 extern int de_await(De* de);
-extern uint8_t de_add_event(De* de, int fd, uint32_t flags, DeFileFn* fn, void* client_data);
+extern uint8_t de_add_event(De* de, int fd, uint32_t flags, DeFileFn* fn,
+                            void* client_data);
 extern uint8_t de_set_nnem(De* de, int nnem);
 extern int de_del_event(De* de, int fd, uint32_t flags);
 extern void de_free(De* de);
