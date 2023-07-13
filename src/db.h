@@ -4,7 +4,8 @@
 
 #define VERSION "0.1"
 
-#define HELP "\
+#define HELP                                                                   \
+    "\
 Options\n\
     --version (-v)      = Print the current version\n\
     --help (-h)         = Print this information\n\
