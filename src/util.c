@@ -1,3 +1,6 @@
+#define _POSIX_C_SOURCE 1
+#include "db.h"
+#include "util.h"
 #include "sha256.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -5,6 +8,26 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+volatile sig_atomic_t sig_int_received = 0;
+
+void handler(int mode) {
+    sig_int_received = 1;
+    UNUSED(mode);
+}
+
+int create_sigint_handler(void) {
+    struct sigaction sa = {0};
+    sa.sa_handler = &handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        return -1;
+    }
+    return 0;
+}
 
 void get_random_bytes(uint8_t* p, size_t len) {
     /* global */
@@ -61,4 +84,69 @@ void get_random_bytes(uint8_t* p, size_t len) {
         len -= copylen;
         p += copylen;
     }
+}
+
+int want_version_long(char* argv, size_t len) {
+    if ((len == 9) && (strncmp(argv, "--version", 9) == 0)) {
+        return 0;
+    }
+
+    return -1;
+}
+
+int want_version_short(char* argv, size_t len) {
+    if ((len == 2) && (strncmp(argv, "-v", 2) == 0)) {
+        return 0;
+    }
+
+    return -1;
+}
+
+int want_help_long(char* argv, size_t len) {
+    if ((len == 6) && (strncmp(argv, "--help", 6) == 0)) {
+        return 0;
+    }
+
+    return -1;
+}
+
+int want_help_short(char* argv, size_t len) {
+    if ((len == 2) && (strncmp(argv, "-h", 2) == 0)) {
+        return 0;
+    }
+
+    return -1;
+}
+
+void print_version(void) { printf("version: %s\n", VERSION); }
+
+void print_help(char* program_name) {
+    printf("usage: %s [options]\n\n%s", program_name, HELP);
+}
+
+int done_from_args(int argc, char** argv) {
+    int i;
+    for (i = 1; i < argc; ++i) {
+        char* arg = argv[i];
+        if (want_version_long(arg, strlen(arg)) == 0) {
+            print_version();
+            goto done;
+        }
+        if (want_version_short(arg, strlen(arg)) == 0) {
+            print_version();
+            goto done;
+        }
+        if (want_help_long(arg, strlen(arg)) == 0) {
+            print_help(argv[0]);
+            goto done;
+        }
+        if (want_help_short(arg, strlen(arg)) == 0) {
+            print_help(argv[0]);
+            goto done;
+        }
+    }
+    return 0;
+
+done:
+    return 1;
 }
