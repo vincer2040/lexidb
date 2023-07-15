@@ -6,15 +6,30 @@
 #include "token.h"
 
 typedef struct {
+    Token exp;
+    Token got;
+} ParserError;
+
+typedef struct {
+    size_t len;
+    size_t cap;
+    ParserError* errs;
+} ParserErrors;
+
+typedef struct {
     Lexer l;
     Token cur_tok;
     Token peek_tok;
+    ParserErrors errors;
 } Parser;
 
 typedef enum { SINVALID, SARR, SBULK } StatementType;
 
 struct Statement;
 
+/* this does not containt an allocated string, just a ptr at the position
+ * of the start of this str in the input
+ */
 typedef struct {
     size_t len;
     uint8_t* str;
@@ -36,9 +51,7 @@ typedef struct Statement {
 } Statement;
 
 typedef struct {
-    size_t len;
-    size_t cap;
-    Statement* statements;
+    Statement stmt;
 } CmdIR;
 
 Parser parser_new(Lexer* l);

@@ -57,13 +57,8 @@ void print_array_stmt(ArrayStatement* stmt) {
 }
 
 void print_cmd_ir(CmdIR* cmd_ir) {
-    size_t i, len;
-    len = cmd_ir->len;
-
-    for (i = 0; i < len; ++i) {
-        Statement stmt = cmd_ir->statements[i];
-        print_statement(&stmt);
-    }
+    Statement stmt = cmd_ir->stmt;
+    print_statement(&stmt);
 }
 
 void parser_next_token(Parser* p) {
@@ -123,7 +118,7 @@ ssize_t parser_parse_len(Parser* p) {
 
 /* expect $<length>\r\n<string>\r\n */
 BulkStatement parser_parse_bulk(Parser* p) {
-    BulkStatement bulk_stmt = { 0 };
+    BulkStatement bulk_stmt = {0};
     ssize_t slen;
 
     slen = parser_parse_len(p);
@@ -149,7 +144,7 @@ BulkStatement parser_parse_bulk(Parser* p) {
 
 /* expect *<length>\r\n<array> */
 ArrayStatement parser_parse_array(Parser* p) {
-    ArrayStatement array_stmt = { 0 };
+    ArrayStatement array_stmt = {0};
     ssize_t slen;
     size_t i, len;
 
@@ -174,16 +169,19 @@ ArrayStatement parser_parse_array(Parser* p) {
 }
 
 StatementType parser_parse_statement_type(uint8_t* literal) {
-    if (*literal == ((uint8_t)'*')) {
+    uint8_t type_byte = *literal;
+    switch (type_byte) {
+    case ((uint8_t)'*'):
         return SARR;
-    } else if (*literal == ((uint8_t)'$')) {
+    case ((uint8_t)'$'):
         return SBULK;
+    default:
+        return SINVALID;
     }
-    return SINVALID;
 }
 
 Statement parser_parse_statement(Parser* p) {
-    Statement stmt = { 0 };
+    Statement stmt = {0};
     if (parser_cur_token_is(p, TYPE)) {
         stmt.type = parser_parse_statement_type(p->cur_tok.literal);
         switch (stmt.type) {
@@ -207,23 +205,22 @@ Statement parser_parse_statement(Parser* p) {
 }
 
 CmdIR parse_cmd(Parser* p) {
-    CmdIR cmd_ir = { 0 };
-    size_t len = 0, cap = 32;
-    cmd_ir.statements = calloc(cap, sizeof(Statement));
-    if (cmd_ir.statements == NULL) {
-        return cmd_ir;
-    }
-    for (; p->cur_tok.type != EOFT; ++len) {
-        if (len == cap) {
-            cap += cap;
-            cmd_ir.statements = realloc(cmd_ir.statements, sizeof(Statement) * cap);
-            memset(cmd_ir.statements + len, 0, sizeof(Statement) * (cap - len));
-        }
-        cmd_ir.statements[len] = parser_parse_statement(p);
-    }
+    CmdIR cmd_ir = {0};
+    cmd_ir.stmt = parser_parse_statement(p);
+    // if (cmd_ir.statements == NULL) {
+    //     return cmd_ir;
+    // }
+    // for (; p->cur_tok.type != EOFT; ++len) {
+    //     if (len == cap) {
+    //         cap += cap;
+    //         cmd_ir.statements =
+    //             realloc(cmd_ir.statements, sizeof(Statement) * cap);
+    //         memset(cmd_ir.statements + len, 0, sizeof(Statement) * (cap - len));
+    //     }
+    //     cmd_ir.statements[len] = parser_parse_statement(p);
+    // }
 
-    cmd_ir.len = len;
-    cmd_ir.cap = cap;
+    // cmd_ir.len = len;
 
     return cmd_ir;
 }
@@ -258,13 +255,6 @@ void statement_free(Statement* stmt) {
 }
 
 void cmdir_free(CmdIR* cmd_ir) {
-    size_t i, len;
-    len = cmd_ir->len;
-
-    for (i = 0; i < len; ++i) {
-        Statement stmt = cmd_ir->statements[i];
-        statement_free(&stmt);
-    }
-
-    free(cmd_ir->statements);
+    Statement stmt = cmd_ir->stmt;
+    statement_free(&stmt);
 }
