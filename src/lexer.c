@@ -37,10 +37,7 @@ void lexer_read_char(Lexer* l) {
 }
 
 void lexer_read_len(Lexer* l) {
-    int is;
-    int64_t r = 0;
-    for (; (is = isdigit(l->ch)) != 0; lexer_read_char(l)) {
-        r = (r * 10) + (is - '0');
+    for (; isdigit(l->ch) != 0; lexer_read_char(l)) {
     }
 }
 
