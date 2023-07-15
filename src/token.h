@@ -4,14 +4,7 @@
 
 #include <stdint.h>
 
-typedef enum {
-    EOFT,
-    TYPE,
-    LEN,
-    RETCAR,
-    NEWL,
-    BULK,
-} TokenT;
+typedef enum { EOFT, TYPE, LEN, RETCAR, NEWL, BULK } TokenT;
 
 typedef struct {
     TokenT type;
