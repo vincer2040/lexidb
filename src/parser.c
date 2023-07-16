@@ -214,6 +214,22 @@ ArrayStatement parser_parse_array(Parser* p) {
     return array_stmt;
 }
 
+/**
+ * Simple strings must be the only command sent
+ * and cannot be sent in an array
+ * we read the entire message if it is valid via
+ * the lexer, so we expect EOFT here.
+ */
+SimpleStringStatement parser_parse_simple_string(Parser* p) {
+    if (!parser_expect_peek(p, EOFT)) {
+        ParserError e = parser_new_err(EOFT, &(p->peek_tok));
+        parser_append_error(p, &e);
+        parser_debug("expected EOF after simple\n");
+        return SST_INVALID;
+    }
+    return SST_PING;
+}
+
 StatementType parser_parse_statement_type(uint8_t* literal) {
     uint8_t type_byte = *literal;
     switch (type_byte) {
@@ -246,12 +262,15 @@ Statement parser_parse_statement(Parser* p) {
             break;
         }
         return stmt;
-    } else {
-        ParserError e = parser_new_err(TYPE, &(p->cur_tok));
-        parser_append_error(p, &e);
-        parser_debug("syntax error, no type\n");
+    }
+    if (parser_cur_token_is(p, PING)) {
+        stmt.type = SPING;
+        stmt.statement.sst = parser_parse_simple_string(p);
         return stmt;
     }
+    ParserError e = parser_new_err(TYPE, &(p->cur_tok));
+    parser_append_error(p, &e);
+    parser_debug("syntax error, no type\n");
     return stmt;
 }
 

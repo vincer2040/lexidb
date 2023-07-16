@@ -23,9 +23,19 @@ typedef struct {
     ParserErrors errors;
 } Parser;
 
-typedef enum { SINVALID, SARR, SBULK } StatementType;
+typedef enum {
+    SINVALID,
+    SARR,
+    SBULK,
+    SPING
+} StatementType;
 
 struct Statement;
+
+typedef enum {
+    SST_INVALID,
+    SST_PING
+} SimpleStringStatement;
 
 /* this does not containt an allocated string, just a ptr at the position
  * of the start of this str in the input
@@ -43,6 +53,7 @@ typedef struct {
 typedef union {
     BulkStatement bulk;
     ArrayStatement arr;
+    SimpleStringStatement sst;
 } _Statement;
 
 typedef struct Statement {
