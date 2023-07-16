@@ -1,12 +1,16 @@
 #include "lexer.h"
 #include "token.h"
 #include <ctype.h>
+#include <string.h>
 #include <stdio.h>
 
 void print_tok(Token tok) {
     switch (tok.type) {
     case EOFT:
         printf("EOF\n");
+        break;
+    case PING:
+        printf("PING\n");
         break;
     case TYPE:
         printf("TYPE\n");
@@ -23,6 +27,8 @@ void print_tok(Token tok) {
     case BULK:
         printf("BULK\n");
         break;
+    case ILLEGAL:
+        printf("ILLEGAL\n");
     }
 }
 
@@ -46,6 +52,13 @@ void lexer_read_bulk(Lexer* l) {
     }
 }
 
+void lexer_read_ping(Lexer* l) {
+    size_t i;
+    for (i = 0; i < 7; ++i) {
+        lexer_read_char(l);
+    }
+}
+
 #define u8(v) ((uint8_t*)v);
 
 Token lexer_next_token(Lexer* l) {
@@ -60,6 +73,21 @@ Token lexer_next_token(Lexer* l) {
         tok.type = TYPE;
         tok.literal = u8("$");
         break;
+    case '+':
+        /**
+         * simple strings should be in there own message
+         * and not within an array
+         */
+        if ((l->inp_len == 7) && (memcmp(l->input, "+PING\r\n", 7) == 0)) {
+            tok.type = PING;
+            tok.literal = u8("+PING\r\n");
+            lexer_read_ping(l);
+            break;
+        } else {
+            tok.type = ILLEGAL;
+            tok.literal = l->input + l->pos;
+            break;
+        }
     case '\r':
         tok.type = RETCAR;
         tok.literal = u8("\r");
