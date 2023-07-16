@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "lexer.h"
 #include "token.h"
+#include "util.h"
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -12,7 +13,7 @@ void print_array_stmt(ArrayStatement* stmt);
 void statement_free(Statement* stmt);
 Statement parser_parse_statement(Parser* p);
 
-int parser_debug = 1;
+static int parser_debug = 1;
 
 void parser_toggle_debug(int onoff) { parser_debug = onoff; }
 
@@ -61,6 +62,35 @@ void print_cmd_ir(CmdIR* cmd_ir) {
     print_statement(&stmt);
 }
 
+ParserError parser_new_err(TokenT exp, Token* got) {
+    ParserError pe = { 0 };
+
+    pe.exp = exp;
+    pe.got = *got;
+    return pe;
+}
+
+void parser_append_error(Parser* p, ParserError* e) {
+    size_t len = p->errors.len;
+    size_t cap = p->errors.cap;
+    if (len == cap) {
+        cap += cap;
+        p->errors.errs = realloc(p->errors.errs, sizeof(ParserError) * cap);
+        if (p->errors.errs == NULL) {
+            fmt_error("out of memory\n");
+            p->errors.cap = 0;
+            p->errors.len = 0;
+            return;
+        }
+
+        memset(p->errors.errs + len, 0, sizeof(ParserError) * (cap - len));
+        p->errors.cap = cap;
+    }
+
+    p->errors.errs[len] = *e;
+    p->errors.len += 1;
+}
+
 void parser_next_token(Parser* p) {
     p->cur_tok = p->peek_tok;
     p->peek_tok = lexer_next_token(&(p->l));
@@ -96,6 +126,8 @@ ssize_t _parser_parse_len(Parser* p) {
 ssize_t parser_parse_len(Parser* p) {
     ssize_t len;
     if (!parser_expect_peek(p, LEN)) {
+        ParserError e = parser_new_err(LEN, &(p->peek_tok));
+        parser_append_error(p, &e);
         parser_debug("len is not after array declaration\n");
         return -1;
     }
@@ -103,11 +135,15 @@ ssize_t parser_parse_len(Parser* p) {
     len = _parser_parse_len(p);
 
     if (!parser_expect_peek(p, RETCAR)) {
+        ParserError e = parser_new_err(RETCAR, &(p->peek_tok));
+        parser_append_error(p, &e);
         parser_debug("expected retchar after len\n");
         return -1;
     }
 
     if (!parser_expect_peek(p, NEWL)) {
+        ParserError e = parser_new_err(NEWL, &(p->peek_tok));
+        parser_append_error(p, &e);
         parser_debug("expected new line after retchar\n");
         return -1;
     }
@@ -116,7 +152,10 @@ ssize_t parser_parse_len(Parser* p) {
     return len;
 }
 
-/* expect $<length>\r\n<string>\r\n */
+/**
+ * expect $<length>\r\n<string>\r\n
+ * length must be greater than 0
+ */
 BulkStatement parser_parse_bulk(Parser* p) {
     BulkStatement bulk_stmt = {0};
     ssize_t slen;
@@ -129,11 +168,15 @@ BulkStatement parser_parse_bulk(Parser* p) {
     bulk_stmt.len = ((size_t)slen);
     bulk_stmt.str = p->cur_tok.literal;
     if (!parser_expect_peek(p, RETCAR)) {
+        ParserError e = parser_new_err(RETCAR, &(p->peek_tok));
+        parser_append_error(p, &e);
         parser_debug("expected retcar after bulk\n");
         memset(&bulk_stmt, 0, sizeof bulk_stmt);
         return bulk_stmt;
     }
     if (!parser_expect_peek(p, NEWL)) {
+        ParserError e = parser_new_err(NEWL, &(p->peek_tok));
+        parser_append_error(p, &e);
         parser_debug("expected retcar after retcar\n");
         memset(&bulk_stmt, 0, sizeof bulk_stmt);
         return bulk_stmt;
@@ -142,7 +185,10 @@ BulkStatement parser_parse_bulk(Parser* p) {
     return bulk_stmt;
 }
 
-/* expect *<length>\r\n<array> */
+/**
+ * expect *<length>\r\n<array>
+ * length must be greater than 0
+ */
 ArrayStatement parser_parse_array(Parser* p) {
     ArrayStatement array_stmt = {0};
     ssize_t slen;
@@ -155,7 +201,7 @@ ArrayStatement parser_parse_array(Parser* p) {
 
     len = ((size_t)slen);
     array_stmt.len = len;
-    array_stmt.statements = calloc(len, sizeof(struct Statement));
+    array_stmt.statements = calloc(len, sizeof(Statement));
     if (array_stmt.statements == NULL) {
         array_stmt.len = 0;
         return array_stmt;
@@ -183,6 +229,7 @@ StatementType parser_parse_statement_type(uint8_t* literal) {
 Statement parser_parse_statement(Parser* p) {
     Statement stmt = {0};
     if (parser_cur_token_is(p, TYPE)) {
+        ParserError e;
         stmt.type = parser_parse_statement_type(p->cur_tok.literal);
         switch (stmt.type) {
         case SARR:
@@ -192,36 +239,41 @@ Statement parser_parse_statement(Parser* p) {
             stmt.statement.bulk = parser_parse_bulk(p);
             break;
         default:
-            parser_debug("invalid\n");
+            e = parser_new_err(TYPE, &(p->cur_tok));
+            parser_append_error(p, &e);
+            parser_debug("syntax error, invalid type\n");
             stmt.type = SINVALID;
             break;
         }
         return stmt;
     } else {
-        /* we should error here */
-        print_tok(p->cur_tok);
+        ParserError e = parser_new_err(TYPE, &(p->cur_tok));
+        parser_append_error(p, &e);
+        parser_debug("syntax error, no type\n");
+        return stmt;
     }
     return stmt;
 }
 
+ParserErrors parser_init_errors(size_t initial_cap) {
+    ParserErrors errors = {0};
+
+    errors.errs = calloc(initial_cap, sizeof(ParserError));
+
+    if (errors.errs == NULL) {
+        return errors;
+    }
+
+    errors.cap = initial_cap;
+
+    return errors;
+}
+
+size_t parser_errors_len(Parser* p) { return p->errors.len; }
+
 CmdIR parse_cmd(Parser* p) {
     CmdIR cmd_ir = {0};
     cmd_ir.stmt = parser_parse_statement(p);
-    // if (cmd_ir.statements == NULL) {
-    //     return cmd_ir;
-    // }
-    // for (; p->cur_tok.type != EOFT; ++len) {
-    //     if (len == cap) {
-    //         cap += cap;
-    //         cmd_ir.statements =
-    //             realloc(cmd_ir.statements, sizeof(Statement) * cap);
-    //         memset(cmd_ir.statements + len, 0, sizeof(Statement) * (cap - len));
-    //     }
-    //     cmd_ir.statements[len] = parser_parse_statement(p);
-    // }
-
-    // cmd_ir.len = len;
-
     return cmd_ir;
 }
 
@@ -233,8 +285,12 @@ Parser parser_new(Lexer* l) {
     parser_next_token(&p);
     parser_next_token(&p);
 
+    p.errors = parser_init_errors(5);
+
     return p;
 }
+
+void parser_free_errors(Parser* p) { free(p->errors.errs); }
 
 void array_stmt_free(ArrayStatement* stmt) {
     size_t i, len;

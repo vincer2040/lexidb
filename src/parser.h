@@ -6,7 +6,7 @@
 #include "token.h"
 
 typedef struct {
-    Token exp;
+    TokenT exp;
     Token got;
 } ParserError;
 
@@ -58,5 +58,9 @@ Parser parser_new(Lexer* l);
 CmdIR parse_cmd(Parser* p);
 void print_cmd_ir(CmdIR* cmd_ir);
 void cmdir_free(CmdIR* cmd_ir);
+void parser_free_errors(Parser* p);
+size_t parser_errors_len(Parser* p);
+
+void parser_toggle_debug(int onoff);
 
 #endif
