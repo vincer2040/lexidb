@@ -1,8 +1,7 @@
 #include "cmd.h"
 #include "parser.h"
-
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
     if (str_len != 3) {
@@ -37,7 +36,7 @@ CmdT cmdt_from_statement(Statement* stmt) {
 }
 
 Cmd cmd_from_array(ArrayStatement* astmt) {
-    Cmd cmd = { 0 };
+    Cmd cmd = {0};
     Statement cmd_stmt = astmt->statements[0];
     cmd.type = cmdt_from_statement(&cmd_stmt);
 
@@ -50,7 +49,8 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         Statement key_stmt;
         Statement val_stmt;
         if (astmt->len != 3) {
-            printf("set expects len of 3, got %lu, cmd, key, value\n", astmt->len);
+            printf("set expects len of 3, got %lu, cmd, key, value\n",
+                   astmt->len);
             cmd.type = INV;
             return cmd;
         }
@@ -114,7 +114,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
 }
 
 Cmd cmd_from_statement(Statement* stmt) {
-    Cmd cmd = { 0 };
+    Cmd cmd = {0};
     switch (stmt->type) {
     case SARR:
         cmd = cmd_from_array(&(stmt->statement.arr));
@@ -138,7 +138,8 @@ void print_cmd(Cmd* cmd) {
     if (cmd->type == SET) {
         printf("SET ");
         print_key(&(cmd->expression.set.key));
-        printf("->%p(%lu bytes)\n", cmd->expression.set.value.ptr, cmd->expression.set.value.size);
+        printf("->%p(%lu bytes)\n", cmd->expression.set.value.ptr,
+               cmd->expression.set.value.size);
     }
     if (cmd->type == GET) {
         printf("GET ");
