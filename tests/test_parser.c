@@ -151,12 +151,39 @@ void t5() {
     printf("parser test 5 passed (missing arr type)\n");
 }
 
+void t6() {
+    Lexer l;
+    Parser p;
+    CmdIR cmd_ir;
+    Cmd cmd;
+
+    uint8_t* input = ((uint8_t*)"+PING\r\n");
+    size_t inp_len = strlen(((char*)input));
+
+    l = lexer_new(input, inp_len);
+    p = parser_new(&l);
+
+    cmd_ir = parse_cmd(&p);
+
+    assert(cmd_ir.stmt.type == SPING);
+    assert(cmd_ir.stmt.statement.sst == SST_PING);
+
+    cmd = cmd_from_statement(&(cmd_ir.stmt));
+    assert(cmd.type == CPING);
+
+    cmdir_free(&cmd_ir);
+    parser_free_errors(&p);
+
+    printf("parser test 6 passed (simple ping)\n");
+}
+
 int main(void) {
     t1();
     t2();
     t3();
     t4();
     t5();
+    t6();
     printf("all parser tests passed\n");
     return 0;
 }
