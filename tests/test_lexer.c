@@ -22,7 +22,7 @@
         }                                                                      \
     }
 
-int main(void) {
+void t1() {
     Token toks[] = {
         {.type = TYPE, .literal = ((uint8_t*)"*")},
         {.type = LEN, .literal = ((uint8_t*)"2")},
@@ -60,5 +60,34 @@ int main(void) {
         assert_uint_eq(tok.type, toks[i].type);
     }
 
+    printf("lexer test 1 passed (it works)\n");
+}
+
+void t2() {
+    Token toks[] = {
+        { .type = PING, .literal = ((uint8_t*)"+PING\r\n") },
+    };
+    uint8_t* input = ((uint8_t*)"+PING\r\n");
+    size_t inp_len = strlen(((char*)input));
+    size_t len = sizeof(toks) / sizeof(toks[0]);
+    size_t i;
+
+    Lexer l;
+    Token tok;
+
+    l = lexer_new(input, inp_len);
+
+    for (i = 0; i < len; ++i) {
+        tok = lexer_next_token(&l);
+        assert_uint_eq(tok.type, toks[i].type);
+    }
+
+    printf("lexer test 2 passed (simple strings)\n");
+}
+
+int main(void) {
+    t1();
+    t2();
     printf("all lexer tests passed\n");
+    return 0;
 }
