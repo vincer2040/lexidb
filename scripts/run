@@ -139,43 +139,6 @@ c = Client("127.0.0.1", 6969).conn()
 c.ping()
 
 c.set("vince", "is cool")
-c.set_int("vince", 4206969)
-c.get("vince")
-c.set("dom", "is cool")
-c.set("madi", "is cool")
-c.set("mom", "is cool")
-c.set("dad", "is cool")
-
-c.set("frank", "is cool")
-c.set("boller", "is cool")
-c.set("lomein", "is cool")
-c.set("kitty", "is cool")
-
-c.create_cluster("coolppl")
-c.set_cluster("coolppl", "vince", "is cool")
-c.get_cluster("coolppl", "vince")
-c.insert("coolppl", "vince")
-c.index("coolppl")
-c.set_cluster("coolppl", "mom", "is mom")
-c.db_push("vince")
-c.db_push("dom")
-c.db_pop()
-c.db_pop()
-c.db_pop()
-
-long_key = rand_str(4095)
-long_cluster_name = rand_str(4095)
-long_push = rand_str(4095)
-c.set(long_key, "is cool")
-c.get(long_key)
-c.create_cluster(long_cluster_name)
-c.db_push(long_push)
-c.db_pop()
-
-long_key = rand_str(4096)
-long_val = rand_str(4096)
-
-c.set(long_key, long_val)
 
 c.cl()
 
