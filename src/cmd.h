@@ -6,7 +6,13 @@
 #include "parser.h"
 #include <stddef.h>
 
-typedef enum { SET, GET, DEL, INV } CmdT;
+typedef enum {
+    INV,
+    CPING,
+    SET,
+    GET,
+    DEL
+} CmdT;
 
 typedef struct {
     size_t len;

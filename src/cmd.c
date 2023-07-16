@@ -119,6 +119,9 @@ Cmd cmd_from_statement(Statement* stmt) {
     case SARR:
         cmd = cmd_from_array(&(stmt->statement.arr));
         return cmd;
+    case SPING:
+        cmd.type = CPING;
+        return cmd;
     default:
         cmd.type = INV;
         return cmd;
