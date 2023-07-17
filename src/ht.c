@@ -102,7 +102,6 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
         cap += len;
         bucket->entries = realloc(bucket->entries, sizeof(Entry) * cap);
         if (bucket->entries == NULL) {
-            errno = ENOMEM;
             return -1;
         }
         memset(&(bucket->entries[len]), 0, sizeof(Entry*) * (cap - len));
@@ -112,19 +111,17 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
     /* set the key */
     bucket->entries[len].key = calloc(key_len, sizeof(uint8_t*));
     if (bucket->entries[len].key == NULL) {
-        errno = ENOMEM;
         return -1;
     }
     memcpy(bucket->entries[len].key, key, key_len);
 
     /* set the value */
-    bucket->entries[len].value = malloc(val_size);
-    memset(bucket->entries[len].value, 0, val_size);
+    bucket->entries[len].value = malloc(val_size + 1);
     if (bucket->entries[len].value == NULL) {
         free(bucket->entries[len].key);
-        errno = ENOMEM;
         return -1;
     }
+    memset(bucket->entries[len].value, 0, val_size + 1);
     memcpy(bucket->entries[len].value, value, val_size);
 
     /* set the metadata and free callback*/
