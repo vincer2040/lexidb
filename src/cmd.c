@@ -154,4 +154,7 @@ void print_cmd(Cmd* cmd) {
         print_key(&(cmd->expression.del.key));
         printf("\n");
     }
+    if (cmd->type == CPING) {
+        printf("PING\n");
+    }
 }
