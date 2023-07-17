@@ -139,6 +139,9 @@ c = Client("127.0.0.1", 6969).conn()
 c.ping()
 
 c.set("vince", "is cool")
+c.get("vince")
+c.delete("vince")
+
 
 c.cl()
 
