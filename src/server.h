@@ -17,9 +17,11 @@ typedef struct {
     uint16_t port;
     uint16_t flags;
     Server* server;
+    uint8_t* read_buf;
     size_t read_pos;
     size_t read_cap;
-    uint8_t* read_buf;
+    uint8_t* write_buf;
+    size_t write_size;
 } Connection;
 
 int server(char* addr_str, uint16_t port);

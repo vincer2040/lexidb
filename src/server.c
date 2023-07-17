@@ -1,12 +1,16 @@
 #include "server.h"
+#include "builder.h"
+#include "cmd.h"
 #include "de.h"
-#include "sock.h"
 #include "ht.h"
+#include "lexer.h"
+#include "parser.h"
+#include "sock.h"
 #include "util.h"
-#include <string.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define HT_INITIAL_CAP 32
@@ -17,7 +21,7 @@
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
 
-Server* create_server(int sfd) {
+Server* server_create(int sfd) {
     Server* server;
 
     if (sfd < 0) {
@@ -65,12 +69,23 @@ Connection* create_connection(uint32_t addr, uint16_t port, Server* server) {
     return conn;
 }
 
-void close_client(Connection* conn, int fd) {
-    printf("closing client fd: %d, addr: %u, port: %u\n", fd, conn->addr, conn->port);
-    free(conn->read_buf);
-    conn->read_buf = NULL;
+void close_client(De* de, Connection* conn, int fd, uint32_t flags) {
+    printf("closing client fd: %d, addr: %u, port: %u\n", fd, conn->addr,
+           conn->port);
+    if (conn->read_buf) {
+        free(conn->read_buf);
+        conn->read_buf = NULL;
+    }
+    if (conn->write_buf) {
+        free(conn->read_buf);
+        conn->read_buf = NULL;
+    }
     free(conn);
     conn = NULL;
+    if (de_del_event(de, fd, flags) == -1) {
+        fmt_error("error deleting event\n");
+        return;
+    }
     close(fd);
 }
 
@@ -83,7 +98,116 @@ void server_destroy(Server* server) {
 }
 
 void log_connection(int fd, uint32_t addr, uint16_t port) {
-    printf("accepted connection fd: %d, addr: %u, port: %u\n", fd, ntohl(addr), ntohs(port));
+    printf("accepted connection fd: %d, addr: %u, port: %u\n", fd, ntohl(addr),
+           ntohs(port));
+}
+
+void free_cb(void* ptr) { free(ptr); }
+
+/**
+ * run the command sent to the server
+ * the command is valid if it is passed to
+ * this function, so there is no checking.
+ * all commands are in this function
+ * to avoid jumping around the whole file.
+ */
+void evaluate_cmd(Cmd* cmd, Connection* client) {
+    CmdT cmd_type = cmd->type;
+    if (cmd_type == CPING) {
+        // reply with pong
+        Builder builder = builder_create(7);
+        builder_add_pong(&builder);
+        client->write_buf = builder_out(&builder);
+        client->write_size = builder.ins;
+        return;
+    }
+    if (cmd_type == SET) {
+        // set key and value in ht
+        SetCmd set_cmd = cmd->expression.set;
+        Builder builder;
+        uint8_t* key = set_cmd.key.value;
+        size_t key_len = set_cmd.key.len;
+        // TODO: add layer of indirection for
+        // specifying the type of value (string, int, arr, etc)
+        // instead of just void*, this is kinda sus
+        void* value = set_cmd.value.ptr;
+        size_t value_size = set_cmd.value.size;
+        int set_res = ht_insert(client->server->ht, key, key_len, value,
+                                value_size, free_cb);
+        if (set_res != 0) {
+            uint8_t* e = ((uint8_t*)"could not set");
+            size_t n = strlen((char*)e);
+            builder = builder_create(n + 3);
+            builder_add_err(&builder, e, n);
+        } else {
+            builder = builder_create(5);
+            builder_add_ok(&builder);
+        }
+        client->write_buf = builder_out(&builder);
+        client->write_size = builder.ins;
+        return;
+    }
+    if (cmd_type == GET) {
+        // get value from ht
+        GetCmd get_cmd = cmd->expression.get;
+        uint8_t* key = get_cmd.key.value;
+        size_t key_len = get_cmd.key.len;
+        void* get_res =
+            ht_get(client->server->ht, key, key_len);
+        Builder builder;
+        if (get_res == NULL) {
+            builder = builder_create(7);
+            builder_add_none(&builder);
+        } else {
+            // todo: create structs for these so that
+            // we can distinguish the types
+            char* str = ((char*)get_res);
+            size_t len = strlen(str);
+            printf("%lu\n", len);
+            builder = builder_create(32);
+            builder_add_string(&builder, str, len);
+        }
+        client->write_buf = builder_out(&builder);
+        client->write_size = builder.ins;
+        return;
+    }
+    if (cmd_type == DEL) {
+        // delete key and value in ht
+        DelCmd del_cmd = cmd->expression.del;
+        Builder builder;
+        uint8_t* key = del_cmd.key.value;
+        size_t key_len = del_cmd.key.len;
+        ht_delete(client->server->ht, key, key_len);
+        builder = builder_create(5);
+        builder_add_ok(&builder);
+        client->write_buf = builder_out(&builder);
+        client->write_size = builder.ins;
+        return;
+    }
+}
+
+void evaluate_message(uint8_t* data, size_t len, Connection* client) {
+    Lexer l;
+    Parser p;
+    CmdIR cir;
+    Cmd cmd;
+
+    l = lexer_new(data, len);
+    p = parser_new(&l);
+    cir = parse_cmd(&p);
+    cmd = cmd_from_statement(&(cir.stmt));
+
+    if (parser_errors_len(&p)) {
+        cmdir_free(&cir);
+        parser_free_errors(&p);
+        printf("invalid cmd\n");
+        return;
+    }
+
+    evaluate_cmd(&cmd, client);
+
+    cmdir_free(&cir);
+    parser_free_errors(&p);
 }
 
 void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
@@ -91,11 +215,31 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     Connection* conn;
 
     conn = ((Connection*)client_data);
-    bytes_sent = write(fd, "hi", 2);
+    if (conn->write_buf != NULL) {
+        size_t write_size = conn->write_size;
+        bytes_sent = write(fd, conn->write_buf, write_size);
+        if (bytes_sent < 0) {
+            fmt_error("failed to write to client\n");
+            return;
+        }
 
-    if (bytes_sent < 2) {
-        fmt_error("failed to send all bytes\n");
-        return;
+        if (bytes_sent < write_size) {
+            fmt_error("failed to send all bytes\n");
+            return;
+        }
+        free(conn->write_buf);
+        conn->write_buf = NULL;
+        conn->write_size = 0;
+    } else {
+        bytes_sent = write(fd, "hi", 2);
+        if (bytes_sent < 0) {
+            fmt_error("failed to write to client\n");
+            return;
+        }
+        if (bytes_sent < 2) {
+            fmt_error("failed to send all bytes\n");
+            return;
+        }
     }
 
     conn->flags = 0;
@@ -116,14 +260,14 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
 
     bytes_read = read(fd, conn->read_buf + conn->read_pos, MAX_READ);
 
-    if (bytes_read == 0) {
-        close_client(conn, fd);
+    if (bytes_read < 0) {
+        printf("e\n");
+        fmt_error("wtf?\n");
         return;
     }
 
-    if (bytes_read < 0) {
-        close_client(conn, fd);
-        fmt_error("wtf?\n");
+    if (bytes_read == 0) {
+        close_client(de, conn, fd, flags);
         return;
     }
 
@@ -133,7 +277,8 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         /* TODO: yeah.. this probably isn't the best way to check */
         if ((conn->read_cap - conn->read_pos) < 4096) {
             conn->read_cap += MAX_READ;
-            conn->read_buf = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
+            conn->read_buf =
+                realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
             memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
         }
         return;
@@ -141,18 +286,16 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
 
     conn->read_pos += bytes_read;
 
-    printf("total bytes: %lu\n%s\n", conn->read_pos, conn->read_buf);
+    evaluate_message(conn->read_buf, conn->read_pos, conn);
 
     de_add_event(de, fd, DE_WRITE, write_to_client, client_data);
-    UNUSED(flags);
 }
 
-void server_accept(De* de, int fd, void* client_data, uint32_t flags)
-{
+void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     Server* s;
     Connection* c;
     int cfd;
-    struct sockaddr_in addr = { 0 };
+    struct sockaddr_in addr = {0};
     socklen_t len = 0;
 
     s = ((Server*)(client_data));
@@ -163,15 +306,18 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags)
 
     cfd = tcp_accept(fd, &addr, &len);
     if (cfd == -1) {
-        if ((errno == EAGAIN) || (errno == EWOULDBLOCK))
-        {
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
             fmt_error("accept blocked\n");
+            return;
+        } else {
+            fmt_error("accept failed\n");
             return;
         }
     }
 
     if (make_socket_nonblocking(cfd) < 0) {
-        fmt_error("failed to make fd %d (addr: %u),  nonblocking\n", cfd, addr.sin_addr.s_addr);
+        fmt_error("failed to make fd %d (addr: %u),  nonblocking\n", cfd,
+                  addr.sin_addr.s_addr);
         return;
     }
 
@@ -212,10 +358,9 @@ int server(char* addr_str, uint16_t port) {
         return -1;
     }
 
-    server = create_server(sfd);
+    server = server_create(sfd);
     if (server == NULL) {
-        fmt_error("failed to allocate memory for server\n")
-        close(sfd);
+        fmt_error("failed to allocate memory for server\n") close(sfd);
         return -1;
     }
 

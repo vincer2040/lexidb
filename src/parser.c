@@ -216,9 +216,10 @@ ArrayStatement parser_parse_array(Parser* p) {
 
 /**
  * Simple strings must be the only command sent
- * and cannot be sent in an array
- * we read the entire message if it is valid via
- * the lexer, so we expect EOFT here.
+ * and cannot be sent in an array, so we expect EOFT at peek
+ *
+ * Should this be the case ? probably not. It should just
+ * work if this check gets removed though
  */
 SimpleStringStatement parser_parse_simple_string(Parser* p) {
     if (!parser_expect_peek(p, EOFT)) {
