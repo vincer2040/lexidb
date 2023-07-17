@@ -177,6 +177,30 @@ void t6() {
     printf("parser test 6 passed (simple ping)\n");
 }
 
+void t7() {
+    Lexer l;
+    Parser p;
+    CmdIR cmd_ir;
+    Cmd cmd;
+
+    uint8_t* input =
+        ((uint8_t*)"*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
+                   "cool\r\n");
+    size_t inp_len = strlen(((char*)input));
+
+    l = lexer_new(input, inp_len);
+    p = parser_new(&l);
+
+    cmd_ir = parse_cmd(&p);
+
+    cmd = cmd_from_statement(&(cmd_ir.stmt));
+    assert(cmd.type == SET);
+    print_cmd(&cmd);
+
+    cmdir_free(&cmd_ir);
+    parser_free_errors(&p);
+}
+
 int main(void) {
     t1();
     t2();
@@ -184,6 +208,7 @@ int main(void) {
     t4();
     t5();
     t6();
+    t7();
     printf("all parser tests passed\n");
     return 0;
 }
