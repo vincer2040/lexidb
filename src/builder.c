@@ -5,15 +5,72 @@
 #include <stdlib.h>
 #include <string.h>
 
-Builder create_builder(size_t initial_cap) {
+Builder builder_create(size_t initial_cap) {
     Builder builder = {0};
 
     builder.cap = initial_cap;
     builder.ins = 0;
     builder.buf = calloc(initial_cap, sizeof builder.buf);
+
     assert(builder.buf != NULL);
 
     return builder;
+}
+
+int builder_add_pong(Builder* builder) {
+    if (builder->cap < 7) {
+        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 7);
+        if (builder->buf == NULL) {
+            return -1;
+        }
+        memset(builder->buf, 0, 7);
+    }
+    memcpy(builder->buf, "+PONG\r\n", 7);
+    builder->ins = 7;
+    return 0;
+}
+
+int builder_add_ok(Builder* builder) {
+    if (builder->cap < 5) {
+        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 5);
+        if (builder->buf == NULL) {
+            return -1;
+        }
+        memset(builder->buf, 0, 5);
+    }
+    memcpy(builder->buf, "+OK\r\n", 5);
+    builder->ins = 5;
+    return 0;
+}
+
+int builder_add_none(Builder* builder) {
+    if (builder->cap < 7) {
+        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 7);
+        if (builder->buf == NULL) {
+            return -1;
+        }
+        memset(builder->buf, 0, 7);
+    }
+    memcpy(builder->buf, "+NONE\r\n", 7);
+    builder->ins = 7;
+    return 0;
+}
+
+int builder_add_err(Builder* builder, uint8_t* e, size_t e_len) {
+    size_t needed_len = 3 + e_len;
+    if (builder->cap < needed_len) {
+        builder->buf = realloc(builder->buf, sizeof(uint8_t) * needed_len);
+        if (builder->buf == NULL) {
+            return -1;
+        }
+        memset(builder->buf, 0, needed_len);
+    }
+    builder->buf[0] = ((uint8_t)'-');
+    memcpy(builder->buf + 1, e, e_len);
+    builder->buf[e_len + 1] = '\r';
+    builder->buf[e_len + 2] = '\n';
+    builder->ins = needed_len;
+    return 0;
 }
 
 int builder_add_arr(Builder* builder, size_t arr_len) {
@@ -65,7 +122,7 @@ int builder_add_string(Builder* builder, char* str, size_t str_len) {
         }
         memset(builder->buf + builder->ins, 0, builder->cap - builder->ins);
     }
-    builder->buf[builder->ins] = '*';
+    builder->buf[builder->ins] = '$';
     builder->ins++;
     memcpy(builder->buf + builder->ins, str_len_buf, str_len_buf_len);
     builder->ins += str_len_buf_len;
@@ -84,7 +141,7 @@ int builder_add_string(Builder* builder, char* str, size_t str_len) {
 
 uint8_t* builder_out(Builder* builder) { return builder->buf; }
 
-void free_builder(Builder* builder) {
+void builder_free(Builder* builder) {
     free(builder->buf);
     builder->cap = 0;
     builder->ins = 0;
