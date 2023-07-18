@@ -120,6 +120,7 @@ void free_cb(void* ptr) {
  */
 void evaluate_cmd(Cmd* cmd, Connection* client) {
     CmdT cmd_type = cmd->type;
+    log_cmd(stdout, cmd);
     if (cmd_type == CPING) {
         // reply with pong
         Builder builder = builder_create(7);
