@@ -139,6 +139,38 @@ int builder_add_string(Builder* builder, char* str, size_t str_len) {
     return 0;
 }
 
+int builder_add_int(Builder* builder, int64_t val) {
+    size_t needed_len = builder->ins + sizeof(int64_t) + 3;
+    size_t cap = builder->cap;
+    size_t len = builder->ins;
+    uint8_t shift = 56;
+    size_t i;
+
+    if (needed_len > cap) {
+        cap += needed_len + 32;
+        builder->buf = realloc(builder->buf, sizeof(uint8_t) * cap);
+        if (builder->buf == NULL) {
+            return -1;
+        }
+        memset(builder->buf + len, 0, cap - len);
+        builder->cap = cap;
+    }
+
+    builder->buf[len] = ':';
+    len++;
+
+    for (i = 0; i < 8; ++i, ++len, shift-=8) {
+        builder->buf[len] = val >> shift;
+    }
+
+    builder->buf[len] = '\r';
+    len++;
+    builder->buf[len] = '\n';
+
+    builder->ins += 11;
+    return 0;
+}
+
 uint8_t* builder_out(Builder* builder) { return builder->buf; }
 
 void builder_free(Builder* builder) {

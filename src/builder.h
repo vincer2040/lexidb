@@ -28,6 +28,7 @@ int builder_add_none(Builder* builder);
 int builder_add_err(Builder* builder, uint8_t* e, size_t e_len);
 int builder_add_arr(Builder* builder, size_t arr_len);
 int builder_add_string(Builder* builder, char* str, size_t str_len);
+int builder_add_int(Builder* builder, int64_t val);
 uint8_t* builder_out(Builder* builder);
 
 #endif
