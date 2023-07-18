@@ -1,5 +1,6 @@
 #include "../src/lexer.h"
 #include "../src/token.h"
+#include "../src/builder.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,9 +86,41 @@ void t2() {
     printf("lexer test 2 passed (simple strings)\n");
 }
 
+void t3() {
+    Builder b = builder_create(11);
+    Token toks[] = {
+        { .type = INT, .literal = ((uint8_t*)":") },
+        { .type = RETCAR, .literal = ((uint8_t*)"\r") },
+        { .type = NEWL, .literal = ((uint8_t*)"\n") },
+    };
+    size_t input_len, i;
+    size_t len = (sizeof toks) / (sizeof toks[0]);
+    uint8_t* buf;
+
+    Lexer l;
+    Token tok;
+
+    builder_add_int(&b, 42069);
+
+    input_len = b.ins;
+    buf = builder_out(&b);
+
+    l = lexer_new(buf, input_len);
+
+    for (i = 0; i < len; ++i) {
+        tok = lexer_next_token(&l);
+        assert_uint_eq(tok.type, toks[i].type);
+    }
+
+    free(buf);
+
+    printf("lexer test 3 passed (integers)\n");
+}
+
 int main(void) {
     t1();
     t2();
+    t3();
     printf("all lexer tests passed\n");
     return 0;
 }
