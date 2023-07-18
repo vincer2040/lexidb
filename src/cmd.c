@@ -137,7 +137,7 @@ void print_key(Key* key) {
     }
 }
 
-void print_cmd(Cmd* cmd) {
+void cmd_print(Cmd* cmd) {
     if (cmd->type == SET) {
         printf("SET ");
         print_key(&(cmd->expression.set.key));

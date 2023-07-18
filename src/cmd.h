@@ -49,6 +49,6 @@ typedef struct {
 } Cmd;
 
 Cmd cmd_from_statement(Statement* stmt);
-void print_cmd(Cmd* cmd);
+void cmd_print(Cmd* cmd);
 
 #endif
