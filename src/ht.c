@@ -116,12 +116,12 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
     memcpy(bucket->entries[len].key, key, key_len);
 
     /* set the value */
-    bucket->entries[len].value = malloc(val_size + 1);
+    bucket->entries[len].value = malloc(val_size);
     if (bucket->entries[len].value == NULL) {
         free(bucket->entries[len].key);
         return -1;
     }
-    memset(bucket->entries[len].value, 0, val_size + 1);
+    memset(bucket->entries[len].value, 0, val_size);
     memcpy(bucket->entries[len].value, value, val_size);
 
     /* set the metadata and free callback*/
