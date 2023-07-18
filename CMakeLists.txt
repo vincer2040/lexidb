@@ -12,8 +12,8 @@ add_compile_options(-std=c99 -Wall -Werror -pedantic -fstack-clash-protection -f
 add_executable(lexidb src/log.c src/objects.c src/cmd.c src/parser.c src/lexer.c src/builder.c
     src/server.c src/de.c src/sock.c src/sha256.c src/util.c
     src/siphash.c src/ht.c src/db.c)
-add_executable(lexer_test src/lexer.c tests/test_lexer.c)
-add_executable(parser_test src/cmd.c src/parser.c src/lexer.c tests/test_parser.c)
+add_executable(lexer_test src/builder.c src/lexer.c tests/test_lexer.c)
+add_executable(parser_test src/builder.c src/cmd.c src/parser.c src/lexer.c tests/test_parser.c)
 
 
 

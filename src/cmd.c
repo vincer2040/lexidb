@@ -60,16 +60,24 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
             cmd.type = INV;
             return cmd;
         }
-        val_stmt = astmt->statements[2];
-        if (val_stmt.type != SBULK) {
-            printf("the value must be a bulk string\n");
-            cmd.type = INV;
-            return cmd;
-        }
+
         cmd.expression.set.key.len = key_stmt.statement.bulk.len;
         cmd.expression.set.key.value = key_stmt.statement.bulk.str;
-        cmd.expression.set.value.size = val_stmt.statement.bulk.len;
-        cmd.expression.set.value.ptr = val_stmt.statement.bulk.str;
+
+        val_stmt = astmt->statements[2];
+        if (val_stmt.type == SBULK) {
+            cmd.expression.set.value.type = VTSTRING;
+            cmd.expression.set.value.size = val_stmt.statement.bulk.len;
+            cmd.expression.set.value.ptr = val_stmt.statement.bulk.str;
+            return cmd;
+        } else if (val_stmt.type == SINT) {
+            cmd.expression.set.value.type = VTINT;
+            cmd.expression.set.value.size = 8;
+            cmd.expression.set.value.ptr = ((void*)(val_stmt.statement.i64));
+            return cmd;
+        } else {
+            cmd.type = INV;
+        }
         return cmd;
     }
 
@@ -141,8 +149,12 @@ void cmd_print(Cmd* cmd) {
     if (cmd->type == SET) {
         printf("SET ");
         print_key(&(cmd->expression.set.key));
-        printf("->%p(%lu bytes)\n", cmd->expression.set.value.ptr,
-               cmd->expression.set.value.size);
+        if (cmd->expression.set.value.type == VTSTRING) {
+            printf("->%p(%lu bytes)\n", cmd->expression.set.value.ptr,
+                    cmd->expression.set.value.size);
+        } else if (cmd->expression.set.value.type == VTINT) {
+            printf("->%ld\n", ((int64_t)cmd->expression.set.value.ptr));
+        }
     }
     if (cmd->type == GET) {
         printf("GET ");

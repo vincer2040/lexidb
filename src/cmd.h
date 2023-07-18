@@ -19,7 +19,14 @@ typedef struct {
     uint8_t* value;
 } Key;
 
+typedef enum {
+    VTSTRING,
+    VTINT,
+    VTNULL
+}ValueT;
+
 typedef struct {
+    ValueT type;
     size_t size;
     void* ptr;
 } Value;
