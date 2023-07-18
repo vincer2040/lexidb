@@ -4,6 +4,7 @@
 #include "de.h"
 #include "ht.h"
 #include "lexer.h"
+#include "log.h"
 #include "objects.h"
 #include "parser.h"
 #include "sock.h"
@@ -198,6 +199,8 @@ void evaluate_message(uint8_t* data, size_t len, Connection* client) {
     Parser p;
     CmdIR cir;
     Cmd cmd;
+
+    slowlog(stdout, data, len);
 
     l = lexer_new(data, len);
     p = parser_new(&l);
