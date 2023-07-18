@@ -144,6 +144,9 @@ int done_from_args(int argc, char** argv) {
             print_help(argv[0]);
             goto done;
         }
+        printf("unknown argument: %s\n", argv[i]);;
+        printf("use %s --help to show the help screen\n", argv[0]);
+        goto done;
     }
     return 0;
 
