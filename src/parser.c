@@ -63,7 +63,7 @@ void print_cmd_ir(CmdIR* cmd_ir) {
 }
 
 ParserError parser_new_err(TokenT exp, Token* got) {
-    ParserError pe = { 0 };
+    ParserError pe = {0};
 
     pe.exp = exp;
     pe.got = *got;
@@ -177,7 +177,7 @@ BulkStatement parser_parse_bulk(Parser* p) {
     if (!parser_expect_peek(p, NEWL)) {
         ParserError e = parser_new_err(NEWL, &(p->peek_tok));
         parser_append_error(p, &e);
-        parser_debug("expected retcar after retcar\n");
+        parser_debug("expected newl after retcar\n");
         memset(&bulk_stmt, 0, sizeof bulk_stmt);
         return bulk_stmt;
     }
@@ -231,6 +231,42 @@ SimpleStringStatement parser_parse_simple_string(Parser* p) {
     return SST_PING;
 }
 
+int64_t parser_parse_int(Parser* p) {
+    int64_t res = 0;
+    uint64_t temp = 0;
+    uint8_t* buf = p->cur_tok.literal;
+    size_t i;
+    size_t len = 9;
+    uint8_t shift = 56;
+
+    for (i = 1; i < len; ++i, shift -= 8) {
+        uint8_t at = buf[i];
+        temp |= (uint64_t)(at << shift);
+    }
+
+    if (temp <= 0x7fffffffffffffffu) {
+        res = temp;
+    } else {
+        res = -1 - (long long int)(0xffffffffffffffffu - temp);
+    }
+
+    // todo: some sort of error handling...
+    if (!parser_expect_peek(p, RETCAR)) {
+        ParserError e = parser_new_err(RETCAR, &(p->peek_tok));
+        parser_append_error(p, &e);
+        parser_debug("expected retcar after int\n");
+        return -1;
+    }
+    if (!parser_expect_peek(p, NEWL)) {
+        ParserError e = parser_new_err(NEWL, &(p->peek_tok));
+        parser_append_error(p, &e);
+        parser_debug("expected newl after retcar\n");
+        return -1;
+    }
+    parser_next_token(p);
+    return res;
+}
+
 StatementType parser_parse_statement_type(uint8_t* literal) {
     uint8_t type_byte = *literal;
     switch (type_byte) {
@@ -267,6 +303,11 @@ Statement parser_parse_statement(Parser* p) {
     if (parser_cur_token_is(p, PING)) {
         stmt.type = SPING;
         stmt.statement.sst = parser_parse_simple_string(p);
+        return stmt;
+    }
+    if (parser_cur_token_is(p, INT)) {
+        stmt.type = SINT;
+        stmt.statement.i64 = parser_parse_int(p);
         return stmt;
     }
     ParserError e = parser_new_err(TYPE, &(p->cur_tok));

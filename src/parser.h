@@ -27,6 +27,7 @@ typedef enum {
     SINVALID,
     SARR,
     SBULK,
+    SINT,
     SPING
 } StatementType;
 
@@ -54,6 +55,7 @@ typedef union {
     BulkStatement bulk;
     ArrayStatement arr;
     SimpleStringStatement sst;
+    int64_t i64;
 } _Statement;
 
 typedef struct Statement {
