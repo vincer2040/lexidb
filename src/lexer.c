@@ -27,6 +27,8 @@ void print_tok(Token tok) {
     case BULK:
         printf("BULK\n");
         break;
+    case INT:
+        printf("INT\n");
     case ILLEGAL:
         printf("ILLEGAL\n");
     }
@@ -59,6 +61,13 @@ void lexer_read_ping(Lexer* l) {
     }
 }
 
+void lexer_read_int(Lexer* l) {
+    size_t i;
+    for (i = 0; i < 8; ++i) {
+        lexer_read_char(l);
+    }
+}
+
 #define u8(v) ((uint8_t*)v);
 
 Token lexer_next_token(Lexer* l) {
@@ -72,6 +81,11 @@ Token lexer_next_token(Lexer* l) {
     case '$':
         tok.type = TYPE;
         tok.literal = u8("$");
+        break;
+    case ':':
+        tok.type = INT;
+        tok.literal = l->input + l->pos;
+        lexer_read_int(l);
         break;
     case '+':
         /**

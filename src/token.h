@@ -12,6 +12,7 @@ typedef enum {
     RETCAR,
     NEWL,
     BULK,
+    INT,
     ILLEGAL
 } TokenT;
 
