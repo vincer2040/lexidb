@@ -4,9 +4,11 @@
 #include "de.h"
 #include "ht.h"
 #include "lexer.h"
+#include "objects.h"
 #include "parser.h"
 #include "sock.h"
 #include "util.h"
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,7 +104,11 @@ void log_connection(int fd, uint32_t addr, uint16_t port) {
            ntohs(port));
 }
 
-void free_cb(void* ptr) { free(ptr); }
+void free_cb(void* ptr) {
+    Object* obj = ((Object*)ptr);
+    object_free(obj);
+    free(obj);
+}
 
 /**
  * run the command sent to the server
@@ -127,13 +133,11 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         Builder builder;
         uint8_t* key = set_cmd.key.value;
         size_t key_len = set_cmd.key.len;
-        // TODO: add layer of indirection for
-        // specifying the type of value (string, int, arr, etc)
-        // instead of just void*, this is kinda sus
         void* value = set_cmd.value.ptr;
         size_t value_size = set_cmd.value.size;
-        int set_res = ht_insert(client->server->ht, key, key_len, value,
-                                value_size, free_cb);
+        Object obj = object_new(STRING, value, value_size);
+        int set_res = ht_insert(client->server->ht, key, key_len, &obj,
+                                sizeof obj, free_cb);
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
             size_t n = strlen((char*)e);
@@ -159,13 +163,16 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
             builder = builder_create(7);
             builder_add_none(&builder);
         } else {
-            // todo: create structs for these so that
-            // we can distinguish the types
-            char* str = ((char*)get_res);
-            size_t len = strlen(str);
-            printf("%lu\n", len);
+            Object* obj = ((Object*)get_res);
+            String* str;
+            char* v;
+            size_t len;
+            assert(obj->type == STRING);
+            str = obj->data.str;
+            v = str->data;
+            len = str->len;
             builder = builder_create(32);
-            builder_add_string(&builder, str, len);
+            builder_add_string(&builder, v, len);
         }
         client->write_buf = builder_out(&builder);
         client->write_size = builder.ins;
