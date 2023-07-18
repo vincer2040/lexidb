@@ -9,7 +9,7 @@
 
 typedef void FreeCallBack(void* ptr);
 
-typedef struct Entry {
+typedef struct {
     size_t key_len;
     size_t val_size;
     uint8_t* key;
@@ -17,13 +17,13 @@ typedef struct Entry {
     FreeCallBack* cb;
 } Entry;
 
-typedef struct Bucket {
+typedef struct {
     size_t len;
     size_t cap;
     Entry* entries;
 } Bucket;
 
-typedef struct Ht {
+typedef struct {
     size_t len;
     size_t cap;
     uint8_t seed[16];
