@@ -2,6 +2,7 @@
 #include "../src/lexer.h"
 #include "../src/parser.h"
 #include "../src/token.h"
+#include "../src/builder.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -229,6 +230,40 @@ void t8() {
     printf("parser test 8 passed (missing str len)\n");
 }
 
+void t9() {
+    Builder b = builder_create(32);
+    size_t buf_len;
+    uint8_t* buf;
+    Lexer l;
+    Parser p;
+    CmdIR cmd_ir;
+    Cmd cmd;
+    int64_t v;
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "SET", 3);
+    builder_add_string(&b, "vince", 5);
+    builder_add_int(&b, 42069);
+
+    buf_len = b.ins;
+    buf = builder_out(&b);
+
+    l = lexer_new(buf, buf_len);
+    p = parser_new(&l);
+    cmd_ir = parse_cmd(&p);
+
+    assert(cmd_ir.stmt.type == SARR);
+
+    cmd = cmd_from_statement(&(cmd_ir.stmt));
+    assert(cmd.expression.set.value.type == VTINT);
+    v = ((int64_t)(cmd.expression.set.value.ptr));
+    assert(v == 42069);
+
+    cmdir_free(&cmd_ir);
+    parser_free_errors(&p);
+
+    printf("parser test 9 passsed (integers)\n");
+}
+
 
 int main(void) {
     t1();
@@ -239,6 +274,7 @@ int main(void) {
     t6();
     t7();
     t8();
+    t9();
     printf("all parser tests passed\n");
     return 0;
 }
