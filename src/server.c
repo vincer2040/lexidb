@@ -73,7 +73,7 @@ Connection* create_connection(uint32_t addr, uint16_t port, Server* server) {
 }
 
 void close_client(De* de, Connection* conn, int fd, uint32_t flags) {
-    printf("closing client fd: %d, addr: %u, port: %u\n", fd, conn->addr,
+    LOG(LOG_CLOSE"fd: %d, addr: %u, port: %u\n", fd, conn->addr,
            conn->port);
     if (conn->read_buf) {
         free(conn->read_buf);
@@ -100,11 +100,6 @@ void server_destroy(Server* server) {
     server = NULL;
 }
 
-void log_connection(int fd, uint32_t addr, uint16_t port) {
-    printf("accepted connection fd: %d, addr: %u, port: %u\n", fd, ntohl(addr),
-           ntohs(port));
-}
-
 void free_cb(void* ptr) {
     Object* obj = ((Object*)ptr);
     object_free(obj);
@@ -122,7 +117,6 @@ void free_int_cb(void* ptr) { free(ptr); }
  */
 void evaluate_cmd(Cmd* cmd, Connection* client) {
     CmdT cmd_type = cmd->type;
-    log_cmd(stdout, cmd);
     if (cmd_type == CPING) {
         // reply with pong
         Builder builder = builder_create(7);
@@ -221,8 +215,6 @@ void evaluate_message(uint8_t* data, size_t len, Connection* client) {
     CmdIR cir;
     Cmd cmd;
 
-    slowlog(stdout, data, len);
-
     l = lexer_new(data, len);
     p = parser_new(&l);
     cir = parse_cmd(&p);
@@ -232,6 +224,13 @@ void evaluate_message(uint8_t* data, size_t len, Connection* client) {
         cmdir_free(&cir);
         parser_free_errors(&p);
         printf("invalid cmd\n");
+        client->write_buf = calloc(sizeof(uint8_t), 10);
+        if (client->write_buf == NULL) {
+            fmt_error("out of memory\n");
+            return;
+        }
+        memcpy(client->write_buf, "-INVALID\r\n", 10);
+        client->write_size = 10;
         return;
     }
 
@@ -302,10 +301,13 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
+    // we have filled the buffer, and the client might have more to send
+    // if client sends multiple of exactly 4096 bytes, a write event
+    // is not emitted because we delete it every time
     if (bytes_read == 4096) {
         conn->flags = 1;
         conn->read_pos += MAX_READ;
-        /* TODO: yeah.. this probably isn't the best way to check */
+        // TODO: yeah.. this probably isn't the best way to check
         if ((conn->read_cap - conn->read_pos) < 4096) {
             conn->read_cap += MAX_READ;
             conn->read_buf =
@@ -352,7 +354,7 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
-    log_connection(cfd, addr.sin_addr.s_addr, addr.sin_port);
+    LOG(LOG_CONNECTION"fd: %d addr: %u port: %u\n", cfd, addr.sin_addr.s_addr, addr.sin_port);
 
     c = create_connection(addr.sin_addr.s_addr, addr.sin_port, s);
     de_add_event(de, cfd, DE_READ, read_from_client, c);
@@ -370,22 +372,22 @@ int server(char* addr_str, uint16_t port) {
     addr = parse_addr(addr_str, strlen(addr_str));
     sfd = create_tcp_socket(YES_NONBLOCK);
     if (sfd < 0) {
-        LOG_ERROR;
+        SLOG_ERROR;
         return -1;
     }
 
     if (set_reuse_addr(sfd) < 0) {
-        LOG_ERROR;
+        SLOG_ERROR;
         return -1;
     }
 
     if (bind_tcp_sock(sfd, addr, port) < 0) {
-        LOG_ERROR;
+        SLOG_ERROR;
         return -1;
     }
 
     if (tcp_listen(sfd, BACKLOG) < 0) {
-        LOG_ERROR;
+        SLOG_ERROR;
         return -1;
     }
 
@@ -409,6 +411,7 @@ int server(char* addr_str, uint16_t port) {
         return -1;
     }
 
+    LOG(LOG_INFO"server listening on %s:%u\n", addr_str, port);
     de_await(de);
 
     server_destroy(server);
