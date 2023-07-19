@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define LOG_ERROR fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, errno, strerror(errno));
+#define SLOG_ERROR fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, errno, strerror(errno));
 
 #define fmt_error(...) \
     fprintf(stderr, "%s:%d ", __FILE__, __LINE__); \

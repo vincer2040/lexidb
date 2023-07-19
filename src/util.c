@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+// used to check if sigint has been sent to process
+// used to properly shut down the server,
+// wait for child processes, etc
 volatile sig_atomic_t sig_int_received = 0;
 
 void handler(int mode) {
