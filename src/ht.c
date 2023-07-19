@@ -82,6 +82,12 @@ static void ht_internal_has(Ht* ht, uint8_t* key, size_t key_len,
     }
 }
 
+uint8_t ht_has(Ht* ht, uint8_t* key, size_t key_len) {
+    HtHasResult has = { 0 };
+    ht_internal_has(ht, key, key_len, &has);
+    return has.has;
+}
+
 /* insert key and value into bucket */
 static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
                          void* value, size_t val_size, FreeCallBack* cb) {
@@ -132,42 +138,6 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
     return 0;
 }
 
-int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value, size_t val_size, FreeCallBack* cb) {
-    HtHasResult has = {0};
-    int insert_result;
-
-    if (cb == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    ht_internal_has(ht, key, key_len, &has);
-
-
-    if (has.has) {
-        Bucket bucket = ht->buckets[has.hash];
-        Entry e = bucket.entries[has.insert];
-
-        /* free old value and assign new one */
-        e.cb(e.value);
-        e.value = malloc(val_size);
-        if (e.value == NULL) {
-            errno = ENOMEM;
-            return -1;
-        }
-        memcpy(e.value, value, val_size);
-
-        /* assign new metadata */
-        e.val_size = val_size;
-        e.cb = cb;
-
-        return 0;
-    } else {
-        return -1;
-    }
-    return 0;
-}
-
 /* insert a key and a value */
 int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
               size_t val_size, FreeCallBack* cb) {
@@ -209,6 +179,25 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
         return 0;
     }
     return insert_result;
+}
+
+int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value, size_t val_size, FreeCallBack* cb) {
+    HtHasResult has = {0};
+
+    if (cb == NULL) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ht_internal_has(ht, key, key_len, &has);
+
+
+    if (has.has) {
+        return -1;
+    } else {
+        return ht_insert(ht, key, key_len, value, val_size, cb);
+    }
+    return 0;
 }
 
 /* get a value */
