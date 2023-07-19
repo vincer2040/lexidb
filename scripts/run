@@ -142,6 +142,9 @@ c.set("vince", "is cool")
 c.get("vince")
 c.delete("vince")
 
+c.set_int("vince", 42069)
+c.get("vince")
+
 
 c.cl()
 
