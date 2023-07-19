@@ -3,23 +3,25 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void slowlog(FILE* stream, uint8_t* buf, size_t len) {
+void slowlog(uint8_t* buf, size_t len) {
     size_t i;
     for (i = 0; i < len; ++i) {
         char at = buf[i];
-        fputc(at, stream);
+        printf("%x ", at);
         if (at == ':') {
             size_t k;
             i++;
             for (k = 0; k < 8; ++k, ++i) {
-                printf("%x", buf[i]);
+                printf("%x ", buf[i]);
                 fflush(stdout);
             }
         }
     }
+    printf("\n");
+    fflush(stdout);
 }
 
-void log_cmd(FILE* stream, Cmd* cmd) {
+void log_cmd(Cmd* cmd) {
     Key key;
     Value v;
     CmdT t;
@@ -28,7 +30,7 @@ void log_cmd(FILE* stream, Cmd* cmd) {
     t = cmd->type;
 
     if (t == INV) {
-        fputs("INVALID\n", stream);
+        printf("INVALID\n");
         return;
     }
 
@@ -36,13 +38,13 @@ void log_cmd(FILE* stream, Cmd* cmd) {
     if (t == SET) {
         key = cmd->expression.set.key;
         v = cmd->expression.set.value;
-        fputs("SET ", stream);
+        printf("SET ");
         key_len = key.len;
         for (i = 0; i < key_len; ++i) {
-            fputc(key.value[i], stream);
+            printf("%c", key.value[i]);
         }
 
-        fputs(" ", stream);
+        printf(" ");
 
         if (v.type == VTSTRING) {
             size_t v_len;
@@ -50,31 +52,34 @@ void log_cmd(FILE* stream, Cmd* cmd) {
             v_len = v.size;
 
             for (i = 0; i < v_len; ++i) {
-                fputc(val[i], stream);
+                printf("%c", val[i]);
             }
         } else if (v.type == VTINT) {
             printf("%lu", ((int64_t)v.ptr));
         } else {
             printf("null");
         }
-        fputc('\n', stream);
+        printf("\n");
+        fflush(stdout);
     }
     if (t == GET) {
+        printf("GET ");
         key = cmd->expression.get.key;
-        fputs("GET ", stream);
         key_len = key.len;
         for (i = 0; i < key_len; ++i) {
-            fputc(key.value[i], stream);
+            printf("%c", key.value[i]);
         }
-        fputc('\n', stream);
+        printf("\n");
+        fflush(stdout);
     }
     if (t == DEL) {
+        printf("DEL ");
         key = cmd->expression.del.key;
-        fputs("DEL ", stream);
         key_len = key.len;
         for (i = 0; i < key_len; ++i) {
-            fputc(key.value[i], stream);
+            printf("%c", key.value[i]);
         }
-        fputc('\n', stream);
+        printf("\n");
+        fflush(stdout);
     }
 }
