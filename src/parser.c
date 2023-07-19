@@ -244,6 +244,7 @@ int64_t parser_parse_int(Parser* p) {
         temp |= (uint64_t)(at << shift);
     }
 
+    // hack for checking if value should be negative
     if (temp <= 0x7fffffffffffffffu) {
         res = temp;
     } else {
