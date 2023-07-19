@@ -145,6 +145,9 @@ c.delete("vince")
 c.set_int("vince", 42069)
 c.get("vince")
 
+# TODO: fix msg w multiple of 4096 not being responded to
+# c.get(rand_str(4074))
+
 
 c.cl()
 
