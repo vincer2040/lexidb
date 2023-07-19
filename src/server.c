@@ -118,7 +118,9 @@ void free_int_cb(void* ptr) { free(ptr); }
  * to avoid jumping around the whole file.
  */
 void evaluate_cmd(Cmd* cmd, Connection* client) {
-    CmdT cmd_type = cmd->type;
+    CmdT cmd_type;
+    log_cmd(cmd);
+    cmd_type = cmd->type;
     if (cmd_type == CPING) {
         // reply with pong
         Builder builder = builder_create(7);
@@ -216,6 +218,8 @@ void evaluate_message(uint8_t* data, size_t len, Connection* client) {
     Parser p;
     CmdIR cir;
     Cmd cmd;
+
+    slowlog(data, len);
 
     l = lexer_new(data, len);
     p = parser_new(&l);
@@ -416,6 +420,8 @@ int server(char* addr_str, uint16_t port) {
 
     LOG(LOG_INFO "server listening on %s:%u\n", addr_str, port);
     de_await(de);
+
+    LOG(LOG_INFO"server shutting down\n");
 
     server_destroy(server);
     de_free(de);

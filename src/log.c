@@ -1,3 +1,4 @@
+#include "log.h"
 #include "cmd.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -5,6 +6,7 @@
 
 void slowlog(uint8_t* buf, size_t len) {
     size_t i;
+    LOG(LOG_MSG);
     for (i = 0; i < len; ++i) {
         char at = buf[i];
         printf("%x ", at);
@@ -27,6 +29,8 @@ void log_cmd(Cmd* cmd) {
     CmdT t;
     size_t i, key_len;
 
+    LOG(LOG_CMD);
+
     t = cmd->type;
 
     if (t == INV) {
@@ -34,6 +38,9 @@ void log_cmd(Cmd* cmd) {
         return;
     }
 
+    if (t == CPING) {
+        printf("PING\n");
+    }
 
     if (t == SET) {
         key = cmd->expression.set.key;

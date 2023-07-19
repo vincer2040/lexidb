@@ -12,6 +12,8 @@
 #define LOG_ERROR "ERROR] "
 #define LOG_CONNECTION "CONNECTION] "
 #define LOG_CLOSE "CLOSE] "
+#define LOG_MSG "MSG] "
+#define LOG_CMD "CMD] "
 
 #define LOG(...)                                                               \
     {                                                                          \
