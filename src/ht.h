@@ -31,6 +31,7 @@ typedef struct {
 } Ht;
 
 Ht* ht_new(size_t initial_cap);
+int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value, size_t val_size, FreeCallBack* cb);
 int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
               size_t val_size, FreeCallBack* cb);
 int ht_delete(Ht* ht, uint8_t* key, size_t key_len);
