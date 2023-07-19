@@ -111,6 +111,10 @@ void free_cb(void* ptr) {
     free(obj);
 }
 
+void free_int_cb(void* ptr) {
+    free(ptr);
+}
+
 /**
  * run the command sent to the server
  * the command is valid if it is passed to
@@ -137,9 +141,21 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         size_t key_len = set_cmd.key.len;
         void* value = set_cmd.value.ptr;
         size_t value_size = set_cmd.value.size;
-        Object obj = object_new(STRING, value, value_size);
-        int set_res = ht_insert(client->server->ht, key, key_len, &obj,
-                                sizeof obj, free_cb);
+        Object obj;
+        int set_res;
+        if (set_cmd.value.type == VTSTRING) {
+            obj = object_new(STRING, value, value_size);
+            set_res = ht_insert(client->server->ht, key, key_len, &obj,
+                                    sizeof obj, free_cb);
+        } else if (set_cmd.value.type == VTINT) {
+            obj = object_new(OINT, value, value_size);
+            set_res = ht_insert(client->server->ht, key, key_len, &obj,
+                                    sizeof obj, free_int_cb);
+        } else {
+            obj = object_new(ONULL, NULL, 0);
+            set_res = ht_insert(client->server->ht, key, key_len, &obj,
+                                    sizeof obj, free_int_cb);
+        }
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
             size_t n = strlen((char*)e);
@@ -167,14 +183,21 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         } else {
             Object* obj = ((Object*)get_res);
             String* str;
-            char* v;
-            size_t len;
-            assert(obj->type == STRING);
-            str = obj->data.str;
-            v = str->data;
-            len = str->len;
             builder = builder_create(32);
-            builder_add_string(&builder, v, len);
+            if (obj->type == STRING) {
+                char* v;
+                size_t len;
+                str = obj->data.str;
+                v = str->data;
+                len = str->len;
+                builder_add_string(&builder, v, len);
+            } else if (obj->type == OINT) {
+                int64_t i;
+                i = obj->data.i64;
+                builder_add_int(&builder, i);
+            } else {
+                builder_add_none(&builder);
+            }
         }
         client->write_buf = builder_out(&builder);
         client->write_size = builder.ins;
