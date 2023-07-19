@@ -111,9 +111,7 @@ void free_cb(void* ptr) {
     free(obj);
 }
 
-void free_int_cb(void* ptr) {
-    free(ptr);
-}
+void free_int_cb(void* ptr) { free(ptr); }
 
 /**
  * run the command sent to the server
@@ -146,15 +144,15 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
             set_res = ht_insert(client->server->ht, key, key_len, &obj,
-                                    sizeof obj, free_cb);
+                                sizeof obj, free_cb);
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT, value, value_size);
             set_res = ht_insert(client->server->ht, key, key_len, &obj,
-                                    sizeof obj, free_int_cb);
+                                sizeof obj, free_int_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
             set_res = ht_insert(client->server->ht, key, key_len, &obj,
-                                    sizeof obj, free_int_cb);
+                                sizeof obj, free_int_cb);
         }
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
@@ -174,8 +172,7 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         GetCmd get_cmd = cmd->expression.get;
         uint8_t* key = get_cmd.key.value;
         size_t key_len = get_cmd.key.len;
-        void* get_res =
-            ht_get(client->server->ht, key, key_len);
+        void* get_res = ht_get(client->server->ht, key, key_len);
         Builder builder;
         if (get_res == NULL) {
             builder = builder_create(7);
