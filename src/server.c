@@ -73,8 +73,7 @@ Connection* create_connection(uint32_t addr, uint16_t port, Server* server) {
 }
 
 void close_client(De* de, Connection* conn, int fd, uint32_t flags) {
-    LOG(LOG_CLOSE"fd: %d, addr: %u, port: %u\n", fd, conn->addr,
-           conn->port);
+    LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr, conn->port);
     if (conn->read_buf) {
         free(conn->read_buf);
         conn->read_buf = NULL;
@@ -354,7 +353,8 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
-    LOG(LOG_CONNECTION"fd: %d addr: %u port: %u\n", cfd, addr.sin_addr.s_addr, addr.sin_port);
+    LOG(LOG_CONNECTION "fd: %d addr: %u port: %u\n", cfd, addr.sin_addr.s_addr,
+        addr.sin_port);
 
     c = create_connection(addr.sin_addr.s_addr, addr.sin_port, s);
     de_add_event(de, cfd, DE_READ, read_from_client, c);
@@ -411,7 +411,7 @@ int server(char* addr_str, uint16_t port) {
         return -1;
     }
 
-    LOG(LOG_INFO"server listening on %s:%u\n", addr_str, port);
+    LOG(LOG_INFO "server listening on %s:%u\n", addr_str, port);
     de_await(de);
 
     server_destroy(server);
