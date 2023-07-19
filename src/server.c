@@ -262,12 +262,12 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
         conn->write_buf = NULL;
         conn->write_size = 0;
     } else {
-        bytes_sent = write(fd, "hi", 2);
+        bytes_sent = write(fd, "noop", 4);
         if (bytes_sent < 0) {
             fmt_error("failed to write to client\n");
             return;
         }
-        if (bytes_sent < 2) {
+        if (bytes_sent < 4) {
             fmt_error("failed to send all bytes\n");
             return;
         }
