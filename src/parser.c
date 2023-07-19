@@ -231,6 +231,11 @@ SimpleStringStatement parser_parse_simple_string(Parser* p) {
     return SST_PING;
 }
 
+/**
+ * the byte order is not of our concern right now - we
+ * simply unpack whatever bytes were sent to us into an
+ * int64_t
+ */
 int64_t parser_parse_int(Parser* p) {
     int64_t res = 0;
     uint64_t temp = 0;
@@ -239,6 +244,7 @@ int64_t parser_parse_int(Parser* p) {
     size_t len = 9;
     uint8_t shift = 56;
 
+    // maybe just replace this with memcpy ?
     for (i = 1; i < len; ++i, shift -= 8) {
         uint8_t at = buf[i];
         temp |= (uint64_t)(at << shift);
