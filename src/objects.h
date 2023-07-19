@@ -12,12 +12,14 @@ typedef struct {
 } String;
 
 typedef enum {
-    SNULL,
+    ONULL,
+    OINT,
     STRING
 } ObjectT;
 
 typedef union {
     String* str;
+    int64_t i64;
     void* null;
 } ObjectD;
 
@@ -26,7 +28,7 @@ typedef struct {
     ObjectD data;
 } Object;
 
-Object object_new(ObjectT type, char* v, size_t val_len);
+Object object_new(ObjectT type, void* v, size_t val_len);
 void object_free(Object* obj);
 String* string_new(size_t initial_cap);
 String* string_from(char* value, size_t len);

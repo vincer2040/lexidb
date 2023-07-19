@@ -1,15 +1,18 @@
 #include "objects.h"
 #include <errno.h>
+#include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-Object object_new(ObjectT type, char* v, size_t val_len) {
+Object object_new(ObjectT type, void* v, size_t val_len) {
     Object obj;
 
     if (type == STRING) {
         obj.data.str = string_from(v, val_len);
+    } else if (type == OINT) {
+        obj.data.i64 = ((int64_t)v);
     } else {
         obj.data.null = NULL;
     }
