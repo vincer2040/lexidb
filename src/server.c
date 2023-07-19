@@ -43,6 +43,7 @@ Server* server_create(int sfd) {
         free(server);
         return NULL;
     }
+    server->cluster = cluster_new(HT_INITIAL_CAP);
 
     return server;
 }
@@ -95,6 +96,8 @@ void server_destroy(Server* server) {
     close(server->sfd);
     ht_free(server->ht);
     server->ht = NULL;
+    cluster_free(server->cluster);
+    server->cluster = NULL;
     free(server);
     server = NULL;
 }

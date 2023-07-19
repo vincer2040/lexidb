@@ -3,6 +3,7 @@
 #define __SERVER_H__
 
 #include "ht.h"
+#include "cluster.h"
 
 typedef struct {
     int sfd;
@@ -10,6 +11,7 @@ typedef struct {
     uint32_t port;
     uint16_t addr;
     Ht* ht;
+    Cluster* cluster;
 } Server;
 
 typedef struct {

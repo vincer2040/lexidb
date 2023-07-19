@@ -26,6 +26,6 @@ int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
 
 int cluster_namespace_drop(Cluster* cluster, uint8_t* key, size_t key_len);
 
-#define cluster_free(cluster) ht_free(cluster);
+#define cluster_free(cluster) ht_free((cluster));
 
 #endif
