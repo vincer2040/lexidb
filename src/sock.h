@@ -11,6 +11,7 @@
 int create_tcp_socket(int nonblocking);
 uint32_t parse_addr(char* addr_str, size_t len);
 int bind_tcp_sock(int socket, uint32_t addr, uint16_t port);
+int connect_tcp_sock(int socket, char* addr, uint16_t port);
 int tcp_listen(int socket, int backlog);
 int tcp_accept(int socket, struct sockaddr_in* addr, socklen_t* addr_len);
 int set_reuse_addr(int fd);
