@@ -29,11 +29,14 @@ typedef enum {
     HL_BULK_STRING,
     HL_SIMPLE_STRING,
     HL_INT,
-    HL_ERR
+    HL_ERR,
+    HL_INV
 } HiLexiDataType;
 
 typedef enum {
+    HL_INVSS,
     HL_PONG,
+    HL_NONE,
     HL_OK
 } HiLexiSimpleString;
 

@@ -1,5 +1,5 @@
-#include "builder.h"
 #include "hilexi.h"
+#include "builder.h"
 #include "sock.h"
 #include <errno.h>
 #include <stddef.h>
@@ -13,6 +13,23 @@
 
 #define LOG_ERR(...)                                                           \
     { fprintf(stderr, __VA_ARGS__); }
+
+void hilexi_print_simple(HiLexiSimpleString simple) {
+    switch (simple) {
+    case HL_INVSS:
+        printf("invalid\n");
+        break;
+    case HL_OK:
+        printf("ok\n");
+        break;
+    case HL_NONE:
+        printf("none\n");
+        break;
+    case HL_PONG:
+        printf("pong\n");
+        break;
+    }
+}
 
 HiLexi* hilexi_new(char* addr, uint16_t port) {
     HiLexi* l;
@@ -46,10 +63,135 @@ HiLexi* hilexi_new(char* addr, uint16_t port) {
     return l;
 }
 
+HiLexiDataType hilexi_get_type(uint8_t ch) {
+    switch (ch) {
+    case '*':
+        return HL_ARR;
+    case '$':
+        return HL_BULK_STRING;
+    case ':':
+        return HL_INT;
+    case '+':
+        return HL_SIMPLE_STRING;
+    case '-':
+        return HL_ERR;
+    default:
+        return HL_INV;
+    }
+}
+
+String* hilexi_unpack_err(HiLexi* l) {
+    String* str = string_new(32);
+    uint8_t* buf = l->read_buf;
+    buf++;
+
+    while (*buf != '\r') {
+        string_push_char(&str, *buf);
+    }
+
+    return str;
+}
+
+String* hilexi_unpack_bulk(HiLexi* l) {
+    String* str;
+    uint8_t* buf = l->read_buf;
+    size_t i, len = 0;
+
+    buf++;
+
+    while (*buf != '\r') {
+        len = (len * 10) + (*buf - '0');
+        buf++;
+    }
+
+    str = string_new(len + 1);
+
+    buf++;
+    buf++;
+
+    for (i = 0; i < len; ++i, buf++) {
+        string_push_char(&str, *buf);
+    }
+
+    return str;
+}
+
+int64_t hilexi_unpack_int(HiLexi* l) {
+    int64_t res = 0;
+    uint64_t temp = 0;
+    uint8_t* buf = l->read_buf;
+    size_t i, len = 9;
+    uint8_t shift = 56;
+
+    // maybe just replace this with memcpy ?
+    for (i = 1; i < len; ++i, shift -= 8) {
+        uint8_t at = buf[i];
+        temp |= (uint64_t)(at << shift);
+    }
+
+    // hack for checking if value should be negative
+    if (temp <= 0x7fffffffffffffffu) {
+        res = temp;
+    } else {
+        res = -1 - (long long int)(0xffffffffffffffffu - temp);
+    }
+
+    return res;
+}
+
+HiLexiSimpleString hilexi_unpack_simple(HiLexi* l) {
+    if (l->read_pos == 7) {
+        if (memcmp(l->read_buf, "+PONG\r\n", 7) == 0) {
+            return HL_PONG;
+        }
+        if (memcmp(l->read_buf, "+NONE\r\n", 7) == 0) {
+            return HL_NONE;
+        }
+    }
+    if (l->read_pos == 5) {
+        if (memcmp(l->read_buf, "+OK\r\n", 5) == 0) {
+            return HL_OK;
+        }
+    }
+    return HL_INVSS;
+}
+
+void hilexi_unpack(HiLexi* l) {
+    HiLexiDataType type = hilexi_get_type(*(l->read_buf));
+
+    if (type == HL_ERR) {
+        String* err = hilexi_unpack_err(l);
+
+        printf("(error) %s\n", err->data);
+
+        free(err);
+    }
+
+    if (type == HL_BULK_STRING) {
+        String* bulk = hilexi_unpack_bulk(l);
+
+        printf("(string) %s\n", bulk->data);
+
+        free(bulk);
+    }
+
+    if (type == HL_INT) {
+        int64_t i64 = hilexi_unpack_int(l);
+
+        printf("(int) %ld\n", i64);
+    }
+
+    if (type == HL_SIMPLE_STRING) {
+        HiLexiSimpleString simple = hilexi_unpack_simple(l);
+
+        hilexi_print_simple(simple);
+    }
+}
+
 static int hilexi_read(HiLexi* l) {
     ssize_t bytes_read;
 
-    if (!(l->flags & (1<<1))) {
+    if (!(l->flags & (1 << 1))) {
         memset(l->read_buf, 0, l->read_cap);
         l->read_pos = 0;
     }
@@ -57,12 +199,13 @@ static int hilexi_read(HiLexi* l) {
     bytes_read = read(l->sfd, l->read_buf + l->read_pos, HILEXI_MAX_READ);
 
     if (bytes_read < 0) {
-        LOG_ERR("failed to read from client (errno: %d)\n%s\n", errno, strerror(errno));
+        LOG_ERR("failed to read from client (errno: %d)\n%s\n", errno,
+                strerror(errno));
         return -1;
     }
 
     if (bytes_read == HILEXI_MAX_READ) {
-        l->flags ^= (1<<1);
+        l->flags ^= (1 << 1);
         l->read_pos += HILEXI_MAX_READ;
         if ((l->read_cap - l->read_pos) < HILEXI_MAX_READ) {
             l->read_cap += HILEXI_MAX_READ;
@@ -80,7 +223,8 @@ static int hilexi_read(HiLexi* l) {
 static int hilexi_send(HiLexi* l) {
     ssize_t bytes_written = write(l->sfd, l->write_buf, l->write_len);
     if (bytes_written < 0) {
-        LOG_ERR("failed to write to server (errno: %d)\n%s\n", errno, strerror(errno));
+        LOG_ERR("failed to write to server (errno: %d)\n%s\n", errno,
+                strerror(errno));
         free(l->write_buf);
         l->write_buf = NULL;
         l->write_len = 0;
@@ -89,7 +233,8 @@ static int hilexi_send(HiLexi* l) {
     }
 
     if (bytes_written < l->write_len) {
-        LOG_ERR("failed to write all bytes to server (errno: %d)\n%s\n", errno, strerror(errno));
+        LOG_ERR("failed to write all bytes to server (errno: %d)\n%s\n", errno,
+                strerror(errno));
         l->write_pos = bytes_written;
         return -1;
     }
@@ -102,7 +247,7 @@ static int hilexi_send(HiLexi* l) {
     return 0;
 }
 
-static void hilexi_evaluate_msg(HiLexi* l) {
+void hilexi_evaluate_msg(HiLexi* l) {
     size_t i, len;
     uint8_t* buf;
     buf = l->read_buf;
@@ -114,7 +259,8 @@ static void hilexi_evaluate_msg(HiLexi* l) {
     printf("\n");
 }
 
-int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value, size_t value_len) {
+int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value,
+               size_t value_len) {
     Builder b;
     int sendres, readres;
 
@@ -151,7 +297,7 @@ int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value, size_t valu
         return -1;
     }
 
-    hilexi_evaluate_msg(l);
+    hilexi_unpack(l);
 
     return 0;
 }
@@ -193,7 +339,7 @@ int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value) {
         return -1;
     }
 
-    hilexi_evaluate_msg(l);
+    hilexi_unpack(l);
 
     return 0;
 }
@@ -234,7 +380,7 @@ int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len) {
         return -1;
     }
 
-    hilexi_evaluate_msg(l);
+    hilexi_unpack(l);
 
     return 0;
 }
@@ -275,7 +421,7 @@ int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len) {
         return -1;
     }
 
-    hilexi_evaluate_msg(l);
+    hilexi_unpack(l);
 
     return 0;
 }
@@ -314,7 +460,7 @@ int hilexi_ping(HiLexi* l) {
         return -1;
     }
 
-    hilexi_evaluate_msg(l);
+    hilexi_unpack(l);
 
     return 0;
 }
