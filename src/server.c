@@ -251,6 +251,10 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     Connection* conn;
 
     conn = ((Connection*)client_data);
+    if (conn->flags == 1) {
+        // we were expecting more data but we now have it all
+        evaluate_message(conn->read_buf, conn->read_pos, conn);
+    }
     if (conn->write_buf != NULL) {
         size_t write_size = conn->write_size;
         bytes_sent = write(fd, conn->write_buf, write_size);
@@ -267,12 +271,12 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
         conn->write_buf = NULL;
         conn->write_size = 0;
     } else {
-        bytes_sent = write(fd, "noop", 4);
+        bytes_sent = write(fd, "+noop\r\n", 7);
         if (bytes_sent < 0) {
             fmt_error("failed to write to client\n");
             return;
         }
-        if (bytes_sent < 4) {
+        if (bytes_sent < 7) {
             fmt_error("failed to send all bytes\n");
             return;
         }
@@ -307,9 +311,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
-    // we have filled the buffer, and the client might have more to send
-    // if client sends multiple of exactly 4096 bytes, a write event
-    // is not emitted because we delete it every time
+    // we have filled the buffer
     if (bytes_read == 4096) {
         conn->flags = 1;
         conn->read_pos += MAX_READ;
@@ -320,12 +322,17 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
                 realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
             memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
         }
+        // if we do not read again before the write event, the message
+        // will be evaluated in write_to_client before
+        // writing a response
+        de_add_event(de, fd, DE_WRITE, write_to_client, client_data);
         return;
     }
 
     conn->read_pos += bytes_read;
 
     evaluate_message(conn->read_buf, conn->read_pos, conn);
+    conn->flags = 0;
 
     de_add_event(de, fd, DE_WRITE, write_to_client, client_data);
 }
