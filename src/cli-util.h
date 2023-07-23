@@ -9,10 +9,7 @@
 
 #define ERROR "ERROR: "
 
-typedef int Client;
-
 char* get_line(const char* prompt);
-Client client_create(char* addr, uint16_t port);
 
 
 #endif
