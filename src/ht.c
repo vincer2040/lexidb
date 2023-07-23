@@ -157,16 +157,16 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
 
         /* free old value and assign new one */
         e.cb(e.value);
-        e.value = malloc(val_size);
+        bucket.entries[has.insert].value = malloc(val_size);
         if (e.value == NULL) {
             errno = ENOMEM;
             return -1;
         }
-        memcpy(e.value, value, val_size);
+        memcpy(bucket.entries[has.insert].value, value, val_size);
 
         /* assign new metadata */
-        e.val_size = val_size;
-        e.cb = cb;
+        bucket.entries[has.insert].val_size = val_size;
+        bucket.entries[has.insert].cb = cb;
 
         return 0;
     }
