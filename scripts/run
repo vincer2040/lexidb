@@ -56,7 +56,7 @@ class Client:
         self.s.send(ProtocolBuilder().add_ping().get())
         print(self.s.recv(9192).decode())
 
-    def set(self, k, v):
+    def set_str(self, k, v):
         self.s.send(ProtocolBuilder().add_arr(3).add_str("SET", 3).add_str(k, len(k)).add_str(v, len(v)).get())
         print(self.s.recv(9192).decode())
 
@@ -138,7 +138,7 @@ c = Client("127.0.0.1", 6969).conn()
 
 c.ping()
 
-c.set("vince", "is cool")
+c.set_str("vince", "is cool")
 c.get("vince")
 c.delete("vince")
 
