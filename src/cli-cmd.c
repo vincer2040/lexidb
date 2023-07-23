@@ -326,9 +326,9 @@ void cli_cmd_print(CliCmd* cmd) {
     printf("\n");
 }
 
-void cli_parse_cmd(char* input, size_t input_len) {
+CliCmd cli_parse_cmd(char* input, size_t input_len) {
     CliLexer l = cli_lexer_new(input, input_len);
     CliParser p = cli_parser_new(&l);
     CliCmd cmd = cli_parser_parse_cmd(&p);
-    cli_cmd_print(&cmd);
+    return cmd;
 }

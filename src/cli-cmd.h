@@ -18,6 +18,7 @@ typedef struct {
     CmdExpression expr;
 }CliCmd;
 
-void cli_parse_cmd(char* input, size_t input_len);
+CliCmd cli_parse_cmd(char* input, size_t input_len);
+void cli_cmd_print(CliCmd* cmd);
 
 #endif
