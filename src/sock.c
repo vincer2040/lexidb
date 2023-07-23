@@ -54,6 +54,23 @@ int connect_tcp_sock(int fd, char* addr, uint16_t port) {
     return 0;
 }
 
+/* connect to socket on addr and port */
+int connect_tcp_sock_u32(int fd, uint32_t addr, uint16_t port) {
+    struct sockaddr_in a = {0};
+    socklen_t al;
+    if (fd < 0) {
+        return -1;
+    }
+    a.sin_family = AF_INET;
+    a.sin_port = htons(port);
+    a.sin_addr.s_addr = htonl(addr);
+    al = sizeof a;
+    if (connect(fd, ((struct sockaddr*)(&a)), al) == -1) {
+        return -1;
+    }
+    return 0;
+}
+
 /* bind the socket to address and port */
 int bind_tcp_sock(int socket, uint32_t addr, uint16_t port) {
     struct sockaddr_in sa = {0};
