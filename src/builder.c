@@ -30,6 +30,19 @@ int builder_add_pong(Builder* builder) {
     return 0;
 }
 
+int builder_add_ping(Builder* builder) {
+    if (builder->cap < 7) {
+        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 7);
+        if (builder->buf == NULL) {
+            return -1;
+        }
+        memset(builder->buf, 0, 7);
+    }
+    memcpy(builder->buf, "+PING\r\n", 7);
+    builder->ins = 7;
+    return 0;
+}
+
 int builder_add_ok(Builder* builder) {
     if (builder->cap < 5) {
         builder->buf = realloc(builder->buf, sizeof(uint8_t) * 5);

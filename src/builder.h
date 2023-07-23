@@ -23,6 +23,7 @@ typedef struct {
 Builder builder_create(size_t initial_cap);
 void builder_free(Builder* builder);
 int builder_add_pong(Builder* builder);
+int builder_add_ping(Builder* builder);
 int builder_add_ok(Builder* builder);
 int builder_add_none(Builder* builder);
 int builder_add_err(Builder* builder, uint8_t* e, size_t e_len);
