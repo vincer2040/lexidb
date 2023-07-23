@@ -154,7 +154,7 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_HELP;
     }
 
-    return CC_INV;;
+    return CC_INV;
 }
 
 size_t cli_parser_get_string_len(CliToken* tok) {
@@ -203,23 +203,28 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_SET:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.set.key.len = cli_parser_get_string_len(&(p->cur_tok));;
+                cmd.expr.set.key.len = cli_parser_get_string_len(&(p->cur_tok));
+                ;
                 cmd.expr.set.key.value = ((uint8_t*)(p->cur_tok.literal));
 
                 cli_parser_next_token(p);
 
                 if (cli_parser_cur_token_is(p, CCT_BULK)) {
                     cmd.expr.set.value.type = VTSTRING;
-                    cmd.expr.set.value.size = cli_parser_get_bulk_string_len(&(p->cur_tok));
-                    cmd.expr.set.value.ptr = p->cur_tok.literal + 1; // +1 to skip first '"'
+                    cmd.expr.set.value.size =
+                        cli_parser_get_bulk_string_len(&(p->cur_tok));
+                    cmd.expr.set.value.ptr =
+                        p->cur_tok.literal + 1; // +1 to skip first '"'
                 } else if (cli_parser_cur_token_is(p, CCT_STRING)) {
                     cmd.expr.set.value.type = VTSTRING;
-                    cmd.expr.set.value.size = cli_parser_get_string_len(&(p->cur_tok));
+                    cmd.expr.set.value.size =
+                        cli_parser_get_string_len(&(p->cur_tok));
                     cmd.expr.set.value.ptr = p->cur_tok.literal;
                 } else if (cli_parser_cur_token_is(p, CCT_INT)) {
                     cmd.expr.set.value.type = VTINT;
                     cmd.expr.set.value.size = sizeof(int64_t);
-                    cmd.expr.set.value.ptr = ((void*)cli_parser_parse_int(&(p->cur_tok)));
+                    cmd.expr.set.value.ptr =
+                        ((void*)cli_parser_parse_int(&(p->cur_tok)));
                 } else {
                     cmd.expr.set.value.type = VTNULL;
                     cmd.expr.set.value.size = 0;
@@ -232,7 +237,8 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_GET:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.get.key.len = cli_parser_get_string_len(&(p->cur_tok));;
+                cmd.expr.get.key.len = cli_parser_get_string_len(&(p->cur_tok));
+                ;
                 cmd.expr.get.key.value = ((uint8_t*)(p->cur_tok.literal));
             } else {
                 printf("invalid key\n");
@@ -241,7 +247,8 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_DEL:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.del.key.len = cli_parser_get_string_len(&(p->cur_tok));;
+                cmd.expr.del.key.len = cli_parser_get_string_len(&(p->cur_tok));
+                ;
                 cmd.expr.del.key.value = ((uint8_t*)(p->cur_tok.literal));
             } else {
                 printf("invalid key\n");
