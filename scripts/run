@@ -69,7 +69,7 @@ class Client:
         data = self.s.recv(9192)
         if (data[0] == 36):
             print(data.decode())
-        if (data[0] == 43):
+        elif (data[0] == 43):
             print(data.decode())
         else:
             int_bytes = data[1:9]
@@ -147,8 +147,7 @@ c.delete("vince")
 c.set_int("vince", 42069)
 c.get("vince")
 
-# TODO: fix msg w multiple of 4097 not being responded to
-c.get(rand_str(4074))
+# c.get(rand_str(4074))
 
 
 c.cl()

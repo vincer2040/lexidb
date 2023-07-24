@@ -24,6 +24,35 @@
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
 
+LexiDB* lexidb_new() {
+    LexiDB* db;
+    db = calloc(1, sizeof *db);
+
+    if (db == NULL) {
+        return NULL;
+    }
+
+    db->ht = ht_new(HT_INITIAL_CAP);
+    if (db->ht == NULL) {
+        free(db);
+        return NULL;
+    }
+
+    db->cluster = cluster_new(HT_INITIAL_CAP);
+    if (db->cluster == NULL) {
+        ht_free(db->ht);
+        free(db);
+        return NULL;
+    }
+    return db;
+}
+
+void lexidb_free(LexiDB* db) {
+    ht_free(db->ht);
+    cluster_free(db->cluster);
+    free(db);
+}
+
 Server* server_create(int sfd) {
     Server* server;
 
@@ -38,17 +67,17 @@ Server* server_create(int sfd) {
 
     server->sfd = sfd;
 
-    server->ht = ht_new(HT_INITIAL_CAP);
-    if (server->ht == NULL) {
+    server->db = lexidb_new();
+    if (server->db == NULL) {
         free(server);
+        close(sfd);
         return NULL;
     }
-    server->cluster = cluster_new(HT_INITIAL_CAP);
 
     return server;
 }
 
-Connection* create_connection(uint32_t addr, uint16_t port, Server* server) {
+Connection* create_connection(uint32_t addr, uint16_t port, LexiDB* db) {
     Connection* conn;
 
     conn = calloc(1, sizeof *conn);
@@ -58,7 +87,7 @@ Connection* create_connection(uint32_t addr, uint16_t port, Server* server) {
 
     conn->addr = addr;
     conn->port = port;
-    conn->server = server;
+    conn->db = db;
 
     conn->read_buf = calloc(CONN_BUF_INIT_CAP, sizeof(uint8_t));
     if (conn->read_buf == NULL) {
@@ -94,10 +123,7 @@ void close_client(De* de, Connection* conn, int fd, uint32_t flags) {
 
 void server_destroy(Server* server) {
     close(server->sfd);
-    ht_free(server->ht);
-    server->ht = NULL;
-    cluster_free(server->cluster);
-    server->cluster = NULL;
+    lexidb_free(server->db);
     free(server);
     server = NULL;
 }
@@ -141,15 +167,15 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         int set_res;
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res = ht_insert(client->server->ht, key, key_len, &obj,
+            set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 sizeof obj, free_cb);
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT, value, value_size);
-            set_res = ht_insert(client->server->ht, key, key_len, &obj,
+            set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 sizeof obj, free_int_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res = ht_insert(client->server->ht, key, key_len, &obj,
+            set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 sizeof obj, free_int_cb);
         }
         if (set_res != 0) {
@@ -170,7 +196,7 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         GetCmd get_cmd = cmd->expression.get;
         uint8_t* key = get_cmd.key.value;
         size_t key_len = get_cmd.key.len;
-        void* get_res = ht_get(client->server->ht, key, key_len);
+        void* get_res = ht_get(client->db->ht, key, key_len);
         Builder builder;
         if (get_res == NULL) {
             builder = builder_create(7);
@@ -204,7 +230,7 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         Builder builder;
         uint8_t* key = del_cmd.key.value;
         size_t key_len = del_cmd.key.len;
-        ht_delete(client->server->ht, key, key_len);
+        ht_delete(client->db->ht, key, key_len);
         builder = builder_create(5);
         builder_add_ok(&builder);
         client->write_buf = builder_out(&builder);
@@ -254,6 +280,7 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     if (conn->flags == 1) {
         // we were expecting more data but we now have it all
         evaluate_message(conn->read_buf, conn->read_pos, conn);
+        conn->flags = 0;
     }
     if (conn->write_buf != NULL) {
         size_t write_size = conn->write_size;
@@ -370,7 +397,7 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     LOG(LOG_CONNECTION "fd: %d addr: %u port: %u\n", cfd, addr.sin_addr.s_addr,
         addr.sin_port);
 
-    c = create_connection(addr.sin_addr.s_addr, addr.sin_port, s);
+    c = create_connection(addr.sin_addr.s_addr, addr.sin_port, s->db);
     de_add_event(de, cfd, DE_READ, read_from_client, c);
 }
 

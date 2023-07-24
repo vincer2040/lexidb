@@ -6,19 +6,23 @@
 #include "cluster.h"
 
 typedef struct {
-    int sfd;
-    uint32_t flags; /* mainly for padding, no use as of now */
-    uint32_t port;
-    uint16_t addr;
     Ht* ht;
     Cluster* cluster;
+}LexiDB;
+
+typedef struct {
+    int sfd;
+    uint32_t port;
+    uint16_t addr;
+    uint16_t flags; /* mainly for padding, no use as of now */
+    LexiDB* db;
 } Server;
 
 typedef struct {
     uint32_t addr;
     uint16_t port;
     uint16_t flags;
-    Server* server;
+    LexiDB* db;
     uint8_t* read_buf;
     size_t read_pos;
     size_t read_cap;
