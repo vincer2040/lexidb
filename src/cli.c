@@ -31,7 +31,7 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
                 return;
             }
         } else {
-            printf("invalid value");
+            printf("invalid value\n");
             return;
         }
         return;
@@ -96,6 +96,12 @@ int run() {
         CliCmd cmd;
         if (line == NULL) {
             goto err;
+        }
+
+        // user just pressed enter
+        if (*line == '\0') {
+            free(line);
+            continue;
         }
 
         if (strncmp(line, "exit", 4) == 0) {
