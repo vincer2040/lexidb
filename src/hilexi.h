@@ -59,16 +59,25 @@ typedef struct {
     HiLexiData data;
 } HiLexiResult;
 
+/* set up */
 HiLexi* hilexi_new(char* addr, uint16_t port);
 int hilexi_connect(HiLexi* l);
+
+/* simple commands */
 int hilexi_ping(HiLexi* l);
+
+/* ht commands */
 int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value, size_t value_len);
-int hilexi_push(HiLexi* l, char* value, size_t value_len);
-int hilexi_push_int(HiLexi* l, int64_t value);
-int hilexi_pop(HiLexi* l);
 int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value);
 int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len);
 int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len);
+
+/* vec commands */
+int hilexi_push(HiLexi* l, char* value, size_t value_len);
+int hilexi_push_int(HiLexi* l, int64_t value);
+int hilexi_pop(HiLexi* l);
+
+/* teardown */
 void hilexi_disconnect(HiLexi* l);
 void hilexi_destory(HiLexi* l);
 
