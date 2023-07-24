@@ -18,6 +18,10 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
             return DEL;
         }
 
+        if (memcmp(str, "POP", 3) == 0) {
+            return POP;
+        }
+
         return INV;
     }
 
@@ -163,6 +167,9 @@ Cmd cmd_from_statement(Statement* stmt) {
     case SARR:
         cmd = cmd_from_array(&(stmt->statement.arr));
         return cmd;
+    case SBULK:
+        cmd.type = cmd_from_bulk(stmt->statement.bulk.str, stmt->statement.bulk.len);
+        return cmd;
     case SPING:
         cmd.type = CPING;
         return cmd;
@@ -213,5 +220,8 @@ void cmd_print(Cmd* cmd) {
         } else if (cmd->expression.push.value.type == VTINT) {
             printf("->%ld\n", ((int64_t)cmd->expression.push.value.ptr));
         }
+    }
+    if (cmd->type == POP) {
+        printf("POP\n");
     }
 }

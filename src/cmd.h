@@ -12,7 +12,8 @@ typedef enum {
     SET,
     GET,
     DEL,
-    PUSH
+    PUSH,
+    POP
 } CmdT;
 
 typedef struct {

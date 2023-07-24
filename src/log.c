@@ -110,4 +110,9 @@ void log_cmd(Cmd* cmd) {
         printf("\n");
         fflush(stdout);
     }
+
+    if (t == POP) {
+        printf("POP\n");
+        fflush(stdout);
+    }
 }

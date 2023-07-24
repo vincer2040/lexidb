@@ -325,6 +325,41 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_size = builder.ins;
         return;
     }
+
+    if (cmd_type == POP) {
+        Object obj;
+        int pop_res;
+        Builder builder;
+
+        pop_res = vec_pop(client->db->vec, &obj);
+        if (pop_res == -1) {
+            builder = builder_create(7);
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        if (obj.type == ONULL) {
+            builder = builder_create(7);
+            builder_add_none(&builder);
+        }
+
+        if (obj.type == OINT) {
+            builder = builder_create(11);
+            builder_add_int(&builder, obj.data.i64);
+        }
+
+        if (obj.type == STRING) {
+            builder = builder_create(32);
+            builder_add_string(&builder, obj.data.str->data, obj.data.str->len);
+            string_free(obj.data.str);
+        }
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+        return;
+    }
 }
 
 void evaluate_message(uint8_t* data, size_t len, Client* client) {
