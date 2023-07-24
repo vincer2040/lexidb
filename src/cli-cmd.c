@@ -158,6 +158,10 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_HELP;
     }
 
+    if (strncmp(literal, "pop", 3) == 0) {
+        return CC_POP;
+    }
+
     return CC_INV;
 }
 
@@ -283,6 +287,8 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
                 cmd.expr.push.value.size = 0;
                 cmd.expr.push.value.ptr = NULL;
             }
+            break;
+        case CC_POP:
             break;
         default:
             printf("invalid command\n");

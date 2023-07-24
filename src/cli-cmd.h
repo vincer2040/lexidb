@@ -11,7 +11,8 @@ typedef enum {
     CC_SET,
     CC_GET,
     CC_DEL,
-    CC_PUSH
+    CC_PUSH,
+    CC_POP
 }CliCmdT;
 
 typedef struct {

@@ -69,6 +69,10 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         }
         return;
     }
+    if (cmd->type == CC_POP) {
+        hilexi_pop(l);
+        return;
+    }
     if (cmd->type == CC_PING) {
         hilexi_ping(l);
         return;
