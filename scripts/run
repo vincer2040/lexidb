@@ -147,6 +147,8 @@ c.delete("vince")
 c.set_int("vince", 42069)
 c.get("vince")
 
+c.db_push("vince")
+
 # c.get(rand_str(4074))
 
 
