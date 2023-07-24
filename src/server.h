@@ -4,10 +4,12 @@
 
 #include "ht.h"
 #include "cluster.h"
+#include "objects.h"
 
 typedef struct {
     Ht* ht;
     Cluster* cluster;
+    Vec* vec;
 }LexiDB;
 
 typedef struct {

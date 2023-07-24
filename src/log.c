@@ -89,4 +89,25 @@ void log_cmd(Cmd* cmd) {
         printf("\n");
         fflush(stdout);
     }
+
+    if (t == PUSH) {
+        printf("PUSH ");
+        v = cmd->expression.push.value;
+
+        if (v.type == VTSTRING) {
+            size_t v_len;
+            char* val = ((char*)(v.ptr));
+            v_len = v.size;
+
+            for (i = 0; i < v_len; ++i) {
+                printf("%c", val[i]);
+            }
+        } else if (v.type == VTINT) {
+            printf("%lu", ((int64_t)v.ptr));
+        } else {
+            printf("null");
+        }
+        printf("\n");
+        fflush(stdout);
+    }
 }

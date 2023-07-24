@@ -44,6 +44,8 @@ LexiDB* lexidb_new() {
         free(db);
         return NULL;
     }
+
+    db->vec = vec_new(32, sizeof(Object));
     return db;
 }
 
@@ -108,6 +110,19 @@ Client* client_create(Connection* conn, LexiDB* db) {
     return client;
 }
 
+void free_cb(void* ptr) {
+    Object* obj = ((Object*)ptr);
+    object_free(obj);
+    free(obj);
+}
+
+void vec_free_cb(void* ptr) {
+    Object* obj = ((Object*)ptr);
+    object_free(obj);
+}
+
+void free_int_cb(void* ptr) { free(ptr); }
+
 void connection_close(De* de, Connection* conn, int fd, uint32_t flags) {
     LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr, conn->port);
     if (conn->read_buf) {
@@ -135,6 +150,7 @@ void client_close(De* de, Client* client, int fd, uint32_t flags) {
 void lexidb_free(LexiDB* db) {
     ht_free(db->ht);
     cluster_free(db->cluster);
+    vec_free(db->vec, vec_free_cb);
     free(db);
 }
 
@@ -144,14 +160,6 @@ void server_destroy(Server* server) {
     free(server);
     server = NULL;
 }
-
-void free_cb(void* ptr) {
-    Object* obj = ((Object*)ptr);
-    object_free(obj);
-    free(obj);
-}
-
-void free_int_cb(void* ptr) { free(ptr); }
 
 /**
  * run the command sent to the server
@@ -165,6 +173,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     Connection* conn = client->conn;
     log_cmd(cmd);
     cmd_type = cmd->type;
+
     if (cmd_type == CPING) {
         // reply with pong
         Builder builder = builder_create(7);
@@ -173,16 +182,24 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_size = builder.ins;
         return;
     }
+
     if (cmd_type == SET) {
         // set key and value in ht
-        SetCmd set_cmd = cmd->expression.set;
         Builder builder;
-        uint8_t* key = set_cmd.key.value;
-        size_t key_len = set_cmd.key.len;
-        void* value = set_cmd.value.ptr;
-        size_t value_size = set_cmd.value.size;
         Object obj;
         int set_res;
+        SetCmd set_cmd;
+        uint8_t* key;
+        size_t key_len;
+        void* value;
+        size_t value_size;
+
+        set_cmd = cmd->expression.set;
+        key = set_cmd.key.value;
+        key_len = set_cmd.key.len;
+        value = set_cmd.value.ptr;
+        value_size = set_cmd.value.size;
+
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
             set_res = ht_insert(client->db->ht, key, key_len, &obj,
@@ -196,6 +213,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 sizeof obj, free_int_cb);
         }
+
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
             size_t n = strlen((char*)e);
@@ -205,17 +223,25 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             builder = builder_create(5);
             builder_add_ok(&builder);
         }
+
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
         return;
     }
+
     if (cmd_type == GET) {
         // get value from ht
-        GetCmd get_cmd = cmd->expression.get;
-        uint8_t* key = get_cmd.key.value;
-        size_t key_len = get_cmd.key.len;
-        void* get_res = ht_get(client->db->ht, key, key_len);
+        GetCmd get_cmd;
+        uint8_t* key;
+        size_t key_len;
+        void* get_res;
         Builder builder;
+
+        get_cmd = cmd->expression.get;
+        key = get_cmd.key.value;
+        key_len = get_cmd.key.len;
+        get_res = ht_get(client->db->ht, key, key_len);
+
         if (get_res == NULL) {
             builder = builder_create(7);
             builder_add_none(&builder);
@@ -238,19 +264,63 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
                 builder_add_none(&builder);
             }
         }
+
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
         return;
     }
+
     if (cmd_type == DEL) {
         // delete key and value in ht
-        DelCmd del_cmd = cmd->expression.del;
+        DelCmd del_cmd;
         Builder builder;
-        uint8_t* key = del_cmd.key.value;
-        size_t key_len = del_cmd.key.len;
+        uint8_t* key;
+        size_t key_len;
+
+        del_cmd = cmd->expression.del;
+        key = del_cmd.key.value;
+        key_len = del_cmd.key.len;
+
         ht_delete(client->db->ht, key, key_len);
+
         builder = builder_create(5);
         builder_add_ok(&builder);
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+        return;
+    }
+
+    if (cmd_type == PUSH) {
+        Object obj;
+        PushCmd push_cmd;
+        Builder builder;
+        int push_res;
+        void* value;
+        size_t value_size;
+
+        push_cmd = cmd->expression.push;
+        value = push_cmd.value.ptr;
+        value_size = push_cmd.value.size;
+
+        if (push_cmd.value.type == VTSTRING) {
+            obj = object_new(STRING, value, value_size);
+        } else if (push_cmd.value.type == VTINT) {
+            obj = object_new(OINT, value, value_size);
+        } else {
+            obj = object_new(ONULL, NULL, 0);
+        }
+
+        push_res = vec_push(&(client->db->vec), &obj);
+        if (push_res != 0) {
+            uint8_t* e = ((uint8_t*)"could not push");
+            size_t n = strlen((char*)e);
+            builder = builder_create(n + 3);
+            builder_add_err(&builder, e, n);
+        } else {
+            builder = builder_create(5);
+            builder_add_ok(&builder);
+        }
+
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
         return;
