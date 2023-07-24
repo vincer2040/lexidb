@@ -4,20 +4,30 @@
 #include <string.h>
 
 CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
-    if (str_len != 3) {
+    if (str_len == 3) {
+
+        if (memcmp(str, "SET", 3) == 0) {
+            return SET;
+        }
+
+        if (memcmp(str, "GET", 3) == 0) {
+            return GET;
+        }
+
+        if (memcmp(str, "DEL", 3) == 0) {
+            return DEL;
+        }
+
         return INV;
     }
 
-    if (memcmp(str, "SET", 3) == 0) {
-        return SET;
-    }
+    if (str_len == 4) {
 
-    if (memcmp(str, "GET", 3) == 0) {
-        return GET;
-    }
+        if (memcmp(str, "PUSH", 4) == 0) {
+            return PUSH;
+        }
 
-    if (memcmp(str, "DEL", 3) == 0) {
-        return DEL;
+        return INV;
     }
 
     return INV;
@@ -117,6 +127,32 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         return cmd;
     }
 
+    if (cmd.type == PUSH) {
+        Statement val_stmt;
+        if (astmt->len != 2) {
+            printf("push expects len of 2, got %lu, cmd, value\n",
+                   astmt->len);
+            cmd.type = INV;
+            return cmd;
+        }
+
+        val_stmt = astmt->statements[1];
+        if (val_stmt.type == SBULK) {
+            cmd.expression.push.value.type = VTSTRING;
+            cmd.expression.push.value.size = val_stmt.statement.bulk.len;
+            cmd.expression.push.value.ptr = val_stmt.statement.bulk.str;
+            return cmd;
+        } else if (val_stmt.type == SINT) {
+            cmd.expression.push.value.type = VTINT;
+            cmd.expression.push.value.size = 8;
+            cmd.expression.push.value.ptr = ((void*)(val_stmt.statement.i64));
+            return cmd;
+        } else {
+            cmd.type = INV;
+        }
+        return cmd;
+    }
+
     cmd.type = INV;
     return cmd;
 }
@@ -168,5 +204,14 @@ void cmd_print(Cmd* cmd) {
     }
     if (cmd->type == CPING) {
         printf("PING\n");
+    }
+    if (cmd->type == PUSH) {
+        printf("PUSH ");
+        if (cmd->expression.push.value.type == VTSTRING) {
+            printf("->%p(%lu bytes)\n", cmd->expression.push.value.ptr,
+                    cmd->expression.push.value.size);
+        } else if (cmd->expression.push.value.type == VTINT) {
+            printf("->%ld\n", ((int64_t)cmd->expression.push.value.ptr));
+        }
     }
 }

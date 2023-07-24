@@ -11,7 +11,8 @@ typedef enum {
     CPING,
     SET,
     GET,
-    DEL
+    DEL,
+    PUSH
 } CmdT;
 
 typedef struct {
@@ -44,10 +45,15 @@ typedef struct {
     Key key;
 } DelCmd;
 
+typedef struct {
+    Value value;
+} PushCmd;
+
 typedef union {
     SetCmd set;
     GetCmd get;
     DelCmd del;
+    PushCmd push;
 } CmdExpression;
 
 typedef struct {
