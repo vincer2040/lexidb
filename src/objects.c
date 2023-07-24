@@ -139,6 +139,27 @@ int vec_push(Vec** vec, void* data) {
     return 0;
 }
 
+int vec_pop(Vec* vec, void* out) {
+    size_t len, data_size, len_x_size;
+    void* o;
+
+    if (vec->len == 0) {
+        return -1;
+    }
+
+    len = vec->len - 1;
+    data_size = vec->data_size;
+    len_x_size = len * data_size;
+
+    o = vec->data + len_x_size;
+    memcpy(out, o, data_size);
+
+    memset(vec->data + len_x_size, 0, data_size);
+    vec->len--;
+
+    return 0;
+}
+
 void vec_for_each(Vec* vec, VecForEach* fn) {
     size_t i, len, size;
     len = vec->len;

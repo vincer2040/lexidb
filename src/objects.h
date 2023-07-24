@@ -52,6 +52,7 @@ void string_free(String* str);
 /* vector */
 Vec* vec_new(size_t initial_cap, size_t data_size);
 int vec_push(Vec** vec, void* data);
+int vec_pop(Vec* vec, void* data);
 void vec_for_each(Vec* vec, VecForEach* fn);
 void vec_free(Vec* vec, VecFreeCallBack* cb);
 
