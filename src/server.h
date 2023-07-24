@@ -22,13 +22,17 @@ typedef struct {
     uint32_t addr;
     uint16_t port;
     uint16_t flags;
-    LexiDB* db;
     uint8_t* read_buf;
     size_t read_pos;
     size_t read_cap;
     uint8_t* write_buf;
     size_t write_size;
 } Connection;
+
+typedef struct {
+    Connection* conn;
+    LexiDB* db;
+} Client;
 
 int server(char* addr_str, uint16_t port);
 

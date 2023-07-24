@@ -47,12 +47,6 @@ LexiDB* lexidb_new() {
     return db;
 }
 
-void lexidb_free(LexiDB* db) {
-    ht_free(db->ht);
-    cluster_free(db->cluster);
-    free(db);
-}
-
 Server* server_create(int sfd) {
     Server* server;
 
@@ -77,7 +71,7 @@ Server* server_create(int sfd) {
     return server;
 }
 
-Connection* create_connection(uint32_t addr, uint16_t port, LexiDB* db) {
+Connection* connection_create(uint32_t addr, uint16_t port) {
     Connection* conn;
 
     conn = calloc(1, sizeof *conn);
@@ -87,7 +81,6 @@ Connection* create_connection(uint32_t addr, uint16_t port, LexiDB* db) {
 
     conn->addr = addr;
     conn->port = port;
-    conn->db = db;
 
     conn->read_buf = calloc(CONN_BUF_INIT_CAP, sizeof(uint8_t));
     if (conn->read_buf == NULL) {
@@ -102,7 +95,20 @@ Connection* create_connection(uint32_t addr, uint16_t port, LexiDB* db) {
     return conn;
 }
 
-void close_client(De* de, Connection* conn, int fd, uint32_t flags) {
+Client* client_create(Connection* conn, LexiDB* db) {
+    Client* client;
+
+    client = calloc(1, sizeof *client);
+    if (client == NULL) {
+        return NULL;
+    }
+
+    client->conn = conn;
+    client->db = db;
+    return client;
+}
+
+void connection_close(De* de, Connection* conn, int fd, uint32_t flags) {
     LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr, conn->port);
     if (conn->read_buf) {
         free(conn->read_buf);
@@ -119,6 +125,17 @@ void close_client(De* de, Connection* conn, int fd, uint32_t flags) {
         return;
     }
     close(fd);
+}
+
+void client_close(De* de, Client* client, int fd, uint32_t flags) {
+    connection_close(de, client->conn, fd, flags);
+    free(client);
+}
+
+void lexidb_free(LexiDB* db) {
+    ht_free(db->ht);
+    cluster_free(db->cluster);
+    free(db);
 }
 
 void server_destroy(Server* server) {
@@ -143,16 +160,17 @@ void free_int_cb(void* ptr) { free(ptr); }
  * all commands are in this function
  * to avoid jumping around the whole file.
  */
-void evaluate_cmd(Cmd* cmd, Connection* client) {
+void evaluate_cmd(Cmd* cmd, Client* client) {
     CmdT cmd_type;
+    Connection* conn = client->conn;
     log_cmd(cmd);
     cmd_type = cmd->type;
     if (cmd_type == CPING) {
         // reply with pong
         Builder builder = builder_create(7);
         builder_add_pong(&builder);
-        client->write_buf = builder_out(&builder);
-        client->write_size = builder.ins;
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
         return;
     }
     if (cmd_type == SET) {
@@ -187,8 +205,8 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
             builder = builder_create(5);
             builder_add_ok(&builder);
         }
-        client->write_buf = builder_out(&builder);
-        client->write_size = builder.ins;
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
         return;
     }
     if (cmd_type == GET) {
@@ -220,8 +238,8 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
                 builder_add_none(&builder);
             }
         }
-        client->write_buf = builder_out(&builder);
-        client->write_size = builder.ins;
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
         return;
     }
     if (cmd_type == DEL) {
@@ -233,17 +251,18 @@ void evaluate_cmd(Cmd* cmd, Connection* client) {
         ht_delete(client->db->ht, key, key_len);
         builder = builder_create(5);
         builder_add_ok(&builder);
-        client->write_buf = builder_out(&builder);
-        client->write_size = builder.ins;
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
         return;
     }
 }
 
-void evaluate_message(uint8_t* data, size_t len, Connection* client) {
+void evaluate_message(uint8_t* data, size_t len, Client* client) {
     Lexer l;
     Parser p;
     CmdIR cir;
     Cmd cmd;
+    Connection* conn = client->conn;
 
     slowlog(data, len);
 
@@ -256,13 +275,13 @@ void evaluate_message(uint8_t* data, size_t len, Connection* client) {
         cmdir_free(&cir);
         parser_free_errors(&p);
         printf("invalid cmd\n");
-        client->write_buf = calloc(sizeof(uint8_t), 10);
-        if (client->write_buf == NULL) {
+        conn->write_buf = calloc(sizeof(uint8_t), 10);
+        if (conn->write_buf == NULL) {
             fmt_error("out of memory\n");
             return;
         }
-        memcpy(client->write_buf, "-INVALID\r\n", 10);
-        client->write_size = 10;
+        memcpy(conn->write_buf, "-INVALID\r\n", 10);
+        conn->write_size = 10;
         return;
     }
 
@@ -274,12 +293,14 @@ void evaluate_message(uint8_t* data, size_t len, Connection* client) {
 
 void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     ssize_t bytes_sent;
+    Client* client;
     Connection* conn;
 
-    conn = ((Connection*)client_data);
+    client = ((Client*)client_data);
+    conn = client->conn;
     if (conn->flags == 1) {
         // we were expecting more data but we now have it all
-        evaluate_message(conn->read_buf, conn->read_pos, conn);
+        evaluate_message(conn->read_buf, conn->read_pos, client);
         conn->flags = 0;
     }
     if (conn->write_buf != NULL) {
@@ -316,9 +337,11 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     ssize_t bytes_read;
+    Client* client;
     Connection* conn;
 
-    conn = ((Connection*)client_data);
+    client = ((Client*)client_data);
+    conn = client->conn;
 
     if (conn->flags == 0) {
         memset(conn->read_buf, 0, conn->read_cap);
@@ -334,7 +357,8 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     }
 
     if (bytes_read == 0) {
-        close_client(de, conn, fd, flags);
+        client_close(de, client, fd, flags);
+        // connection_close(de, conn, fd, flags);
         return;
     }
 
@@ -358,7 +382,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
 
     conn->read_pos += bytes_read;
 
-    evaluate_message(conn->read_buf, conn->read_pos, conn);
+    evaluate_message(conn->read_buf, conn->read_pos, client);
     conn->flags = 0;
 
     de_add_event(de, fd, DE_WRITE, write_to_client, client_data);
@@ -367,6 +391,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
 void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     Server* s;
     Connection* c;
+    Client* client;
     int cfd;
     struct sockaddr_in addr = {0};
     socklen_t len = 0;
@@ -397,8 +422,9 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     LOG(LOG_CONNECTION "fd: %d addr: %u port: %u\n", cfd, addr.sin_addr.s_addr,
         addr.sin_port);
 
-    c = create_connection(addr.sin_addr.s_addr, addr.sin_port, s->db);
-    de_add_event(de, cfd, DE_READ, read_from_client, c);
+    c = connection_create(addr.sin_addr.s_addr, addr.sin_port);
+    client = client_create(c, s->db);
+    de_add_event(de, cfd, DE_READ, read_from_client, client);
 }
 
 int server(char* addr_str, uint16_t port) {
