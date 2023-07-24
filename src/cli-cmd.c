@@ -150,6 +150,10 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_PING;
     }
 
+    if (strncmp(literal, "push ", 5) == 0) {
+        return CC_PUSH;
+    }
+
     if (strncmp(literal, "help", 4) == 0) {
         return CC_HELP;
     }
@@ -253,6 +257,31 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             } else {
                 printf("invalid key\n");
                 cmd.type = CC_INV;
+            }
+            break;
+        case CC_PUSH:
+            cli_parser_next_token(p);
+
+            if (cli_parser_cur_token_is(p, CCT_BULK)) {
+                cmd.expr.push.value.type = VTSTRING;
+                cmd.expr.push.value.size =
+                    cli_parser_get_bulk_string_len(&(p->cur_tok));
+                cmd.expr.push.value.ptr =
+                    p->cur_tok.literal + 1; // +1 to skip first '"'
+            } else if (cli_parser_cur_token_is(p, CCT_STRING)) {
+                cmd.expr.push.value.type = VTSTRING;
+                cmd.expr.push.value.size =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.push.value.ptr = p->cur_tok.literal;
+            } else if (cli_parser_cur_token_is(p, CCT_INT)) {
+                cmd.expr.push.value.type = VTINT;
+                cmd.expr.push.value.size = sizeof(int64_t);
+                cmd.expr.push.value.ptr =
+                    ((void*)cli_parser_parse_int(&(p->cur_tok)));
+            } else {
+                cmd.expr.push.value.type = VTNULL;
+                cmd.expr.push.value.size = 0;
+                cmd.expr.push.value.ptr = NULL;
             }
             break;
         default:

@@ -48,6 +48,27 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         hilexi_del(l, key, key_len);
         return;
     }
+    if (cmd->type == CC_PUSH) {
+        ValueT vt = cmd->expr.push.value.type;
+        if (vt == VTINT) {
+            int64_t val = ((int64_t)(cmd->expr.push.value.ptr));
+            if (hilexi_push_int(l, val) != 0) {
+                printf("push int fail\n");
+                return;
+            }
+        } else if (vt == VTSTRING) {
+            char* val = cmd->expr.push.value.ptr;
+            size_t val_size = cmd->expr.push.value.size;
+            if (hilexi_push(l, val, val_size) != 0) {
+                printf("push string fail\n");
+                return;
+            }
+        } else {
+            printf("invalid value");
+            return;
+        }
+        return;
+    }
     if (cmd->type == CC_PING) {
         hilexi_ping(l);
         return;
