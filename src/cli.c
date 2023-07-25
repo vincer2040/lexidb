@@ -12,6 +12,19 @@
 #define ADDR "127.0.0.1"
 #define PORT 6969
 
+#define HELP_TEXT "\
+commands:\n\
+    help                                = show this screen\n\
+    set <key> <value>                   = set a key and value\n\
+    get <key>                           = get a value\n\
+    del <key>                           = delete a value\n\
+    push <value>                        = push a value\n\
+    pop                                 = pop value\n\
+\n\
+    clear                               = clear the screen\n\
+    exit                                = exit the process\n\
+"
+
 void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
     if (cmd->type == CC_SET) {
         uint8_t* key = cmd->expr.set.key.value;
@@ -78,11 +91,7 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         return;
     }
     if (cmd->type == CC_HELP) {
-        printf("help\n");
-        return;
-    }
-    if (cmd->type == CC_INV) {
-        printf("invalid command\n");
+        printf(HELP_TEXT);
         return;
     }
 }
@@ -122,7 +131,7 @@ int run() {
             continue;
         }
 
-        // clear the console screan
+        // clear the console screen
         if (strncmp(line, "clear", 4) == 0) {
             free(line);
             clear();
