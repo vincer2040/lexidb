@@ -206,16 +206,16 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj,
-                                sizeof obj, free_cb);
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
+                                free_cb);
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj,
-                                sizeof obj, free_int_cb);
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
+                                free_int_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj,
-                                sizeof obj, free_int_cb);
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
+                                free_int_cb);
         }
 
         if (set_res != 0) {
@@ -588,7 +588,7 @@ int server(char* addr_str, uint16_t port) {
     LOG(LOG_INFO "server listening on %s:%u\n", addr_str, port);
     de_await(de);
 
-    LOG(LOG_INFO"server shutting down\n");
+    LOG(LOG_INFO "server shutting down\n");
 
     server_destroy(server);
     de_free(de);
