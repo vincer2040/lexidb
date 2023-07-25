@@ -46,6 +46,12 @@ LexiDB* lexidb_new() {
     }
 
     db->vec = vec_new(32, sizeof(Object));
+    if (db->vec == NULL) {
+        ht_free(db->ht);
+        cluster_free(db->cluster);
+        free(db);
+        return NULL;
+    }
     return db;
 }
 
@@ -175,7 +181,6 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     cmd_type = cmd->type;
 
     if (cmd_type == CPING) {
-        // reply with pong
         Builder builder = builder_create(7);
         builder_add_pong(&builder);
         conn->write_buf = builder_out(&builder);
@@ -184,7 +189,6 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     }
 
     if (cmd_type == SET) {
-        // set key and value in ht
         Builder builder;
         Object obj;
         int set_res;
@@ -230,7 +234,6 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     }
 
     if (cmd_type == GET) {
-        // get value from ht
         GetCmd get_cmd;
         uint8_t* key;
         size_t key_len;
@@ -271,7 +274,6 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     }
 
     if (cmd_type == DEL) {
-        // delete key and value in ht
         DelCmd del_cmd;
         Builder builder;
         uint8_t* key;
