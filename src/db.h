@@ -9,6 +9,8 @@
 Options\n\
     --version (-v)      = Print the current version\n\
     --help (-h)         = Print this information\n\
+\n\
+    --logfile <path>    = Set the log file to desired path\n\
 "
 
 #endif

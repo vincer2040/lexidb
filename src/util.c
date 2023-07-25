@@ -1,16 +1,14 @@
 #define _POSIX_C_SOURCE 1
-#include "db.h"
 #include "util.h"
+#include "db.h"
 #include "sha256.h"
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <unistd.h>
-
-#include <signal.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 // used to check if sigint has been sent to process
@@ -147,7 +145,15 @@ int done_from_args(int argc, char** argv) {
             print_help(argv[0]);
             goto done;
         }
-        printf("unknown argument: %s\n", argv[i]);;
+        if (strncmp(arg, "--logfile", 9) == 0) {
+            if (i + 1 >= argc) {
+                printf("--logfile requires an argument <logfile>\n");
+                goto done;
+            }
+            ++i;
+            continue;
+        }
+        printf("unknown argument: %s\n", argv[i]);
         printf("use %s --help to show the help screen\n", argv[0]);
         goto done;
     }
