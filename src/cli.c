@@ -1,6 +1,6 @@
-#include "hilexi.h"
 #include "cli-cmd.h"
 #include "cli-util.h"
+#include "hilexi.h"
 #include "sock.h"
 #include <errno.h>
 #include <stdint.h>
@@ -77,23 +77,41 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         hilexi_ping(l);
         return;
     }
+    if (cmd->type == CC_HELP) {
+        printf("help\n");
+        return;
+    }
     if (cmd->type == CC_INV) {
         printf("invalid command\n");
         return;
     }
 }
 
+void clear() {
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+    system("clear");
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+    system("cls");
+#endif
+}
+
 int run() {
     HiLexi* l;
+
     l = hilexi_new(ADDR, PORT);
+
     if (hilexi_connect(l) == -1) {
         printf("failed to connect\n");
         hilexi_destory(l);
         return -1;
     }
+
     for (;;) {
         char* line = get_line("lexi>");
         CliCmd cmd;
+
         if (line == NULL) {
             goto err;
         }
@@ -104,6 +122,14 @@ int run() {
             continue;
         }
 
+        // clear the console screan
+        if (strncmp(line, "clear", 4) == 0) {
+            free(line);
+            clear();
+            continue;
+        }
+
+        // exit the process
         if (strncmp(line, "exit", 4) == 0) {
             printf("goodbye\n");
             free(line);
