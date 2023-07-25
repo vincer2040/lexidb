@@ -186,3 +186,36 @@ void vec_free(Vec* vec, VecFreeCallBack* cb) {
 
     free(vec);
 }
+
+VecIter vec_iter_new(Vec* vec) {
+    VecIter iter;
+    size_t len;
+    size_t data_size;
+
+    len = vec->len - 1;
+    data_size = vec->data_size;
+
+    iter.start = vec->data;
+    iter.end = vec->data + (len * data_size);
+
+    iter.cur = iter.start;
+
+    iter.next = vec->data + data_size;
+
+    iter.vec = vec;
+
+    return iter;
+}
+
+void vec_iter_next(VecIter* iter) {
+    iter->at_idx++;
+    iter->cur = iter->next;
+
+    if (iter->cur == iter->end) {
+        iter->next = NULL;
+    } else {
+        size_t i = iter->at_idx * iter->vec->data_size;
+        iter->next = iter->vec->data + i;
+    }
+}
+
