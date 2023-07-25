@@ -10,6 +10,11 @@ void slowlog(uint8_t* buf, size_t len) {
     for (i = 0; i < len; ++i) {
         char at = buf[i];
         printf("%x ", at);
+
+        // if we don't branch like this it logs the
+        // wrong hex values. It might be because of
+        // the 0 values in the string in the int
+        // but I am not a genius
         if (at == ':') {
             size_t k;
             i++;
