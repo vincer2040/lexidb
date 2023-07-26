@@ -94,6 +94,10 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         hilexi_keys(l);
         return;
     }
+    if (cmd->type == CC_VALUES) {
+        hilexi_values(l);
+        return;
+    }
     if (cmd->type == CC_HELP) {
         printf(HELP_TEXT);
         return;
