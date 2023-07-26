@@ -31,6 +31,10 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
             return PUSH;
         }
 
+        if (memcmp(str, "KEYS", 4) == 0) {
+            return KEYS;
+        }
+
         return INV;
     }
 

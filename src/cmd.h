@@ -13,6 +13,7 @@ typedef enum {
     GET,
     DEL,
     PUSH,
+    KEYS,
     POP
 } CmdT;
 

@@ -120,4 +120,9 @@ void log_cmd(Cmd* cmd) {
         printf("POP\n");
         fflush(stdout);
     }
+
+    if (t == KEYS) {
+        printf("KEYS\n");
+        fflush(stdout);
+    }
 }
