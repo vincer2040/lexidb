@@ -53,4 +53,16 @@ HtKeysIter* ht_keys_iter(Ht* ht);
 void ht_keys_next(HtKeysIter* iter);
 void ht_keys_iter_free(HtKeysIter* iter);
 
+typedef struct {
+    void* cur;
+    void* next;
+    size_t bucket_idx;
+    size_t ht_idx;
+    Ht* ht;
+} HtValuesIter;
+
+HtValuesIter* ht_values_iter(Ht* ht);
+void ht_values_next(HtValuesIter* iter);
+void ht_values_iter_free(HtValuesIter* iter);
+
 #endif
