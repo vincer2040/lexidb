@@ -162,6 +162,10 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_POP;
     }
 
+    if (strncmp(literal, "keys", 4) == 0) {
+        return CC_KEYS;
+    }
+
     return CC_INV;
 }
 
@@ -289,6 +293,8 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             }
             break;
         case CC_POP:
+            break;
+        case CC_KEYS:
             break;
         default:
             printf("invalid command\n");

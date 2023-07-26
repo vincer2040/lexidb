@@ -12,6 +12,7 @@ typedef enum {
     CC_GET,
     CC_DEL,
     CC_PUSH,
+    CC_KEYS,
     CC_POP
 }CliCmdT;
 
