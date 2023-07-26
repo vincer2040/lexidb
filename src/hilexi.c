@@ -590,6 +590,45 @@ int hilexi_keys(HiLexi* l) {
     return 0;
 }
 
+int hilexi_values(HiLexi* l) {
+    Builder b;
+    int sendres, readres;
+
+    b = builder_create(12);
+    builder_add_string(&b, "VALUES", 6);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    hilexi_unpack(l);
+
+    return 0;
+}
+
 int hilexi_push_int(HiLexi* l, int64_t value) {
     Builder b;
     int sendres, readres;

@@ -73,6 +73,7 @@ int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value);
 int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len);
 int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len);
 int hilexi_keys(HiLexi* l);
+int hilexi_values(HiLexi* l);
 
 /* vec commands */
 int hilexi_push(HiLexi* l, char* value, size_t value_len);
