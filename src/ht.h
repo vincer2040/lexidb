@@ -31,7 +31,8 @@ typedef struct {
 } Ht;
 
 Ht* ht_new(size_t initial_cap);
-int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value, size_t val_size, FreeCallBack* cb);
+int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
+                  size_t val_size, FreeCallBack* cb);
 int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
               size_t val_size, FreeCallBack* cb);
 uint8_t ht_has(Ht* ht, uint8_t* key, size_t key_len);
@@ -39,5 +40,17 @@ int ht_delete(Ht* ht, uint8_t* key, size_t key_len);
 void* ht_get(Ht* ht, uint8_t* key, size_t key_len);
 void ht_print(Ht* ht);
 void ht_free(Ht* ht);
+
+typedef struct {
+    uint8_t* cur;
+    uint8_t* next;
+    size_t bucket_idx;
+    size_t ht_idx;
+    Ht* ht;
+}HtKeysIter;
+
+HtKeysIter* ht_keys_iter(Ht* ht);
+void ht_keys_next(HtKeysIter* iter);
+void ht_keys_iter_free(HtKeysIter* iter);
 
 #endif

@@ -38,7 +38,7 @@ Ht* ht_new(size_t initial_cap) {
     return ht;
 }
 
-inline uint64_t ht_hash(Ht* ht, uint8_t* key, size_t key_len) {
+static inline uint64_t ht_hash(Ht* ht, uint8_t* key, size_t key_len) {
     return siphash(key, key_len, ht->seed) % ht->cap;
 }
 
@@ -311,4 +311,57 @@ void ht_free(Ht* ht) {
     ht->buckets = NULL;
     free(ht);
     ht = NULL;
+}
+
+void ht_keys_next(HtKeysIter* iter) {
+    size_t ht_len, ht_idx, bucket_idx, bucket_len;
+    Ht* ht;
+    Bucket b;
+    Entry e;
+
+    ht = iter->ht;
+
+    ht_idx = iter->ht_idx;
+    bucket_idx = iter->bucket_idx;
+    ht_len = ht->cap;
+
+    if (ht_idx >= ht_len) {
+        iter->cur = iter->next;
+        iter->next = NULL;
+        return;
+    }
+
+    b = ht->buckets[ht_idx];
+    bucket_len = b.len;
+    if (bucket_idx >= bucket_len) {
+        iter->ht_idx++;
+        iter->bucket_idx = 0;
+        ht_keys_next(iter);
+        return;
+    }
+
+    e = b.entries[bucket_idx];
+
+    iter->cur = iter->next;
+    iter->next = e.key;
+    iter->bucket_idx++;
+}
+
+HtKeysIter* ht_keys_iter(Ht* ht) {
+    HtKeysIter* iter;
+
+    iter = calloc(1, sizeof *iter);
+    if (iter == NULL) {
+        return NULL;
+    }
+
+    iter->ht = ht;
+    ht_keys_next(iter);
+    ht_keys_next(iter);
+    return iter;
+}
+
+void ht_keys_iter_free(HtKeysIter* iter) {
+    free(iter);
+    iter = NULL;
 }
