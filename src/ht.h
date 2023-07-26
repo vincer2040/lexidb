@@ -38,6 +38,7 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
 uint8_t ht_has(Ht* ht, uint8_t* key, size_t key_len);
 int ht_delete(Ht* ht, uint8_t* key, size_t key_len);
 void* ht_get(Ht* ht, uint8_t* key, size_t key_len);
+void entry_print(Entry* e);
 void ht_print(Ht* ht);
 void ht_free(Ht* ht);
 
@@ -64,5 +65,17 @@ typedef struct {
 HtValuesIter* ht_values_iter(Ht* ht);
 void ht_values_next(HtValuesIter* iter);
 void ht_values_iter_free(HtValuesIter* iter);
+
+typedef struct {
+    Entry* cur;
+    Entry* next;
+    size_t bucket_idx;
+    size_t ht_idx;
+    Ht* ht;
+} HtEntriesIter;
+
+HtEntriesIter* ht_entries_iter(Ht* ht);
+void ht_entries_next(HtEntriesIter* iter);
+void ht_entries_iter_free(HtEntriesIter* iter);
 
 #endif

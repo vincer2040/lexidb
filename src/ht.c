@@ -240,7 +240,7 @@ int ht_delete(Ht* ht, uint8_t* key, size_t key_len) {
     return 0;
 }
 
-static void entry_print(Entry* e) {
+void entry_print(Entry* e) {
     size_t i;
     uint8_t* key = e->key;
     size_t key_len = e->key_len;
@@ -419,4 +419,56 @@ HtValuesIter* ht_values_iter(Ht* ht) {
 void ht_values_iter_free(HtValuesIter* iter) {
     free(iter);
 }
+
+void ht_entries_next(HtEntriesIter* iter) {
+    size_t ht_len, ht_idx, bucket_idx, bucket_len;
+    Ht* ht;
+    Bucket b;
+
+    ht = iter->ht;
+
+    ht_idx = iter->ht_idx;
+    bucket_idx = iter->bucket_idx;
+    ht_len = ht->cap;
+
+    if (ht_idx >= ht_len) {
+        iter->cur = iter->next;
+        iter->next = NULL;
+        return;
+    }
+
+    b = ht->buckets[ht_idx];
+    bucket_len = b.len;
+    if (bucket_idx >= bucket_len) {
+        iter->ht_idx++;
+        iter->bucket_idx = 0;
+        ht_entries_next(iter);
+        return;
+    }
+
+    iter->cur = iter->next;
+    iter->next = &(ht->buckets[ht_idx].entries[bucket_idx]);
+    iter->bucket_idx++;
+}
+
+HtEntriesIter* ht_entries_iter(Ht* ht) {
+    HtEntriesIter* iter;
+
+    iter = calloc(1, sizeof *iter);
+    if (iter == NULL) {
+        return NULL;
+    }
+
+    iter->ht = ht;
+
+    ht_entries_next(iter);
+    ht_entries_next(iter);
+
+    return iter;
+}
+
+void ht_entries_iter_free(HtEntriesIter* iter) {
+    free(iter);
+}
+
 
