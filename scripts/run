@@ -80,6 +80,10 @@ class Client:
         self.s.send(ProtocolBuilder().add_str("KEYS", 4).get())
         print(self.s.recv(9182).decode())
 
+    def values(self):
+        self.s.send(ProtocolBuilder().add_str("VALUES", 6).get())
+        print(self.s.recv(9182).decode())
+
     def entries(self):
         self.s.send(ProtocolBuilder().add_str("ENTRIES", 7).get())
         print(self.s.recv(9182).decode())
@@ -142,10 +146,10 @@ c.ping()
 
 c.set_str("vince", "is cool")
 c.get("vince")
-c.delete("vince")
 
-c.set_int("vince", 42069)
 c.get("vince")
+
+c.values()
 
 c.db_push("vince")
 c.db_pop()
