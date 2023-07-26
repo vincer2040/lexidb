@@ -125,4 +125,9 @@ void log_cmd(Cmd* cmd) {
         printf("KEYS\n");
         fflush(stdout);
     }
+
+    if (t == VALUES) {
+        printf("VALUES\n");
+        fflush(stdout);
+    }
 }

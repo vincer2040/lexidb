@@ -12,8 +12,9 @@ typedef enum {
     SET,
     GET,
     DEL,
-    PUSH,
     KEYS,
+    VALUES,
+    PUSH,
     POP
 } CmdT;
 

@@ -38,6 +38,14 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
+    if (str_len == 6) {
+        if (memcmp(str, "VALUES", 6) == 0) {
+            return VALUES;
+        }
+
+        return INV;
+    }
+
     return INV;
 }
 
