@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 
+void hilexi_unpack(HiLexi* l);
+
 #define HILEXI_MAX_READ 4096
 
 #define LOG_ERR(...)                                                           \
@@ -89,29 +91,39 @@ String* hilexi_unpack_err(HiLexi* l) {
         string_push_char(&str, *buf);
     }
 
+    l->unpack_pos++;
+    l->unpack_pos++;
+
     return str;
 }
 
 String* hilexi_unpack_bulk(HiLexi* l) {
     String* str;
-    uint8_t* buf = l->read_buf;
+    uint8_t* buf = l->read_buf + l->unpack_pos;
     size_t i, len = 0;
 
     buf++;
+    l->unpack_pos++;
 
     while (*buf != '\r') {
         len = (len * 10) + (*buf - '0');
         buf++;
+        l->unpack_pos++;
     }
 
     str = string_new(len + 1);
 
     buf++;
+    l->unpack_pos++;
     buf++;
+    l->unpack_pos++;
 
-    for (i = 0; i < len; ++i, buf++) {
+    for (i = 0; i < len; ++i, buf++, l->unpack_pos++) {
         string_push_char(&str, *buf);
     }
+
+    l->unpack_pos++;
+    l->unpack_pos++;
 
     return str;
 }
@@ -119,12 +131,12 @@ String* hilexi_unpack_bulk(HiLexi* l) {
 int64_t hilexi_unpack_int(HiLexi* l) {
     int64_t res = 0;
     uint64_t temp = 0;
-    uint8_t* buf = l->read_buf;
+    uint8_t* buf = l->read_buf + l->unpack_pos;
     size_t i, len = 9;
     uint8_t shift = 56;
 
     // maybe just replace this with memcpy ?
-    for (i = 1; i < len; ++i, shift -= 8) {
+    for (i = 1; i < len; ++i, shift -= 8, l->unpack_pos++) {
         uint8_t at = buf[i];
         temp |= (uint64_t)(at << shift);
     }
@@ -135,6 +147,9 @@ int64_t hilexi_unpack_int(HiLexi* l) {
     } else {
         res = -1 - (long long int)(0xffffffffffffffffu - temp);
     }
+
+    l->unpack_pos++;
+    l->unpack_pos++;
 
     return res;
 }
@@ -156,8 +171,32 @@ HiLexiSimpleString hilexi_unpack_simple(HiLexi* l) {
     return HL_INVSS;
 }
 
+void hilexi_unpack_arr(HiLexi* l) {
+    uint8_t* buf = l->read_buf + l->unpack_pos;
+    size_t i, len = 0;
+
+    buf++;
+    l->unpack_pos++;
+
+    while (*buf != '\r') {
+        len = (len * 10) + (*buf - '0');
+        buf++;
+        l->unpack_pos++;
+    }
+
+    buf++;
+    l->unpack_pos++;
+    buf++;
+    l->unpack_pos++;
+
+    for (i = 0; i < len; ++i) {
+        printf("%lu. ", i + 1);
+        hilexi_unpack(l);
+    }
+}
+
 void hilexi_unpack(HiLexi* l) {
-    HiLexiDataType type = hilexi_get_type(*(l->read_buf));
+    HiLexiDataType type = hilexi_get_type(*(l->read_buf + l->unpack_pos));
 
     if (type == HL_ERR) {
         String* err = hilexi_unpack_err(l);
@@ -186,10 +225,16 @@ void hilexi_unpack(HiLexi* l) {
 
         hilexi_print_simple(simple);
     }
+
+    if (type == HL_ARR) {
+        hilexi_unpack_arr(l);
+    }
 }
 
 static int hilexi_read(HiLexi* l) {
     ssize_t bytes_read;
+
+    l->unpack_pos = 0;
 
     if (!(l->flags & (1 << 1))) {
         memset(l->read_buf, 0, l->read_cap);
@@ -506,6 +551,45 @@ int hilexi_pop(HiLexi* l) {
     return 0;
 }
 
+int hilexi_keys(HiLexi* l) {
+    Builder b;
+    int sendres, readres;
+
+    b = builder_create(10);
+    builder_add_string(&b, "KEYS", 4);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    hilexi_unpack(l);
+
+    return 0;
+}
+
 int hilexi_push_int(HiLexi* l, int64_t value) {
     Builder b;
     int sendres, readres;
@@ -549,6 +633,7 @@ int hilexi_push_int(HiLexi* l, int64_t value) {
 
 int hilexi_ping(HiLexi* l) {
     Builder b;
+
     int sendres, readres;
 
     b = builder_create(32);
