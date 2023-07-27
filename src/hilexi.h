@@ -41,16 +41,14 @@ typedef enum {
     HL_OK
 } HiLexiSimpleString;
 
-struct HiLexiData;
-
 typedef union {
-    struct HiLexiData* arr;
+    Vec* arr;
     String* string; // used for both HL_BULK_STRING and HL_ERR
     int64_t integer;
     HiLexiSimpleString simple;
 } HiLexiDataD;
 
-typedef struct HiLexiData {
+typedef struct {
     HiLexiDataType type;
     HiLexiDataD val;
 } HiLexiData;
@@ -74,6 +72,7 @@ int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len);
 int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len);
 int hilexi_keys(HiLexi* l);
 int hilexi_values(HiLexi* l);
+int hilexi_entries(HiLexi* l);
 
 /* vec commands */
 int hilexi_push(HiLexi* l, char* value, size_t value_len);

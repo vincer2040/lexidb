@@ -1,5 +1,6 @@
 #include "hilexi.h"
 #include "builder.h"
+#include "objects.h"
 #include "sock.h"
 #include <errno.h>
 #include <stddef.h>
@@ -9,7 +10,9 @@
 #include <string.h>
 #include <unistd.h>
 
-void hilexi_unpack(HiLexi* l);
+HiLexiData hilexi_unpack(HiLexi* l);
+void hilexi_print_data(HiLexiData* data);
+void hilexi_free_data(HiLexiData* data);
 
 #define HILEXI_MAX_READ 4096
 
@@ -30,6 +33,18 @@ void hilexi_print_simple(HiLexiSimpleString simple) {
     case HL_PONG:
         printf("pong\n");
         break;
+    }
+}
+
+void hilexi_print_arr(Vec* data) {
+    size_t i, len, data_size;
+
+    len = data->len;
+    data_size = data->data_size;
+
+    for (i = 0; i < len; ++i) {
+        HiLexiData* at = ((HiLexiData*)(data->data + (i * data_size)));
+        hilexi_print_data(at);
     }
 }
 
@@ -63,6 +78,20 @@ HiLexi* hilexi_new(char* addr, uint16_t port) {
     l->port = port;
 
     return l;
+}
+
+void vec_free_cb(void* ptr) { hilexi_free_data((HiLexiData*)ptr); }
+
+void hilexi_free_data(HiLexiData* data) {
+    if (data->type == HL_ARR) {
+        vec_free(data->val.arr, vec_free_cb);
+    }
+    if (data->type == HL_BULK_STRING) {
+        free(data->val.string);
+    }
+    if (data->type == HL_ERR) {
+        free(data->val.string);
+    }
 }
 
 HiLexiDataType hilexi_get_type(uint8_t ch) {
@@ -171,9 +200,10 @@ HiLexiSimpleString hilexi_unpack_simple(HiLexi* l) {
     return HL_INVSS;
 }
 
-void hilexi_unpack_arr(HiLexi* l) {
+Vec* hilexi_unpack_arr(HiLexi* l) {
     uint8_t* buf = l->read_buf + l->unpack_pos;
     size_t i, len = 0;
+    Vec* data;
 
     buf++;
     l->unpack_pos++;
@@ -184,51 +214,52 @@ void hilexi_unpack_arr(HiLexi* l) {
         l->unpack_pos++;
     }
 
+    data = vec_new(len, sizeof(HiLexiData));
+
     buf++;
     l->unpack_pos++;
     buf++;
     l->unpack_pos++;
 
     for (i = 0; i < len; ++i) {
-        printf("%lu. ", i + 1);
-        hilexi_unpack(l);
+        HiLexiData di = hilexi_unpack(l);
+        vec_push(&data, &di);
     }
+
+    return data;
 }
 
-void hilexi_unpack(HiLexi* l) {
+HiLexiData hilexi_unpack(HiLexi* l) {
+    HiLexiData data = {0};
     HiLexiDataType type = hilexi_get_type(*(l->read_buf + l->unpack_pos));
 
     if (type == HL_ERR) {
         String* err = hilexi_unpack_err(l);
-
-        printf("(error) %s\n", err->data);
-
-        free(err);
+        data.val.string = err;
     }
 
     if (type == HL_BULK_STRING) {
         String* bulk = hilexi_unpack_bulk(l);
-
-        printf("(string) %s\n", bulk->data);
-
-        free(bulk);
+        data.val.string = bulk;
     }
 
     if (type == HL_INT) {
         int64_t i64 = hilexi_unpack_int(l);
-
-        printf("(int) %ld\n", i64);
+        data.val.integer = i64;
     }
 
     if (type == HL_SIMPLE_STRING) {
         HiLexiSimpleString simple = hilexi_unpack_simple(l);
-
-        hilexi_print_simple(simple);
+        data.val.simple = simple;
     }
 
     if (type == HL_ARR) {
-        hilexi_unpack_arr(l);
+        data.val.arr = hilexi_unpack_arr(l);
     }
+
+    data.type = type;
+
+    return data;
 }
 
 static int hilexi_read(HiLexi* l) {
@@ -304,10 +335,29 @@ void hilexi_evaluate_msg(HiLexi* l) {
     printf("\n");
 }
 
+void hilexi_print_data(HiLexiData* data) {
+    if (data->type == HL_ARR) {
+        hilexi_print_arr(data->val.arr);
+    }
+    if (data->type == HL_BULK_STRING) {
+        printf("\"%s\"\n", data->val.string->data);
+    }
+    if (data->type == HL_SIMPLE_STRING) {
+        hilexi_print_simple(data->val.simple);
+    }
+    if (data->type == HL_INT) {
+        printf("(int) %ld\n", data->val.integer);
+    }
+    if (data->type == HL_ERR) {
+        printf("\"%s\"\n", data->val.string->data);
+    }
+}
+
 int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value,
                size_t value_len) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(32);
     builder_add_arr(&b, 3);
@@ -342,13 +392,15 @@ int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value,
         return -1;
     }
 
-    hilexi_unpack(l);
-
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
     return 0;
 }
 
 int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value) {
     Builder b;
+    HiLexiData data;
     int sendres, readres;
 
     b = builder_create(32);
@@ -384,7 +436,9 @@ int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -392,6 +446,7 @@ int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value) {
 int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(32);
     builder_add_arr(&b, 2);
@@ -425,7 +480,9 @@ int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -433,6 +490,7 @@ int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len) {
 int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(32);
     builder_add_arr(&b, 2);
@@ -466,7 +524,9 @@ int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -474,6 +534,7 @@ int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len) {
 int hilexi_push(HiLexi* l, char* value, size_t value_len) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(32);
     builder_add_arr(&b, 2);
@@ -507,7 +568,9 @@ int hilexi_push(HiLexi* l, char* value, size_t value_len) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -515,6 +578,7 @@ int hilexi_push(HiLexi* l, char* value, size_t value_len) {
 int hilexi_pop(HiLexi* l) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(9);
     builder_add_string(&b, "POP", 3);
@@ -546,7 +610,9 @@ int hilexi_pop(HiLexi* l) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -554,6 +620,7 @@ int hilexi_pop(HiLexi* l) {
 int hilexi_keys(HiLexi* l) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(10);
     builder_add_string(&b, "KEYS", 4);
@@ -585,7 +652,9 @@ int hilexi_keys(HiLexi* l) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -593,6 +662,7 @@ int hilexi_keys(HiLexi* l) {
 int hilexi_values(HiLexi* l) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(12);
     builder_add_string(&b, "VALUES", 6);
@@ -624,7 +694,51 @@ int hilexi_values(HiLexi* l) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+
+    return 0;
+}
+
+int hilexi_entries(HiLexi* l) {
+    Builder b;
+    int sendres, readres;
+    HiLexiData data;
+
+    b = builder_create(12);
+    builder_add_string(&b, "ENTRIES", 7);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
@@ -632,6 +746,7 @@ int hilexi_values(HiLexi* l) {
 int hilexi_push_int(HiLexi* l, int64_t value) {
     Builder b;
     int sendres, readres;
+    HiLexiData data;
 
     b = builder_create(32);
     builder_add_arr(&b, 2);
@@ -665,13 +780,16 @@ int hilexi_push_int(HiLexi* l, int64_t value) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
 
 int hilexi_ping(HiLexi* l) {
     Builder b;
+    HiLexiData data;
 
     int sendres, readres;
 
@@ -705,7 +823,9 @@ int hilexi_ping(HiLexi* l) {
         return -1;
     }
 
-    hilexi_unpack(l);
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
 
     return 0;
 }
