@@ -160,6 +160,35 @@ int vec_pop(Vec* vec, void* out) {
     return 0;
 }
 
+int vec_remove(Vec* vec, void* cmp_against, VecCmpFn* fn) {
+    size_t i, len, data_size;
+
+    if (vec->len == 0) {
+        return -1;
+    }
+
+    len = vec->len - 1;
+    data_size = vec->data_size;
+
+    for (i = 0; i < len; ++i) {
+        void* c = vec->data + (i * data_size);
+        if (fn(cmp_against, c) == 0) {
+            goto found;
+        }
+    }
+    return -1;
+
+found:
+    memset(vec->data + (i * data_size), 0, data_size);
+    if (i == len) {
+        vec->len--;
+        return 0;
+    }
+    memmove(vec->data + (i * data_size), vec->data + ((i * data_size) + data_size), data_size * (len - i));
+    vec->len--;
+    return 0;
+}
+
 void vec_for_each(Vec* vec, VecForEach* fn) {
     size_t i, len, size;
     len = vec->len;

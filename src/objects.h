@@ -13,6 +13,7 @@ typedef struct {
 
 typedef void VecFreeCallBack(void* ptr);
 typedef void VecForEach(void* ptr);
+typedef int VecCmpFn(void* cmp_against, void* cur);
 
 typedef struct {
     size_t len;
@@ -63,6 +64,7 @@ Vec* vec_new(size_t initial_cap, size_t data_size);
 int vec_push(Vec** vec, void* data);
 int vec_pop(Vec* vec, void* data);
 void vec_for_each(Vec* vec, VecForEach* fn);
+int vec_remove(Vec* vec, void* cmp_against, VecCmpFn* fn);
 void vec_free(Vec* vec, VecFreeCallBack* cb);
 
 /* vec iterator */
