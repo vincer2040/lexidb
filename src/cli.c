@@ -12,12 +12,16 @@
 #define ADDR "127.0.0.1"
 #define PORT 6969
 
-#define HELP_TEXT "\
+#define HELP_TEXT                                                              \
+    "\
 commands:\n\
     help                                = show this screen\n\
     set <key> <value>                   = set a key and value\n\
     get <key>                           = get a value\n\
     del <key>                           = delete a value\n\
+    keys                                = get all the keys\n\
+    values                              = get all the values\n\
+    entries                             = get all the entries\n\
     push <value>                        = push a value\n\
     pop                                 = pop value\n\
 \n\
@@ -96,6 +100,10 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
     }
     if (cmd->type == CC_VALUES) {
         hilexi_values(l);
+        return;
+    }
+    if (cmd->type == CC_ENTRIES) {
+        hilexi_entries(l);
         return;
     }
     if (cmd->type == CC_HELP) {

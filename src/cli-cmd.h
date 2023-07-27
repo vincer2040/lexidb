@@ -13,14 +13,15 @@ typedef enum {
     CC_DEL,
     CC_KEYS,
     CC_VALUES,
+    CC_ENTRIES,
     CC_PUSH,
     CC_POP
-}CliCmdT;
+} CliCmdT;
 
 typedef struct {
     CliCmdT type;
     CmdExpression expr;
-}CliCmd;
+} CliCmd;
 
 CliCmd cli_parse_cmd(char* input, size_t input_len);
 void cli_cmd_print(CliCmd* cmd);
