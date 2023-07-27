@@ -437,6 +437,50 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         return;
     }
+
+    if (cmd_type == ENTRIES) {
+        Builder builder;
+        HtEntriesIter* iter;
+        Entry* cur;
+        builder = builder_create(32);
+
+        if (client->db->ht->len == 0) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        iter = ht_entries_iter(client->db->ht);
+        if (iter == NULL) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        builder_add_arr(&builder, client->db->ht->len);
+
+        for (cur = iter->cur; cur != NULL; ht_entries_next(iter), cur = iter->cur) {
+            uint8_t* key = cur->key;
+            size_t key_len = cur->key_len;
+            Object* obj = ((Object*)cur->value);
+            builder_add_arr(&builder, 2);
+            builder_add_string(&builder, ((char*)key), key_len);
+            if (obj->type == OINT) {
+                builder_add_int(&builder, obj->data.i64);
+            } else if (obj->type == STRING) {
+                builder_add_string(&builder, obj->data.str->data, obj->data.str->len);
+            }
+        }
+
+        ht_entries_iter_free(iter);
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+
+        return;
+    }
 }
 
 void evaluate_message(uint8_t* data, size_t len, Client* client) {

@@ -46,6 +46,14 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
+    if (str_len == 7) {
+        if (memcmp(str, "ENTRIES", 7) == 0) {
+            return ENTRIES;
+        }
+
+        return INV;
+    }
+
     return INV;
 }
 
