@@ -130,4 +130,9 @@ void log_cmd(Cmd* cmd) {
         printf("VALUES\n");
         fflush(stdout);
     }
+
+    if (t == ENTRIES) {
+        printf("ENTRIES\n");
+        fflush(stdout);
+    }
 }
