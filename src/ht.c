@@ -317,7 +317,6 @@ void ht_keys_next(HtKeysIter* iter) {
     size_t ht_len, ht_idx, bucket_idx, bucket_len;
     Ht* ht;
     Bucket b;
-    Entry e;
 
     ht = iter->ht;
 
@@ -334,16 +333,29 @@ void ht_keys_next(HtKeysIter* iter) {
     b = ht->buckets[ht_idx];
     bucket_len = b.len;
     if (bucket_idx >= bucket_len) {
-        iter->ht_idx++;
-        iter->bucket_idx = 0;
-        ht_keys_next(iter);
+        ht_idx++;
+        for (; ht_idx < ht_len; ++ht_idx) {
+            b = ht->buckets[ht_idx];
+            if (b.len > 0) {
+                bucket_idx = 0;
+                iter->ht_idx = ht_idx;
+                iter->bucket_idx = bucket_idx;
+                // we use a goto here so we don't have to set
+                // a state value anc check it
+                goto set;
+            }
+        }
+
+        // if we reach here, we have no more entries
+        iter->cur = iter->next;
+        iter->next = NULL;
+        iter->ht_idx = ht_len;
         return;
     }
 
-    e = b.entries[bucket_idx];
-
+set:
     iter->cur = iter->next;
-    iter->next = e.key;
+    iter->next = (ht->buckets[ht_idx].entries[bucket_idx].key);
     iter->bucket_idx++;
 }
 
@@ -370,7 +382,6 @@ void ht_values_next(HtValuesIter* iter) {
     size_t ht_len, ht_idx, bucket_idx, bucket_len;
     Ht* ht;
     Bucket b;
-    Entry e;
 
     ht = iter->ht;
 
@@ -387,16 +398,29 @@ void ht_values_next(HtValuesIter* iter) {
     b = ht->buckets[ht_idx];
     bucket_len = b.len;
     if (bucket_idx >= bucket_len) {
-        iter->ht_idx++;
-        iter->bucket_idx = 0;
-        ht_values_next(iter);
+        ht_idx++;
+        for (; ht_idx < ht_len; ++ht_idx) {
+            b = ht->buckets[ht_idx];
+            if (b.len > 0) {
+                bucket_idx = 0;
+                iter->ht_idx = ht_idx;
+                iter->bucket_idx = bucket_idx;
+                // we use a goto here so we don't have to set
+                // a state value anc check it
+                goto set;
+            }
+        }
+
+        // if we reach here, we have no more entries
+        iter->cur = iter->next;
+        iter->next = NULL;
+        iter->ht_idx = ht_len;
         return;
     }
 
-    e = b.entries[bucket_idx];
-
+set:
     iter->cur = iter->next;
-    iter->next = e.value;
+    iter->next = ht->buckets[ht_idx].entries[bucket_idx].value;
     iter->bucket_idx++;
 }
 
@@ -440,12 +464,27 @@ void ht_entries_next(HtEntriesIter* iter) {
     b = ht->buckets[ht_idx];
     bucket_len = b.len;
     if (bucket_idx >= bucket_len) {
-        iter->ht_idx++;
-        iter->bucket_idx = 0;
-        ht_entries_next(iter);
+        ht_idx++;
+        bucket_idx = 0;
+        iter->bucket_idx = bucket_idx;
+        for (; ht_idx < ht_len; ++ht_idx) {
+            b = ht->buckets[ht_idx];
+            if (b.len > 0) {
+                iter->ht_idx = ht_idx;
+                // we use a goto here so we don't have to set
+                // a state value anc check it
+                goto set;
+            }
+        }
+
+        // if we reach here, we have no more entries
+        iter->cur = iter->next;
+        iter->next = NULL;
+        iter->ht_idx = ht_len;
         return;
     }
 
+set:
     iter->cur = iter->next;
     iter->next = &(ht->buckets[ht_idx].entries[bucket_idx]);
     iter->bucket_idx++;
