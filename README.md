@@ -37,7 +37,7 @@ in a new terminal
 ./lexi-cli
 ```
 
-#### run some commands from the terminal
+#### run some commands
 
 ```console
 ./lexi-cli
@@ -48,9 +48,9 @@ lexi> get foo
 "bar"
 lexi> keys
 "foo"
-lexi>set baz :500
+lexi> set baz :500
 ok
-lexi>get baz
+lexi> get baz
 (int) 500
 lexi> set foo "bar baz"
 ok
