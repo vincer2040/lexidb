@@ -8,8 +8,9 @@ Note: you must be running Linux on a 64 bit architecture
 
 ### Requirements
 
-cmake >= 3.10
-gcc
+1. cmake >= 3.10
+
+2. gcc
 
 #### building
 
