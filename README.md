@@ -6,6 +6,8 @@ An in-memory data structure database
 
 Note: you must be running Linux on a 64 bit architecture
 
+-- This project is still very much so a WIP --
+
 ### Requirements
 
 cmake >= 3.10
