@@ -192,7 +192,6 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
     }
 
     if (ht->len == ht->cap) {
-        printf("resize\n");
         ht_resize(ht);
     }
 
