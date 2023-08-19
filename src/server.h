@@ -17,6 +17,7 @@ typedef struct {
     uint32_t port;
     uint16_t addr;
     uint16_t flags; /* mainly for padding, no use as of now */
+    uint32_t ismaster;
     LexiDB* db;
 } Server;
 

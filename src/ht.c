@@ -1,4 +1,5 @@
 #include "ht.h"
+#include "lexer.h"
 #include "sha256.h"
 #include "siphash.h"
 #include "util.h"
@@ -83,7 +84,7 @@ static void ht_internal_has(Ht* ht, uint8_t* key, size_t key_len,
 }
 
 uint8_t ht_has(Ht* ht, uint8_t* key, size_t key_len) {
-    HtHasResult has = { 0 };
+    HtHasResult has = {0};
     ht_internal_has(ht, key, key_len, &has);
     return has.has;
 }
@@ -138,6 +139,47 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
     return 0;
 }
 
+int ht_resize(Ht* ht) {
+    size_t i, len;
+    len = ht->cap;
+
+    ht->cap += ht->cap;
+    ht->buckets = realloc(ht->buckets, sizeof(Bucket) * ht->cap);
+    assert(ht->buckets != NULL);
+    memset(&(ht->buckets[len]), 0, (ht->cap - len) * sizeof(Bucket));
+
+    for (i = 0; i < len; ++i) {
+        Bucket* bucket = &(ht->buckets[i]);
+        size_t j, blen;
+        blen = bucket->len;
+        for (j = 0; j < blen; ++j) {
+            Entry* e = &(bucket->entries[j]);
+            uint64_t hash = ht_hash(ht, e->key, e->key_len);
+            if (hash == i) {
+                size_t k;
+                for (k = 0; k < j; ++k) {
+                    Entry* ke = &(bucket->entries[k]);
+                    if (ke->key_len == 0) {
+                        memmove(&(bucket->entries[k]), e, sizeof(Entry));
+                        memset(&(bucket->entries[j]), 0, sizeof(Entry));
+                        goto next;
+                    }
+                }
+                continue;
+            }
+            bucket_insert(&(ht->buckets[hash]), e->key, e->key_len, e->value,
+                          e->val_size, e->cb);
+            free_entry(e);
+            memset(&(bucket->entries[j]), 0, sizeof(Entry));
+            bucket->len--;
+            continue;
+        next:
+            continue;
+        }
+    }
+    return 0;
+}
+
 /* insert a key and a value */
 int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
               size_t val_size, FreeCallBack* cb) {
@@ -147,6 +189,11 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
     if (cb == NULL) {
         errno = EINVAL;
         return -1;
+    }
+
+    if (ht->len == ht->cap) {
+        printf("resize\n");
+        ht_resize(ht);
     }
 
     ht_internal_has(ht, key, key_len, &has);
@@ -181,7 +228,8 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
     return insert_result;
 }
 
-int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value, size_t val_size, FreeCallBack* cb) {
+int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
+                  size_t val_size, FreeCallBack* cb) {
     HtHasResult has = {0};
 
     if (cb == NULL) {
@@ -190,7 +238,6 @@ int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value, size_t val_
     }
 
     ht_internal_has(ht, key, key_len, &has);
-
 
     if (has.has) {
         return -1;
@@ -440,9 +487,7 @@ HtValuesIter* ht_values_iter(Ht* ht) {
     return iter;
 }
 
-void ht_values_iter_free(HtValuesIter* iter) {
-    free(iter);
-}
+void ht_values_iter_free(HtValuesIter* iter) { free(iter); }
 
 void ht_entries_next(HtEntriesIter* iter) {
     size_t ht_len, ht_idx, bucket_idx, bucket_len;
@@ -506,8 +551,4 @@ HtEntriesIter* ht_entries_iter(Ht* ht) {
     return iter;
 }
 
-void ht_entries_iter_free(HtEntriesIter* iter) {
-    free(iter);
-}
-
-
+void ht_entries_iter_free(HtEntriesIter* iter) { free(iter); }

@@ -17,6 +17,7 @@ add_library(de src/de.c)
 
 add_executable(lexer_test tests/test_lexer.c)
 add_executable(parser_test tests/test_parser.c)
+add_executable(ht_test tests/test_ht_resize.c src/ht.c src/util.c src/sha256.c src/siphash.c)
 
 add_executable(lexidb src/cluster.c src/log.c
     src/server.c src/sha256.c src/util.c

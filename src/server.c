@@ -23,6 +23,7 @@
 #define CONN_BUF_INIT_CAP 4096
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
+void lexidb_free(LexiDB* db);
 
 LexiDB* lexidb_new() {
     LexiDB* db;
@@ -75,6 +76,14 @@ Server* server_create(int sfd) {
         close(sfd);
         return NULL;
     }
+
+    // server->clients = vec_new(32, sizeof(Client*));
+    // if (server->clients == NULL) {
+    //     lexidb_free(server->db);
+    //     free(server);
+    //     close(sfd);
+    //     return NULL;
+    // }
 
     return server;
 }
@@ -650,6 +659,7 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
 
     c = connection_create(addr.sin_addr.s_addr, addr.sin_port);
     client = client_create(c, s->db);
+    // vec_push(&(s->clients), &client);
     de_add_event(de, cfd, DE_READ, read_from_client, client);
 }
 

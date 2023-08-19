@@ -145,14 +145,8 @@ c = Client("127.0.0.1", 6969).conn()
 c.ping()
 
 c.set_str("vince", "is cool")
-c.get("vince")
-
-c.get("vince")
-
-c.values()
-
-c.db_push("vince")
-c.db_pop()
+for i in range(0, 50):
+    c.set_str(rand_str(20), rand_str(25))
 
 # c.get(rand_str(4074))
 
