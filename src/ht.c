@@ -139,6 +139,7 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
     return 0;
 }
 
+/* resize the hashtable */
 int ht_resize(Ht* ht) {
     size_t i, len;
     len = ht->cap;
@@ -155,6 +156,8 @@ int ht_resize(Ht* ht) {
         for (j = 0; j < blen; ++j) {
             Entry* e = &(bucket->entries[j]);
             uint64_t hash = ht_hash(ht, e->key, e->key_len);
+            /* we keep this entry in the same bucket, must traverse
+               to find first open entry */
             if (hash == i) {
                 size_t k;
                 for (k = 0; k < j; ++k) {
