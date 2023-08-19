@@ -172,7 +172,8 @@ int ht_resize(Ht* ht) {
             }
             bucket_insert(&(ht->buckets[hash]), e->key, e->key_len, e->value,
                           e->val_size, e->cb);
-            free_entry(e);
+            free(e->key);
+            free(e->value);
             memset(&(bucket->entries[j]), 0, sizeof(Entry));
             bucket->len--;
             continue;
