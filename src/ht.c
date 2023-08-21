@@ -1,5 +1,4 @@
 #include "ht.h"
-#include "lexer.h"
 #include "sha256.h"
 #include "siphash.h"
 #include "util.h"
