@@ -189,15 +189,22 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     log_cmd(cmd);
     cmd_type = cmd->type;
 
-    if (cmd_type == CPING) {
+    switch (cmd_type) {
+    case INV: {
+        Builder builder = builder_create(7);
+        builder_add_err(&builder, ((uint8_t*)"invalid command"), 15);
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+    } break;
+    case CPING: {
         Builder builder = builder_create(7);
         builder_add_pong(&builder);
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        return;
+        break;
     }
 
-    if (cmd_type == SET) {
+    case SET: {
         Builder builder;
         Object obj;
         int set_res;
@@ -239,10 +246,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        return;
+        break;
     }
 
-    if (cmd_type == GET) {
+    case GET: {
         GetCmd get_cmd;
         uint8_t* key;
         size_t key_len;
@@ -279,10 +286,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        return;
+        break;
     }
 
-    if (cmd_type == DEL) {
+    case DEL: {
         DelCmd del_cmd;
         Builder builder;
         uint8_t* key;
@@ -298,10 +305,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         builder_add_ok(&builder);
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        return;
+        break;
     }
 
-    if (cmd_type == PUSH) {
+    case PUSH: {
         Object obj;
         PushCmd push_cmd;
         Builder builder;
@@ -334,10 +341,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        return;
+        break;
     }
 
-    if (cmd_type == POP) {
+    case POP: {
         Object obj;
         int pop_res;
         Builder builder;
@@ -369,10 +376,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        return;
+        break;
     }
 
-    if (cmd_type == KEYS) {
+    case KEYS: {
         Builder builder;
         HtEntriesIter* iter;
         Entry* cur;
@@ -395,7 +402,8 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         builder_add_arr(&builder, client->db->ht->len);
 
-        for (cur = iter->cur; cur != NULL; ht_entries_next(iter), cur = iter->cur) {
+        for (cur = iter->cur; cur != NULL;
+             ht_entries_next(iter), cur = iter->cur) {
             builder_add_string(&builder, ((char*)cur->key), cur->key_len);
         }
 
@@ -404,10 +412,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
 
-        return;
+        break;
     }
 
-    if (cmd_type == VALUES) {
+    case VALUES: {
         Builder builder;
         HtEntriesIter* iter;
         Entry* cur;
@@ -430,12 +438,14 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         builder_add_arr(&builder, client->db->ht->len);
 
-        for (cur = iter->cur; cur != NULL; ht_entries_next(iter), cur = iter->cur) {
+        for (cur = iter->cur; cur != NULL;
+             ht_entries_next(iter), cur = iter->cur) {
             Object* obj = ((Object*)cur->value);
             if (obj->type == OINT) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
-                builder_add_string(&builder, obj->data.str->data, obj->data.str->len);
+                builder_add_string(&builder, obj->data.str->data,
+                                   obj->data.str->len);
             }
         }
 
@@ -444,10 +454,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
 
-        return;
+        break;
     }
 
-    if (cmd_type == ENTRIES) {
+    case ENTRIES: {
         Builder builder;
         HtEntriesIter* iter;
         Entry* cur;
@@ -470,7 +480,8 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         builder_add_arr(&builder, client->db->ht->len);
 
-        for (cur = iter->cur; cur != NULL; ht_entries_next(iter), cur = iter->cur) {
+        for (cur = iter->cur; cur != NULL;
+             ht_entries_next(iter), cur = iter->cur) {
             uint8_t* key = cur->key;
             size_t key_len = cur->key_len;
             Object* obj = ((Object*)cur->value);
@@ -479,7 +490,8 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             if (obj->type == OINT) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
-                builder_add_string(&builder, obj->data.str->data, obj->data.str->len);
+                builder_add_string(&builder, obj->data.str->data,
+                                   obj->data.str->len);
             }
         }
 
@@ -488,7 +500,8 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
 
-        return;
+        break;
+    }
     }
 }
 
