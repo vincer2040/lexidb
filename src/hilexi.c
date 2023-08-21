@@ -87,10 +87,10 @@ void hilexi_free_data(HiLexiData* data) {
         vec_free(data->val.arr, vec_free_cb);
     }
     if (data->type == HL_BULK_STRING) {
-        free(data->val.string);
+        vstr_delete(data->val.string);
     }
     if (data->type == HL_ERR) {
-        free(data->val.string);
+        vstr_delete(data->val.string);
     }
 }
 
