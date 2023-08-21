@@ -3,6 +3,7 @@
 #define __HI_LEXI_H__
 
 #include "objects.h"
+#include "vstring.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -43,7 +44,7 @@ typedef enum {
 
 typedef union {
     Vec* arr;
-    String* string; // used for both HL_BULK_STRING and HL_ERR
+    vstr string; // used for both HL_BULK_STRING and HL_ERR
     int64_t integer;
     HiLexiSimpleString simple;
 } HiLexiDataD;

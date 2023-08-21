@@ -264,15 +264,13 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             builder_add_none(&builder);
         } else {
             Object* obj = ((Object*)get_res);
-            String* str;
+            vstr str;
             builder = builder_create(32);
             if (obj->type == STRING) {
-                char* v;
                 size_t len;
                 str = obj->data.str;
-                v = str->data;
-                len = str->len;
-                builder_add_string(&builder, v, len);
+                len = vstr_len(obj->data.str);
+                builder_add_string(&builder, str, len);
             } else if (obj->type == OINT) {
                 int64_t i;
                 i = obj->data.i64;
@@ -364,9 +362,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         }
 
         if (obj.type == STRING) {
+            size_t len = vstr_len(obj.data.str);
             builder = builder_create(32);
-            builder_add_string(&builder, obj.data.str->data, obj.data.str->len);
-            string_free(obj.data.str);
+            builder_add_string(&builder, obj.data.str, len);
+            vstr_delete(obj.data.str);
         }
 
         conn->write_buf = builder_out(&builder);
@@ -437,8 +436,9 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             if (obj->type == OINT) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
-                builder_add_string(&builder, obj->data.str->data,
-                                   obj->data.str->len);
+                size_t len = vstr_len(obj->data.str);
+                builder_add_string(&builder, obj->data.str,
+                                   len);
             }
         }
 
@@ -482,8 +482,9 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             if (obj->type == OINT) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
-                builder_add_string(&builder, obj->data.str->data,
-                                   obj->data.str->len);
+                size_t len = vstr_len(obj->data.str);
+                builder_add_string(&builder, obj->data.str,
+                                   len);
             }
         }
 

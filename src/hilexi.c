@@ -111,13 +111,13 @@ HiLexiDataType hilexi_get_type(uint8_t ch) {
     }
 }
 
-String* hilexi_unpack_err(HiLexi* l) {
-    String* str = string_new(32);
+vstr hilexi_unpack_err(HiLexi* l) {
+    vstr str = vstr_new();
     uint8_t* buf = l->read_buf;
     buf++;
 
     while (*buf != '\r') {
-        string_push_char(&str, *buf);
+        str = vstr_push_char(str, *buf);
     }
 
     l->unpack_pos++;
@@ -126,8 +126,8 @@ String* hilexi_unpack_err(HiLexi* l) {
     return str;
 }
 
-String* hilexi_unpack_bulk(HiLexi* l) {
-    String* str;
+vstr hilexi_unpack_bulk(HiLexi* l) {
+    vstr str;
     uint8_t* buf = l->read_buf + l->unpack_pos;
     size_t i, len = 0;
 
@@ -140,7 +140,7 @@ String* hilexi_unpack_bulk(HiLexi* l) {
         l->unpack_pos++;
     }
 
-    str = string_new(len + 1);
+    str = vstr_new_len(len + 1);
 
     buf++;
     l->unpack_pos++;
@@ -148,7 +148,7 @@ String* hilexi_unpack_bulk(HiLexi* l) {
     l->unpack_pos++;
 
     for (i = 0; i < len; ++i, buf++, l->unpack_pos++) {
-        string_push_char(&str, *buf);
+        str = vstr_push_char(str, *buf);
     }
 
     l->unpack_pos++;
@@ -234,12 +234,12 @@ HiLexiData hilexi_unpack(HiLexi* l) {
     HiLexiDataType type = hilexi_get_type(*(l->read_buf + l->unpack_pos));
 
     if (type == HL_ERR) {
-        String* err = hilexi_unpack_err(l);
+        vstr err = hilexi_unpack_err(l);
         data.val.string = err;
     }
 
     if (type == HL_BULK_STRING) {
-        String* bulk = hilexi_unpack_bulk(l);
+        vstr bulk = hilexi_unpack_bulk(l);
         data.val.string = bulk;
     }
 
@@ -340,7 +340,7 @@ void hilexi_print_data(HiLexiData* data) {
         hilexi_print_arr(data->val.arr);
     }
     if (data->type == HL_BULK_STRING) {
-        printf("\"%s\"\n", data->val.string->data);
+        printf("\"%s\"\n", data->val.string);
     }
     if (data->type == HL_SIMPLE_STRING) {
         hilexi_print_simple(data->val.simple);
@@ -349,7 +349,7 @@ void hilexi_print_data(HiLexiData* data) {
         printf("(int) %ld\n", data->val.integer);
     }
     if (data->type == HL_ERR) {
-        printf("\"%s\"\n", data->val.string->data);
+        printf("\"%s\"\n", data->val.string);
     }
 }
 

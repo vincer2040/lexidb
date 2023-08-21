@@ -9,7 +9,7 @@ set(CMAKE_C_COMPILER "gcc")
 add_compile_options(-std=c99 -Wall -Werror -pedantic -fstack-clash-protection -fstack-protector-all -fstack-protector-strong
     -Werror=format-security -Werror=implicit-function-declaration -pipe -g -O2)
 
-add_library(objects src/objects.c)
+add_library(objects src/objects.c src/vstring.c)
 add_library(builder src/builder.c)
 add_library(sock src/sock.c)
 add_library(cmd src/cmd.c src/lexer.c src/parser.c)

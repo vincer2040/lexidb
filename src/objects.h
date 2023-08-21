@@ -2,14 +2,9 @@
 
 #define __OBJECTS_H__
 
+#include "vstring.h"
 #include <stddef.h>
 #include <stdint.h>
-
-typedef struct {
-    size_t len;
-    size_t cap;
-    char data[];
-} String;
 
 typedef void VecFreeCallBack(void* ptr);
 typedef void VecForEach(void* ptr);
@@ -38,7 +33,7 @@ typedef enum {
 } ObjectT;
 
 typedef union {
-    String* str;
+    vstr str;
     int64_t i64;
     void* null;
 } ObjectD;
@@ -51,13 +46,6 @@ typedef struct {
 /* generic object */
 Object object_new(ObjectT type, void* v, size_t val_len);
 void object_free(Object* obj);
-
-/* string */
-String* string_new(size_t initial_cap);
-String* string_from(char* value, size_t len);
-void string_print(String* str);
-int string_push_char(String** str, char c);
-void string_free(String* str);
 
 /* vector */
 Vec* vec_new(size_t initial_cap, size_t data_size);
