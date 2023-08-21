@@ -201,8 +201,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         builder_add_pong(&builder);
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        break;
-    }
+    } break;
 
     case SET: {
         Builder builder;
@@ -246,8 +245,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        break;
-    }
+    } break;
 
     case GET: {
         GetCmd get_cmd;
@@ -286,8 +284,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        break;
-    }
+    } break;
 
     case DEL: {
         DelCmd del_cmd;
@@ -305,8 +302,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         builder_add_ok(&builder);
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        break;
-    }
+    } break;
 
     case PUSH: {
         Object obj;
@@ -341,8 +337,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        break;
-    }
+    } break;
 
     case POP: {
         Object obj;
@@ -376,8 +371,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
-        break;
-    }
+    } break;
 
     case KEYS: {
         Builder builder;
@@ -412,8 +406,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
 
-        break;
-    }
+    } break;
 
     case VALUES: {
         Builder builder;
@@ -454,8 +447,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
 
-        break;
-    }
+    } break;
 
     case ENTRIES: {
         Builder builder;
@@ -500,8 +492,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
 
-        break;
-    }
+    } break;
     }
 }
 
