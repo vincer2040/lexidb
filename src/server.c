@@ -46,8 +46,8 @@ LexiDB* lexidb_new() {
         return NULL;
     }
 
-    db->vec = vec_new(32, sizeof(Object));
-    if (db->vec == NULL) {
+    db->stack = vec_new(32, sizeof(Object));
+    if (db->stack == NULL) {
         ht_free(db->ht);
         cluster_free(db->cluster);
         free(db);
@@ -165,7 +165,7 @@ void client_close(De* de, Client* client, int fd, uint32_t flags) {
 void lexidb_free(LexiDB* db) {
     ht_free(db->ht);
     cluster_free(db->cluster);
-    vec_free(db->vec, vec_free_cb);
+    vec_free(db->stack, vec_free_cb);
     free(db);
 }
 
@@ -322,7 +322,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             obj = object_new(ONULL, NULL, 0);
         }
 
-        push_res = vec_push(&(client->db->vec), &obj);
+        push_res = vec_push(&(client->db->stack), &obj);
         if (push_res != 0) {
             uint8_t* e = ((uint8_t*)"could not push");
             size_t n = strlen((char*)e);
@@ -342,7 +342,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         int pop_res;
         Builder builder;
 
-        pop_res = vec_pop(client->db->vec, &obj);
+        pop_res = vec_pop(client->db->stack, &obj);
         if (pop_res == -1) {
             builder = builder_create(7);
             builder_add_none(&builder);

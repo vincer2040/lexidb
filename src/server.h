@@ -9,7 +9,7 @@
 typedef struct {
     Ht* ht;
     Cluster* cluster;
-    Vec* vec;
+    Vec* stack;
 }LexiDB;
 
 typedef struct {
