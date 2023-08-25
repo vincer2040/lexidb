@@ -30,13 +30,15 @@ int vec_push(Vec** vec, void* data) {
 
     if (len == cap) {
         size_t cap_x_size, needed_size;
+        void* tmp;
         cap <<= 1;
         cap_x_size = cap * size;
         needed_size = sizeof(Vec) + cap_x_size;
-        *vec = realloc(*vec, needed_size);
-        if (*vec == NULL) {
+        tmp = realloc(*vec, needed_size);
+        if (tmp == NULL) {
             return -1;
         }
+        *vec = tmp;
 
         memset((*vec)->data + len_x_size, 0, cap_x_size - len_x_size);
 
