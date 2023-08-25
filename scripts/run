@@ -116,6 +116,10 @@ class Client:
         self.s.send(ProtocolBuilder().add_arr(3).add_str("CLUSTER.DEL", 11).add_str(c, len(c)).add_str(k, len(k)).get())
         print(self.s.recv(9182).decode())
 
+    def drop_cluster(self, c):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("CLUSTER.DROP", 12).add_str(c, len(c)).get())
+        print(self.s.recv(9182).decode())
+
     def db_push(self, k):
         self.s.send(ProtocolBuilder().add_arr(2).add_str("PUSH", 4).add_str(k, len(k)).get())
         print(self.s.recv(9182).decode())
@@ -149,6 +153,8 @@ c.set_cluster("fam", "lomein", "is kitty")
 c.set_cluster("fam", "kitty", "is cat")
 
 c.get_cluster("fam", "vince")
+
+c.drop_cluster("fam")
 
 # c.get(rand_str(4074))
 
