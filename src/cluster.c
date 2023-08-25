@@ -124,7 +124,8 @@ int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
     return ht_delete(ht, key, key_len);
 }
 
-int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key, size_t cluster_key_len, void* value) {
+int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key,
+                           size_t cluster_key_len, void* value) {
     ClusterDB* cdb;
     void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
 
@@ -137,7 +138,8 @@ int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key, size_t cluste
     return vec_push(&(cdb->vec), value);
 }
 
-int cluster_namespace_pop(Cluster* cluster, uint8_t* cluster_key, size_t cluster_key_len, void* out) {
+int cluster_namespace_pop(Cluster* cluster, uint8_t* cluster_key,
+                          size_t cluster_key_len, void* out) {
     ClusterDB* cdb;
     void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
 
