@@ -93,14 +93,14 @@ class Client:
         print(self.s.recv(9182).decode())
 
     def create_cluster(self, k):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("CREATE.CLUSTER", 14).add_str(k, len(k)).get())
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("CLUSTER.NEW", 11).add_str(k, len(k)).get())
         print(self.s.recv(9182).decode())
 
     def set_cluster(self, c, k, v):
         self.s.send(\
                 ProtocolBuilder()\
                     .add_arr(4)\
-                    .add_str("SET.CLUSTER", 11)\
+                    .add_str("CLUSTER.SET", 11)\
                     .add_str(c, len(c))\
                     .add_str(k, len(k))\
                     .add_str(v, len(v))\
@@ -109,19 +109,11 @@ class Client:
         print(self.s.recv(9182).decode())
 
     def get_cluster(self, c, k):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("GET.CLUSTER", 11).add_str(c, len(c)).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def insert(self, c, v):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("INSERT", 6).add_str(c, len(c)).add_str(v, len(v)).get())
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("CLUSTER.GET", 11).add_str(c, len(c)).add_str(k, len(k)).get())
         print(self.s.recv(9182).decode())
 
     def del_cluster(self, c, k):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("DEL.CLUSTER", 11).add_str(c, len(c)).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def index(self, c):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("INDEX", 5).add_str(c, len(c)).get())
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("CLUSTER.DEL", 11).add_str(c, len(c)).add_str(k, len(k)).get())
         print(self.s.recv(9182).decode())
 
     def db_push(self, k):
@@ -147,6 +139,16 @@ c.ping()
 c.set_str("vince", "is cool")
 for i in range(0, 50):
     c.set_str(rand_str(20), rand_str(25))
+
+c.create_cluster("fam")
+c.set_cluster("fam", "vince", "is cool")
+c.set_cluster("fam", "dom", "is brother")
+c.set_cluster("fam", "madi", "is sister")
+c.set_cluster("fam", "frank", "is dog")
+c.set_cluster("fam", "lomein", "is kitty")
+c.set_cluster("fam", "kitty", "is cat")
+
+c.get_cluster("fam", "vince")
 
 # c.get(rand_str(4074))
 
