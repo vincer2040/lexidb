@@ -3,6 +3,7 @@
 #define __HI_LEXI_H__
 
 #include "objects.h"
+#include "vec.h"
 #include "vstring.h"
 #include <stdint.h>
 #include <stddef.h>

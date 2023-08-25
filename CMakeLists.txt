@@ -9,6 +9,7 @@ set(CMAKE_C_COMPILER "gcc")
 add_compile_options(-std=c99 -Wall -Werror -pedantic -fstack-clash-protection -fstack-protector-all -fstack-protector-strong
     -Werror=format-security -Werror=implicit-function-declaration -pipe -g -O2)
 
+add_library(vec src/vec.c)
 add_library(objects src/objects.c src/vstring.c)
 add_library(builder src/builder.c)
 add_library(sock src/sock.c)
@@ -26,8 +27,8 @@ add_executable(lexidb src/cluster.c src/log.c
 add_executable(lexi-cli src/cli.c src/cli-util.c src/cli-cmd.c src/hilexi.c)
 
 
-target_link_libraries(lexidb de objects builder sock cmd)
-target_link_libraries(lexi-cli objects builder sock cmd)
+target_link_libraries(lexidb de objects builder sock cmd vec)
+target_link_libraries(lexi-cli objects builder sock cmd vec)
 
 target_link_libraries(lexer_test builder cmd)
 target_link_libraries(parser_test builder cmd)

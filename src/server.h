@@ -5,6 +5,7 @@
 #include "ht.h"
 #include "cluster.h"
 #include "objects.h"
+#include "vec.h"
 
 typedef struct {
     Ht* ht;

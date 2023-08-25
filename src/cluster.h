@@ -4,6 +4,7 @@
 
 #include "ht.h"
 #include "objects.h"
+#include "vec.h"
 
 typedef Ht Cluster;
 
