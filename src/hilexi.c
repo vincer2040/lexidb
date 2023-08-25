@@ -830,6 +830,250 @@ int hilexi_ping(HiLexi* l) {
     return 0;
 }
 
+int hilexi_cluster_new(HiLexi* l, uint8_t* name, size_t name_len) {
+    Builder b;
+    int sendres, readres;
+    HiLexiData data;
+
+    b = builder_create(32);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "CLUSTER.NEW", 11);
+    builder_add_string(&b, ((char*)name), name_len);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len, char* value, size_t value_len) {
+    Builder b = builder_create(32);
+    int sendres, readres;
+    HiLexiData data;
+    builder_add_arr(&b, 4);
+    builder_add_string(&b, "CLUSTER.SET", 11);
+    builder_add_string(&b, ((char*)name), name_len);
+    builder_add_string(&b, ((char*)key), key_len);
+    builder_add_string(&b, ((char*)value), value_len);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len) {
+    Builder b = builder_create(32);
+    int sendres, readres;
+    HiLexiData data;
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "CLUSTER.GET", 11);
+    builder_add_string(&b, ((char*)name), name_len);
+    builder_add_string(&b, ((char*)key), key_len);
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo write all
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len) {
+    Builder b = builder_create(32);
+    int sendres, readres;
+    HiLexiData data;
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "CLUSTER.DEL", 11);
+    builder_add_string(&b, ((char*)name), name_len);
+    builder_add_string(&b, ((char*)key), key_len);
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo write all
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value, size_t value_len) {
+    Builder b = builder_create(32);
+    int sendres, readres;
+    HiLexiData data;
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "CLUSTER.PUSH", 12);
+    builder_add_string(&b, ((char*)name), name_len);
+    builder_add_string(&b, ((char*)value), value_len);
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo write all
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_cluster_pop(HiLexi* l, uint8_t* name, size_t name_len) {
+    Builder b = builder_create(32);
+    int sendres, readres;
+    HiLexiData data;
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "CLUSTER.POP", 11);
+    builder_add_string(&b, ((char*)name), name_len);
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo write all
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_cluster_drop(HiLexi* l, uint8_t* name, size_t name_len) {
+    Builder b = builder_create(32);
+    int sendres, readres;
+    HiLexiData data;
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "CLUSTER.DROP", 12);
+    builder_add_string(&b, ((char*)name), name_len);
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo write all
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
 int hilexi_connect(HiLexi* l) {
     if (l->flags & 1) {
         return 1;

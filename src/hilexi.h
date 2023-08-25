@@ -81,6 +81,15 @@ int hilexi_push(HiLexi* l, char* value, size_t value_len);
 int hilexi_push_int(HiLexi* l, int64_t value);
 int hilexi_pop(HiLexi* l);
 
+/* cluster commands */
+int hilexi_cluster_new(HiLexi* l, uint8_t* name, size_t name_len);
+int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len, char* value, size_t value_len);
+int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len);
+int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len);
+int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value, size_t value_len);
+int hilexi_cluster_pop(HiLexi* l, uint8_t* name, size_t name_len);
+int hilexi_cluster_drop(HiLexi* l, uint8_t* name, size_t name_len);
+
 /* teardown */
 void hilexi_disconnect(HiLexi* l);
 void hilexi_destory(HiLexi* l);
