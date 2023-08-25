@@ -73,6 +73,29 @@ int vec_pop(Vec* vec, void* out) {
     return 0;
 }
 
+int vec_find(Vec* vec, void* cmp_against, VecCmpFn* fn, void* out) {
+    size_t i, len, data_size;
+
+    if (vec->len == 0) {
+        return -1;
+    }
+
+    len = vec->len;
+    data_size = vec->data_size;
+
+    for (i = 0; i < len; ++i) {
+        void* c = vec->data + (i * data_size);
+        if (fn(cmp_against, c) == 0) {
+            goto found;
+        }
+    }
+    return -1;
+
+found:
+    memcpy(out, vec->data + (i * data_size), data_size);
+    return 0;
+}
+
 int vec_remove(Vec* vec, void* cmp_against, VecCmpFn* fn) {
     size_t i, len, data_size;
 
@@ -80,7 +103,7 @@ int vec_remove(Vec* vec, void* cmp_against, VecCmpFn* fn) {
         return -1;
     }
 
-    len = vec->len - 1;
+    len = vec->len;
     data_size = vec->data_size;
 
     for (i = 0; i < len; ++i) {

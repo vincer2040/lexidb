@@ -31,6 +31,7 @@ int vec_pop(Vec* vec, void* data);
 void vec_for_each(Vec* vec, VecForEach* fn);
 int vec_remove(Vec* vec, void* cmp_against, VecCmpFn* fn);
 void vec_free(Vec* vec, VecFreeCallBack* cb);
+int vec_find(Vec* vec, void* cmp_against, VecCmpFn* fn, void* out);
 
 /* vec iterator */
 VecIter vec_iter_new(Vec* vec);
