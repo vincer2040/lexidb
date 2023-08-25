@@ -170,8 +170,32 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_VALUES;
     }
 
-    if (strncmp(literal, "entries", 7) == 0) {
-        return CC_ENTRIES;
+    if (strncmp(literal, "cluster new", 11) == 0) {
+        return CC_CLUSTER_NEW;
+    }
+
+    if (strncmp(literal, "cluster drop", 12) == 0) {
+        return CC_CLUSTER_DROP;
+    }
+
+    if (strncmp(literal, "cluster set", 11) == 0) {
+        return CC_CLUSTER_SET;
+    }
+
+    if (strncmp(literal, "cluster get", 11) == 0) {
+        return CC_CLUSTER_GET;
+    }
+
+    if (strncmp(literal, "cluster del", 11) == 0) {
+        return CC_CLUSTER_DEL;
+    }
+
+    if (strncmp(literal, "cluster push", 12) == 0) {
+        return CC_CLUSTER_PUSH;
+    }
+
+    if (strncmp(literal, "cluster pop", 11) == 0) {
+        return CC_CLUSTER_POP;
     }
 
     return CC_INV;
@@ -224,7 +248,6 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
         case CC_SET:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
                 cmd.expr.set.key.len = cli_parser_get_string_len(&(p->cur_tok));
-                ;
                 cmd.expr.set.key.value = ((uint8_t*)(p->cur_tok.literal));
 
                 cli_parser_next_token(p);
@@ -258,7 +281,6 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
         case CC_GET:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
                 cmd.expr.get.key.len = cli_parser_get_string_len(&(p->cur_tok));
-                ;
                 cmd.expr.get.key.value = ((uint8_t*)(p->cur_tok.literal));
             } else {
                 printf("invalid key\n");
@@ -268,7 +290,6 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
         case CC_DEL:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
                 cmd.expr.del.key.len = cli_parser_get_string_len(&(p->cur_tok));
-                ;
                 cmd.expr.del.key.value = ((uint8_t*)(p->cur_tok.literal));
             } else {
                 printf("invalid key\n");
@@ -307,6 +328,127 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
         case CC_VALUES:
             break;
         case CC_ENTRIES:
+            break;
+        case CC_CLUSTER_NEW:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_new.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_new.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_DROP:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_drop.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_drop.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_SET:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_set.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_set.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+                break;
+            }
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_set.set.key.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_set.set.key.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+                break;
+            }
+            cli_parser_next_token(p);
+            if (cli_parser_cur_token_is(p, CCT_BULK)) {
+                cmd.expr.cluster_set.set.value.type = VTSTRING;
+                cmd.expr.cluster_set.set.value.size =
+                    cli_parser_get_bulk_string_len(&(p->cur_tok));
+                cmd.expr.cluster_set.set.value.ptr =
+                    p->cur_tok.literal + 1; // +1 to skip first '"'
+            } else if (cli_parser_cur_token_is(p, CCT_STRING)) {
+                cmd.expr.cluster_set.set.value.type = VTSTRING;
+                cmd.expr.cluster_set.set.value.size =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_set.set.value.ptr = p->cur_tok.literal;
+            } else if (cli_parser_cur_token_is(p, CCT_INT)) {
+                cmd.expr.cluster_set.set.value.type = VTINT;
+                cmd.expr.cluster_set.set.value.size = sizeof(int64_t);
+                cmd.expr.cluster_set.set.value.ptr =
+                    ((void*)cli_parser_parse_int(&(p->cur_tok)));
+            } else {
+                cmd.expr.cluster_set.set.value.type = VTNULL;
+                cmd.expr.cluster_set.set.value.size = 0;
+                cmd.expr.cluster_set.set.value.ptr = NULL;
+            }
+            break;
+        case CC_CLUSTER_GET:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_get.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_get.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_get.get.key.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_get.get.key.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_DEL:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_del.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_del.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_del.del.key.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_del.del.key.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_PUSH:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_push.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_push.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+                break;
+            }
+            cli_parser_next_token(p);
+            if (cli_parser_cur_token_is(p, CCT_BULK)) {
+                cmd.expr.cluster_push.push.value.type = VTSTRING;
+                cmd.expr.cluster_push.push.value.size =
+                    cli_parser_get_bulk_string_len(&(p->cur_tok));
+                cmd.expr.cluster_push.push.value.ptr =
+                    p->cur_tok.literal + 1; // +1 to skip first '"'
+            } else if (cli_parser_cur_token_is(p, CCT_STRING)) {
+                cmd.expr.cluster_push.push.value.type = VTSTRING;
+                cmd.expr.cluster_push.push.value.size =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_push.push.value.ptr = p->cur_tok.literal;
+            } else if (cli_parser_cur_token_is(p, CCT_INT)) {
+                cmd.expr.cluster_push.push.value.type = VTINT;
+                cmd.expr.cluster_push.push.value.size = sizeof(int64_t);
+                cmd.expr.cluster_push.push.value.ptr =
+                    ((void*)cli_parser_parse_int(&(p->cur_tok)));
+            } else {
+                cmd.expr.cluster_push.push.value.type = VTNULL;
+                cmd.expr.cluster_push.push.value.size = 0;
+                cmd.expr.cluster_push.push.value.ptr = NULL;
+            }
+            break;
+        case CC_CLUSTER_POP:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_pop.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_pop.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
             break;
         default:
             printf("invalid command\n");

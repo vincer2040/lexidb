@@ -15,7 +15,14 @@ typedef enum {
     CC_VALUES,
     CC_ENTRIES,
     CC_PUSH,
-    CC_POP
+    CC_POP,
+    CC_CLUSTER_NEW,
+    CC_CLUSTER_DROP,
+    CC_CLUSTER_SET,
+    CC_CLUSTER_GET,
+    CC_CLUSTER_DEL,
+    CC_CLUSTER_PUSH,
+    CC_CLUSTER_POP,
 } CliCmdT;
 
 typedef struct {
