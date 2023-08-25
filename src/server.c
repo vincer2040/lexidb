@@ -177,10 +177,22 @@ void lexidb_free(LexiDB* db) {
     free(db);
 }
 
+void vec_free_client_cb(void* ptr) {
+    Client* client = *((Client**)ptr);
+    if (client->conn->read_buf) {
+        free(client->conn->read_buf);
+    }
+    if (client->conn->write_buf) {
+        free(client->conn->write_buf);
+    }
+    free(client->conn);
+    free(client);
+}
+
 void server_destroy(Server* server) {
     close(server->sfd);
     lexidb_free(server->db);
-    vec_free(server->clients, NULL);
+    vec_free(server->clients, vec_free_client_cb);
     free(server);
     server = NULL;
 }
