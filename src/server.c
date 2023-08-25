@@ -574,7 +574,6 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
-    // client = ((Client*)client_data);
     conn = client->conn;
     if (conn->flags == 1) {
         // we were expecting more data but we now have it all
@@ -629,7 +628,6 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
-    // client = ((Client*)client_data);
     conn = client->conn;
 
     if (conn->flags == 0) {
@@ -640,14 +638,12 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     bytes_read = read(fd, conn->read_buf + conn->read_pos, MAX_READ);
 
     if (bytes_read < 0) {
-        printf("e\n");
         fmt_error("wtf?\n");
         return;
     }
 
     if (bytes_read == 0) {
         client_close(de, s, client, fd, flags);
-        // connection_close(de, conn, fd, flags);
         return;
     }
 
