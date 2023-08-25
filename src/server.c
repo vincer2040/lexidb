@@ -458,8 +458,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
-                builder_add_string(&builder, obj->data.str,
-                                   len);
+                builder_add_string(&builder, obj->data.str, len);
             }
         }
 
@@ -504,8 +503,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
-                builder_add_string(&builder, obj->data.str,
-                                   len);
+                builder_add_string(&builder, obj->data.str, len);
             }
         }
 
