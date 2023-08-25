@@ -19,10 +19,12 @@ Builder builder_create(size_t initial_cap) {
 
 int builder_add_pong(Builder* builder) {
     if (builder->cap < 7) {
-        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 7);
-        if (builder->buf == NULL) {
+        void* tmp;
+        tmp = realloc(builder->buf, sizeof(uint8_t) * 7);
+        if (tmp == NULL) {
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf, 0, 7);
     }
     memcpy(builder->buf, "+PONG\r\n", 7);
@@ -32,10 +34,12 @@ int builder_add_pong(Builder* builder) {
 
 int builder_add_ping(Builder* builder) {
     if (builder->cap < 7) {
-        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 7);
-        if (builder->buf == NULL) {
+        void* tmp;
+        tmp = realloc(builder->buf, sizeof(uint8_t) * 7);
+        if (tmp == NULL) {
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf, 0, 7);
     }
     memcpy(builder->buf, "+PING\r\n", 7);
@@ -45,10 +49,12 @@ int builder_add_ping(Builder* builder) {
 
 int builder_add_ok(Builder* builder) {
     if (builder->cap < 5) {
-        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 5);
-        if (builder->buf == NULL) {
+        void* tmp;
+        tmp = realloc(builder->buf, sizeof(uint8_t) * 5);
+        if (tmp == NULL) {
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf, 0, 5);
     }
     memcpy(builder->buf, "+OK\r\n", 5);
@@ -58,10 +64,12 @@ int builder_add_ok(Builder* builder) {
 
 int builder_add_none(Builder* builder) {
     if (builder->cap < 7) {
-        builder->buf = realloc(builder->buf, sizeof(uint8_t) * 7);
-        if (builder->buf == NULL) {
+        void* tmp;
+        tmp = realloc(builder->buf, sizeof(uint8_t) * 7);
+        if (tmp == NULL) {
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf, 0, 7);
     }
     memcpy(builder->buf, "+NONE\r\n", 7);
@@ -72,10 +80,12 @@ int builder_add_none(Builder* builder) {
 int builder_add_err(Builder* builder, uint8_t* e, size_t e_len) {
     size_t needed_len = 3 + e_len;
     if (builder->cap < needed_len) {
-        builder->buf = realloc(builder->buf, sizeof(uint8_t) * needed_len);
-        if (builder->buf == NULL) {
+        void* tmp;
+        tmp = realloc(builder->buf, sizeof(uint8_t) * needed_len);
+        if (tmp == NULL) {
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf, 0, needed_len);
     }
     builder->buf[0] = ((uint8_t)'-');
@@ -96,13 +106,15 @@ int builder_add_arr(Builder* builder, size_t arr_len) {
     needed_len = builder->ins + str_len_buf_len + 3;
 
     if (needed_len > builder->cap) {
+        void* tmp;
         builder->cap = needed_len + 120;
-        builder->buf = realloc(builder->buf, (sizeof(uint8_t)) * builder->cap);
-        if (builder->buf == NULL) {
+        tmp = realloc(builder->buf, (sizeof(uint8_t)) * builder->cap);
+        if (tmp == NULL) {
             builder->cap = 0;
             builder->ins = 0;
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf + builder->ins, 0, builder->cap - builder->ins);
     }
     builder->buf[builder->ins] = '*';
@@ -126,13 +138,15 @@ int builder_add_string(Builder* builder, char* str, size_t str_len) {
     needed_len = builder->ins + str_len_buf_len + 5 + str_len;
 
     if (needed_len > builder->cap) {
+        void* tmp;
         builder->cap = needed_len + 120;
-        builder->buf = realloc(builder->buf, (sizeof(uint8_t)) * builder->cap);
-        if (builder->buf == NULL) {
+        tmp = realloc(builder->buf, (sizeof(uint8_t)) * builder->cap);
+        if (tmp == NULL) {
             builder->cap = 0;
             builder->ins = 0;
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf + builder->ins, 0, builder->cap - builder->ins);
     }
     builder->buf[builder->ins] = '$';
@@ -161,10 +175,12 @@ int builder_add_int(Builder* builder, int64_t val) {
 
     if (needed_len > cap) {
         cap += needed_len + 32;
-        builder->buf = realloc(builder->buf, sizeof(uint8_t) * cap);
-        if (builder->buf == NULL) {
+        void* tmp;
+        tmp = realloc(builder->buf, sizeof(uint8_t) * cap);
+        if (tmp == NULL) {
             return -1;
         }
+        builder->buf = tmp;
         memset(builder->buf + len, 0, cap - len);
         builder->cap = cap;
     }
