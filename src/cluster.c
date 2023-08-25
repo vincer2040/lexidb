@@ -13,7 +13,7 @@ void cluster_free_fn(void* ptr) {
     free(ptr);
 }
 
-ClusterDB* clusterdb_new(size_t ht_initial_cap, size_t vec_initial_cap) {
+static ClusterDB* clusterdb_new(size_t ht_initial_cap, size_t vec_initial_cap) {
     ClusterDB* cdb;
 
     cdb = calloc(1, sizeof *cdb);
@@ -122,6 +122,32 @@ int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
     ht = cdb->ht;
 
     return ht_delete(ht, key, key_len);
+}
+
+int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key, size_t cluster_key_len, void* value) {
+    ClusterDB* cdb;
+    void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
+
+    if (ptr == NULL) {
+        return -1;
+    }
+
+    cdb = *((ClusterDB**)ptr);
+
+    return vec_push(&(cdb->vec), value);
+}
+
+int cluster_namespace_pop(Cluster* cluster, uint8_t* cluster_key, size_t cluster_key_len, void* out) {
+    ClusterDB* cdb;
+    void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
+
+    if (ptr == NULL) {
+        return -1;
+    }
+
+    cdb = *((ClusterDB**)ptr);
+
+    return vec_pop(cdb->vec, out);
 }
 
 int cluster_namespace_drop(Cluster* cluster, uint8_t* key, size_t key_len) {

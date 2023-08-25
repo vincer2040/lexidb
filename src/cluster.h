@@ -30,6 +30,12 @@ int cluster_namespace_insert(Cluster* cluster, uint8_t* cluster_key,
 int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
                           size_t cluster_key_len, uint8_t* key, size_t key_len);
 
+int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key,
+                           size_t cluster_key_len, void* value);
+
+int cluster_namespace_pop(Cluster* cluster, uint8_t* cluster_key,
+                          size_t cluster_key_len, void* out);
+
 int cluster_namespace_drop(Cluster* cluster, uint8_t* key, size_t key_len);
 
 #define cluster_free(cluster) ht_free((cluster));

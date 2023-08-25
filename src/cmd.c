@@ -54,6 +54,42 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
+    if (str_len == 11) {
+        if (memcmp(str, "CLUSTER.NEW", 11) == 0) {
+            return CLUSTER_NEW;
+        }
+
+        if (memcmp(str, "CLUSTER.SET", 11) == 0) {
+            return CLUSTER_SET;
+        }
+
+        if (memcmp(str, "CLUSTER.GET", 11) == 0) {
+            return CLUSTER_GET;
+        }
+
+        if (memcmp(str, "CLUSTER.DEL", 11) == 0) {
+            return CLUSTER_DEL;
+        }
+
+        if (memcmp(str, "CLUSTER.POP", 11) == 0) {
+            return CLUSTER_POP;
+        }
+
+        return INV;
+    }
+
+    if (str_len == 12) {
+        if (memcmp(str, "CLUSTER.DROP", 12) == 0) {
+            return CLUSTER_NEW;
+        }
+
+        if (memcmp(str, "CLUSTER.PUSH", 12) == 0) {
+            return CLUSTER_PUSH;
+        }
+
+        return INV;
+    }
+
     return INV;
 }
 
@@ -174,6 +210,219 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         } else {
             cmd.type = INV;
         }
+        return cmd;
+    }
+
+    case CLUSTER_NEW: {
+        Statement name_stmt;
+        if (astmt->len != 2) {
+            printf("cluster new expects len of 2, got %lu, cmd, name\n",
+                   astmt->len);
+            cmd.type = INV;
+            return cmd;
+        }
+        name_stmt = astmt->statements[1];
+        if (name_stmt.type != SBULK) {
+            printf("cluster key not a bulk string\n");
+            cmd.type = INV;
+            return cmd;
+        }
+        cmd.expression.cluster_new.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_new.cluster_name.len =
+            name_stmt.statement.bulk.len;
+        return cmd;
+    }
+
+    case CLUSTER_DROP: {
+        Statement name_stmt;
+        if (astmt->len != 2) {
+            printf("cluster drop expects len of 2, got %lu, cmd, name\n",
+                   astmt->len);
+            cmd.type = INV;
+            return cmd;
+        }
+        name_stmt = astmt->statements[1];
+        if (name_stmt.type != SBULK) {
+            printf("cluster key not a bulk string\n");
+            cmd.type = INV;
+            return cmd;
+        }
+        cmd.expression.cluster_drop.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_drop.cluster_name.len =
+            name_stmt.statement.bulk.len;
+        return cmd;
+    }
+
+    case CLUSTER_SET: {
+        Statement name_stmt;
+        Statement key_stmt;
+        Statement val_stmt;
+        if (astmt->len != 4) {
+            printf("cluster set expects len of 4\n");
+            cmd.type = INV;
+            return cmd;
+        }
+        name_stmt = astmt->statements[1];
+        key_stmt = astmt->statements[2];
+        val_stmt = astmt->statements[3];
+
+        if (name_stmt.type != SBULK) {
+            printf("invalid name type, must be bulk string\n");
+            cmd.type = INV;
+            return cmd;
+        }
+        if (key_stmt.type != SBULK) {
+            printf("invalid key type, must be bulk string\n");
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_set.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_set.cluster_name.len =
+            name_stmt.statement.bulk.len;
+        cmd.expression.cluster_set.set.key.value = key_stmt.statement.bulk.str;
+        cmd.expression.cluster_set.set.key.len = key_stmt.statement.bulk.len;
+
+        if (val_stmt.type == SBULK) {
+            cmd.expression.cluster_set.set.value.type = VTSTRING;
+            cmd.expression.cluster_set.set.value.size =
+                val_stmt.statement.bulk.len;
+            cmd.expression.cluster_set.set.value.ptr =
+                val_stmt.statement.bulk.str;
+        } else if (val_stmt.type == SINT) {
+            cmd.expression.cluster_set.set.value.type = VTINT;
+            cmd.expression.cluster_set.set.value.size = 8;
+            cmd.expression.cluster_set.set.value.ptr =
+                ((void*)(val_stmt.statement.i64));
+        } else {
+            cmd.type = INV;
+            return cmd;
+        }
+        return cmd;
+    }
+
+    case CLUSTER_GET: {
+        Statement name_stmt;
+        Statement key_stmt;
+        if (astmt->len != 3) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+        key_stmt = astmt->statements[2];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        if (key_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_get.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_get.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
+        cmd.expression.cluster_get.get.key.value = key_stmt.statement.bulk.str;
+        cmd.expression.cluster_get.get.key.len = key_stmt.statement.bulk.len;
+        return cmd;
+    }
+
+    case CLUSTER_DEL: {
+        Statement name_stmt;
+        Statement key_stmt;
+        if (astmt->len != 3) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+        key_stmt = astmt->statements[2];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        if (key_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_del.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_del.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
+        cmd.expression.cluster_del.del.key.value = key_stmt.statement.bulk.str;
+        cmd.expression.cluster_del.del.key.len = key_stmt.statement.bulk.len;
+        return cmd;
+    }
+
+    case CLUSTER_PUSH: {
+        Statement name_stmt;
+        Statement val_stmt;
+        if (astmt->len != 3) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+        val_stmt = astmt->statements[2];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_push.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_push.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
+        if (val_stmt.type == SBULK) {
+            cmd.expression.cluster_push.push.value.type = VTSTRING;
+            cmd.expression.cluster_push.push.value.size =
+                val_stmt.statement.bulk.len;
+            cmd.expression.push.value.ptr = val_stmt.statement.bulk.str;
+        } else if (val_stmt.type == SINT) {
+            cmd.expression.cluster_push.push.value.type = VTINT;
+            cmd.expression.cluster_push.push.value.size = 8;
+            cmd.expression.cluster_push.push.value.ptr =
+                ((void*)(val_stmt.statement.i64));
+        } else {
+            cmd.type = INV;
+            return cmd;
+        }
+        return cmd;
+    }
+
+    case CLUSTER_POP: {
+        Statement name_stmt;
+        if (astmt->len != 2) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_pop.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_pop.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
         return cmd;
     }
     default:

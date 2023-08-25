@@ -29,10 +29,11 @@ void slowlog(uint8_t* buf, size_t len) {
 }
 
 void log_cmd(Cmd* cmd) {
+    Key name;
     Key key;
     Value v;
     CmdT t;
-    size_t i, key_len;
+    size_t i, key_len, name_len;
 
     LOG(LOG_CMD);
 
@@ -133,6 +134,145 @@ void log_cmd(Cmd* cmd) {
 
     if (t == ENTRIES) {
         printf("ENTRIES\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_NEW) {
+        printf("CLUSTER_NEW ");
+        name = cmd->expression.cluster_new.cluster_name;
+        name_len = name.len;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+        printf("\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_DROP) {
+        printf("CLUSTER_DROP ");
+        name = cmd->expression.cluster_drop.cluster_name;
+        name_len = name.len;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+        printf("\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_SET) {
+        printf("CLUSTER_SET ");
+        name = cmd->expression.cluster_set.cluster_name;
+        name_len = name.len;
+        key = cmd->expression.cluster_set.set.key;
+        key_len = key.len;
+        v = cmd->expression.cluster_set.set.value;
+
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+
+        printf(" ");
+
+        for (i = 0; i < key_len; ++i) {
+            printf("%c", key.value[i]);
+        }
+
+        printf(" ");
+
+        if (v.type == VTSTRING) {
+            size_t v_len;
+            char* val = ((char*)(v.ptr));
+            v_len = v.size;
+
+            for (i = 0; i < v_len; ++i) {
+                printf("%c", val[i]);
+            }
+        } else if (v.type == VTINT) {
+            printf("%lu", ((int64_t)v.ptr));
+        } else {
+            printf("null");
+        }
+        printf("\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_GET) {
+        printf("CLUSTER_GET ");
+        name = cmd->expression.cluster_get.cluster_name;
+        name_len = name.len;
+        key = cmd->expression.cluster_get.get.key;
+        key_len = key.len;
+
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+
+        printf(" ");
+
+        for (i = 0; i < key_len; ++i) {
+            printf("%c", key.value[i]);
+        }
+
+        printf("\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_DEL) {
+        printf("CLUSTER_DEL ");
+        name = cmd->expression.cluster_del.cluster_name;
+        name_len = name.len;
+        key = cmd->expression.cluster_del.del.key;
+        key_len = key.len;
+
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+
+        printf(" ");
+
+        for (i = 0; i < key_len; ++i) {
+            printf("%c", key.value[i]);
+        }
+        printf("\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_PUSH) {
+        printf("CLUSTER_PUSH ");
+        name = cmd->expression.cluster_push.cluster_name;
+        name_len = name.len;
+        v = cmd->expression.cluster_push.push.value;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+
+        printf(" ");
+
+        if (v.type == VTSTRING) {
+            size_t v_len;
+            char* val = ((char*)(v.ptr));
+            v_len = v.size;
+
+            for (i = 0; i < v_len; ++i) {
+                printf("%c", val[i]);
+            }
+        } else if (v.type == VTINT) {
+            printf("%lu", ((int64_t)v.ptr));
+        } else {
+            printf("null");
+        }
+        printf("\n");
+        fflush(stdout);
+    }
+
+    if (t == CLUSTER_POP) {
+        printf("CLUSTER_POP ");
+        name = cmd->expression.cluster_pop.cluster_name;
+        name_len = name.len;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+        printf("\n");
         fflush(stdout);
     }
 }
