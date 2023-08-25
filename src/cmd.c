@@ -74,12 +74,13 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
     Statement cmd_stmt = astmt->statements[0];
     cmd.type = cmdt_from_statement(&cmd_stmt);
 
-    if (cmd.type == INV) {
+    switch (cmd.type) {
+    case INV: {
         printf("invalid command\n");
         return cmd;
     }
 
-    if (cmd.type == SET) {
+    case SET: {
         Statement key_stmt;
         Statement val_stmt;
         if (astmt->len != 3) {
@@ -115,7 +116,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         return cmd;
     }
 
-    if (cmd.type == GET) {
+    case GET: {
         Statement key_stmt;
         if (astmt->len != 2) {
             printf("get expects len of 2, got %lu, cmd, key\n", astmt->len);
@@ -133,7 +134,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         return cmd;
     }
 
-    if (cmd.type == DEL) {
+    case DEL: {
         Statement key_stmt;
         if (astmt->len != 2) {
             printf("del expects len of 2, got %lu, cmd, key\n", astmt->len);
@@ -151,11 +152,10 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         return cmd;
     }
 
-    if (cmd.type == PUSH) {
+    case PUSH: {
         Statement val_stmt;
         if (astmt->len != 2) {
-            printf("push expects len of 2, got %lu, cmd, value\n",
-                   astmt->len);
+            printf("push expects len of 2, got %lu, cmd, value\n", astmt->len);
             cmd.type = INV;
             return cmd;
         }
@@ -176,9 +176,10 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         }
         return cmd;
     }
-
-    cmd.type = INV;
-    return cmd;
+    default:
+        cmd.type = INV;
+        return cmd;
+    }
 }
 
 Cmd cmd_from_statement(Statement* stmt) {
@@ -188,7 +189,8 @@ Cmd cmd_from_statement(Statement* stmt) {
         cmd = cmd_from_array(&(stmt->statement.arr));
         return cmd;
     case SBULK:
-        cmd.type = cmd_from_bulk(stmt->statement.bulk.str, stmt->statement.bulk.len);
+        cmd.type =
+            cmd_from_bulk(stmt->statement.bulk.str, stmt->statement.bulk.len);
         return cmd;
     case SPING:
         cmd.type = CPING;
@@ -214,7 +216,7 @@ void cmd_print(Cmd* cmd) {
         print_key(&(cmd->expression.set.key));
         if (cmd->expression.set.value.type == VTSTRING) {
             printf("->%p(%lu bytes)\n", cmd->expression.set.value.ptr,
-                    cmd->expression.set.value.size);
+                   cmd->expression.set.value.size);
         } else if (cmd->expression.set.value.type == VTINT) {
             printf("->%ld\n", ((int64_t)cmd->expression.set.value.ptr));
         }
@@ -236,7 +238,7 @@ void cmd_print(Cmd* cmd) {
         printf("PUSH ");
         if (cmd->expression.push.value.type == VTSTRING) {
             printf("->%p(%lu bytes)\n", cmd->expression.push.value.ptr,
-                    cmd->expression.push.value.size);
+                   cmd->expression.push.value.size);
         } else if (cmd->expression.push.value.type == VTINT) {
             printf("->%ld\n", ((int64_t)cmd->expression.push.value.ptr));
         }
