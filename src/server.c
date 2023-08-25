@@ -77,13 +77,13 @@ Server* server_create(int sfd) {
         return NULL;
     }
 
-    // server->clients = vec_new(32, sizeof(Client*));
-    // if (server->clients == NULL) {
-    //     lexidb_free(server->db);
-    //     free(server);
-    //     close(sfd);
-    //     return NULL;
-    // }
+    server->clients = vec_new(32, sizeof(Client*));
+    if (server->clients == NULL) {
+        lexidb_free(server->db);
+        free(server);
+        close(sfd);
+        return NULL;
+    }
 
     return server;
 }
@@ -112,7 +112,7 @@ Connection* connection_create(uint32_t addr, uint16_t port) {
     return conn;
 }
 
-Client* client_create(Connection* conn, LexiDB* db) {
+Client* client_create(Connection* conn, LexiDB* db, int fd) {
     Client* client;
 
     client = calloc(1, sizeof *client);
@@ -120,6 +120,7 @@ Client* client_create(Connection* conn, LexiDB* db) {
         return NULL;
     }
 
+    client->fd = fd;
     client->conn = conn;
     client->db = db;
     return client;
@@ -157,7 +158,14 @@ void connection_close(De* de, Connection* conn, int fd, uint32_t flags) {
     close(fd);
 }
 
-void client_close(De* de, Client* client, int fd, uint32_t flags) {
+int remove_client_from_vec(void* a, void* b) {
+    Client* ac = ((Client*)a);
+    Client* bc = *((Client**)b);
+    return ac->fd - bc->fd;
+}
+
+void client_close(De* de, Server* s, Client* client, int fd, uint32_t flags) {
+    vec_remove(s->clients, client, remove_client_from_vec);
     connection_close(de, client->conn, fd, flags);
     free(client);
 }
@@ -172,6 +180,7 @@ void lexidb_free(LexiDB* db) {
 void server_destroy(Server* server) {
     close(server->sfd);
     lexidb_free(server->db);
+    vec_free(server->clients, NULL);
     free(server);
     server = NULL;
 }
@@ -531,12 +540,29 @@ void evaluate_message(uint8_t* data, size_t len, Client* client) {
     parser_free_errors(&p);
 }
 
+int find_client_in_vec(void* fdp, void* c) {
+    int fd = *((int*)fdp);
+    Client* client = *((Client**)c);
+    return fd - client->fd;
+}
+
 void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     ssize_t bytes_sent;
     Client* client;
     Connection* conn;
+    Server* s;
+    int found;
 
-    client = ((Client*)client_data);
+    s = client_data;
+
+    found = vec_find(s->clients, &fd, find_client_in_vec, &client);
+    if (found == -1) {
+        LOG(LOG_ERROR "could not find client %d\n", fd);
+        de_del_event(de, fd, flags);
+        return;
+    }
+
+    // client = ((Client*)client_data);
     conn = client->conn;
     if (conn->flags == 1) {
         // we were expecting more data but we now have it all
@@ -577,10 +603,21 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     ssize_t bytes_read;
-    Client* client;
+    Server* s;
+    Client* client = NULL;
     Connection* conn;
+    int found;
 
-    client = ((Client*)client_data);
+    s = client_data;
+
+    found = vec_find(s->clients, &fd, find_client_in_vec, &client);
+    if (found == -1) {
+        LOG(LOG_ERROR "could not find client %d\n", fd);
+        de_del_event(de, fd, flags);
+        return;
+    }
+
+    // client = ((Client*)client_data);
     conn = client->conn;
 
     if (conn->flags == 0) {
@@ -597,7 +634,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     }
 
     if (bytes_read == 0) {
-        client_close(de, client, fd, flags);
+        client_close(de, s, client, fd, flags);
         // connection_close(de, conn, fd, flags);
         return;
     }
@@ -606,7 +643,6 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     if (bytes_read == 4096) {
         conn->flags = 1;
         conn->read_pos += MAX_READ;
-        // TODO: yeah.. this probably isn't the best way to check
         if ((conn->read_cap - conn->read_pos) < 4096) {
             conn->read_cap += MAX_READ;
             conn->read_buf =
@@ -616,7 +652,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         // if we do not read again before the write event, the message
         // will be evaluated in write_to_client before
         // writing a response
-        de_add_event(de, fd, DE_WRITE, write_to_client, client_data);
+        de_add_event(de, fd, DE_WRITE, write_to_client, s);
         return;
     }
 
@@ -625,7 +661,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     evaluate_message(conn->read_buf, conn->read_pos, client);
     conn->flags = 0;
 
-    de_add_event(de, fd, DE_WRITE, write_to_client, client_data);
+    de_add_event(de, fd, DE_WRITE, write_to_client, s);
 }
 
 void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
@@ -663,9 +699,9 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
         addr.sin_port);
 
     c = connection_create(addr.sin_addr.s_addr, addr.sin_port);
-    client = client_create(c, s->db);
-    // vec_push(&(s->clients), &client);
-    de_add_event(de, cfd, DE_READ, read_from_client, client);
+    client = client_create(c, s->db, cfd);
+    vec_push(&(s->clients), &client);
+    de_add_event(de, cfd, DE_READ, read_from_client, s);
 }
 
 int server(char* addr_str, uint16_t port) {
