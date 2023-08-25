@@ -80,7 +80,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
 
     if (str_len == 12) {
         if (memcmp(str, "CLUSTER.DROP", 12) == 0) {
-            return CLUSTER_NEW;
+            return CLUSTER_DROP;
         }
 
         if (memcmp(str, "CLUSTER.PUSH", 12) == 0) {
