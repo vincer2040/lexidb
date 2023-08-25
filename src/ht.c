@@ -105,11 +105,13 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
 
     /* check if bucket is full */
     if (len == cap) {
+        void* tmp;
         cap += len;
-        bucket->entries = realloc(bucket->entries, sizeof(Entry) * cap);
-        if (bucket->entries == NULL) {
+        tmp= realloc(bucket->entries, sizeof(Entry) * cap);
+        if (tmp == NULL) {
             return -1;
         }
+        bucket->entries = tmp;
         memset(&(bucket->entries[len]), 0, sizeof(Entry*) * (cap - len));
         bucket->cap = cap;
     }
@@ -141,11 +143,15 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
 /* resize the hashtable */
 int ht_resize(Ht* ht) {
     size_t i, len;
+    void* tmp;
     len = ht->cap;
 
     ht->cap += ht->cap;
-    ht->buckets = realloc(ht->buckets, sizeof(Bucket) * ht->cap);
-    assert(ht->buckets != NULL);
+    tmp = realloc(ht->buckets, sizeof(Bucket) * ht->cap);
+    if (tmp == NULL) {
+        return -1;
+    }
+    ht->buckets = tmp;
     memset(&(ht->buckets[len]), 0, (ht->cap - len) * sizeof(Bucket));
 
     for (i = 0; i < len; ++i) {
@@ -175,7 +181,6 @@ int ht_resize(Ht* ht) {
             free(e->value);
             memset(&(bucket->entries[j]), 0, sizeof(Entry));
             bucket->len--;
-            continue;
         next:
             continue;
         }
