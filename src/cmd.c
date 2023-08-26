@@ -391,7 +391,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
             cmd.expression.cluster_push.push.value.type = VTSTRING;
             cmd.expression.cluster_push.push.value.size =
                 val_stmt.statement.bulk.len;
-            cmd.expression.push.value.ptr = val_stmt.statement.bulk.str;
+            cmd.expression.cluster_push.push.value.ptr = val_stmt.statement.bulk.str;
         } else if (val_stmt.type == SINT) {
             cmd.expression.cluster_push.push.value.type = VTINT;
             cmd.expression.cluster_push.push.value.size = 8;
