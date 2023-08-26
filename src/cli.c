@@ -128,14 +128,16 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         ValueT vt = cmd->expr.cluster_set.set.value.type;
         if (vt == VTINT) {
             int64_t val = ((int64_t)(cmd->expr.cluster_set.set.value.ptr));
-            if (hilexi_cluster_set_int(l, name, name_len, key, key_len, val) != 0) {
+            if (hilexi_cluster_set_int(l, name, name_len, key, key_len, val) !=
+                0) {
                 printf("set int fail\n");
                 return;
             }
         } else if (vt == VTSTRING) {
             char* val = cmd->expr.cluster_set.set.value.ptr;
             size_t val_size = cmd->expr.cluster_set.set.value.size;
-            if (hilexi_cluster_set(l, name, name_len, key, key_len, val, val_size) != 0) {
+            if (hilexi_cluster_set(l, name, name_len, key, key_len, val,
+                                   val_size) != 0) {
                 printf("set string fail\n");
                 return;
             }

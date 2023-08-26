@@ -873,7 +873,8 @@ int hilexi_cluster_new(HiLexi* l, uint8_t* name, size_t name_len) {
     return 0;
 }
 
-int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len, char* value, size_t value_len) {
+int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key,
+                       size_t key_len, char* value, size_t value_len) {
     Builder b = builder_create(32);
     int sendres, readres;
     HiLexiData data;
@@ -911,7 +912,8 @@ int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, 
     return 0;
 }
 
-int hilexi_cluster_set_int(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len, int64_t value) {
+int hilexi_cluster_set_int(HiLexi* l, uint8_t* name, size_t name_len,
+                           uint8_t* key, size_t key_len, int64_t value) {
     Builder b = builder_create(32);
     int sendres, readres;
     HiLexiData data;
@@ -949,7 +951,8 @@ int hilexi_cluster_set_int(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* k
     return 0;
 }
 
-int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len) {
+int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key,
+                       size_t key_len) {
     Builder b = builder_create(32);
     int sendres, readres;
     HiLexiData data;
@@ -986,7 +989,8 @@ int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, 
     return 0;
 }
 
-int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len) {
+int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key,
+                       size_t key_len) {
     Builder b = builder_create(32);
     int sendres, readres;
     HiLexiData data;
@@ -1023,7 +1027,8 @@ int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, 
     return 0;
 }
 
-int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value, size_t value_len) {
+int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value,
+                        size_t value_len) {
     Builder b = builder_create(32);
     int sendres, readres;
     HiLexiData data;
@@ -1060,7 +1065,8 @@ int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value, 
     return 0;
 }
 
-int hilexi_cluster_push_int(HiLexi* l, uint8_t* name, size_t name_len, int64_t value) {
+int hilexi_cluster_push_int(HiLexi* l, uint8_t* name, size_t name_len,
+                            int64_t value) {
     Builder b = builder_create(32);
     int sendres, readres;
     HiLexiData data;

@@ -331,31 +331,39 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_CLUSTER_NEW:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_new.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_new.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_new.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_new.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
             }
             break;
         case CC_CLUSTER_DROP:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_drop.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_drop.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_drop.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_drop.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
             }
             break;
         case CC_CLUSTER_SET:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_set.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_set.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_set.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_set.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
                 break;
             }
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_set.set.key.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_set.set.key.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_set.set.key.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_set.set.key.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
                 break;
@@ -385,15 +393,19 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_CLUSTER_GET:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_get.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_get.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_get.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_get.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
                 break;
             }
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_get.get.key.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_get.get.key.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_get.get.key.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_get.get.key.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
                 break;
@@ -401,22 +413,28 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_CLUSTER_DEL:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_del.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_del.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_del.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_del.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
             }
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_del.del.key.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_del.del.key.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_del.del.key.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_del.del.key.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
             }
             break;
         case CC_CLUSTER_PUSH:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_push.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_push.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_push.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_push.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
                 break;
@@ -446,8 +464,10 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             break;
         case CC_CLUSTER_POP:
             if (cli_parser_expect_peek(p, CCT_STRING)) {
-                cmd.expr.cluster_pop.cluster_name.len = cli_parser_get_string_len(&(p->cur_tok));
-                cmd.expr.cluster_pop.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
+                cmd.expr.cluster_pop.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_pop.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
             }
