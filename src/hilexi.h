@@ -5,8 +5,8 @@
 #include "objects.h"
 #include "vec.h"
 #include "vstring.h"
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
     int sfd;
@@ -22,10 +22,7 @@ typedef struct {
     size_t write_len;
 } HiLexi;
 
-typedef enum {
-    OK,
-    ERR
-} HiLexiResultT;
+typedef enum { OK, ERR } HiLexiResultT;
 
 typedef enum {
     HL_ARR,
@@ -36,12 +33,7 @@ typedef enum {
     HL_INV
 } HiLexiDataType;
 
-typedef enum {
-    HL_INVSS,
-    HL_PONG,
-    HL_NONE,
-    HL_OK
-} HiLexiSimpleString;
+typedef enum { HL_INVSS, HL_PONG, HL_NONE, HL_OK } HiLexiSimpleString;
 
 typedef union {
     Vec* arr;
@@ -68,7 +60,8 @@ int hilexi_connect(HiLexi* l);
 int hilexi_ping(HiLexi* l);
 
 /* ht commands */
-int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value, size_t value_len);
+int hilexi_set(HiLexi* l, uint8_t* key, size_t key_len, char* value,
+               size_t value_len);
 int hilexi_set_int(HiLexi* l, uint8_t* key, size_t key_len, int64_t value);
 int hilexi_get(HiLexi* l, uint8_t* key, size_t key_len);
 int hilexi_del(HiLexi* l, uint8_t* key, size_t key_len);
@@ -83,12 +76,18 @@ int hilexi_pop(HiLexi* l);
 
 /* cluster commands */
 int hilexi_cluster_new(HiLexi* l, uint8_t* name, size_t name_len);
-int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len, char* value, size_t value_len);
-int hilexi_cluster_set_int(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len, int64_t value);
-int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len);
-int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key, size_t key_len);
-int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value, size_t value_len);
-int hilexi_cluster_push_int(HiLexi* l, uint8_t* name, size_t name_len, int64_t value);
+int hilexi_cluster_set(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key,
+                       size_t key_len, char* value, size_t value_len);
+int hilexi_cluster_set_int(HiLexi* l, uint8_t* name, size_t name_len,
+                           uint8_t* key, size_t key_len, int64_t value);
+int hilexi_cluster_get(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key,
+                       size_t key_len);
+int hilexi_cluster_del(HiLexi* l, uint8_t* name, size_t name_len, uint8_t* key,
+                       size_t key_len);
+int hilexi_cluster_push(HiLexi* l, uint8_t* name, size_t name_len, char* value,
+                        size_t value_len);
+int hilexi_cluster_push_int(HiLexi* l, uint8_t* name, size_t name_len,
+                            int64_t value);
 int hilexi_cluster_pop(HiLexi* l, uint8_t* name, size_t name_len);
 int hilexi_cluster_drop(HiLexi* l, uint8_t* name, size_t name_len);
 
