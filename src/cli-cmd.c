@@ -170,31 +170,31 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_VALUES;
     }
 
-    if (strncmp(literal, "cluster new", 11) == 0) {
+    if (strncmp(literal, "cluster.new", 11) == 0) {
         return CC_CLUSTER_NEW;
     }
 
-    if (strncmp(literal, "cluster drop", 12) == 0) {
+    if (strncmp(literal, "cluster.drop", 12) == 0) {
         return CC_CLUSTER_DROP;
     }
 
-    if (strncmp(literal, "cluster set", 11) == 0) {
+    if (strncmp(literal, "cluster.set", 11) == 0) {
         return CC_CLUSTER_SET;
     }
 
-    if (strncmp(literal, "cluster get", 11) == 0) {
+    if (strncmp(literal, "cluster.get", 11) == 0) {
         return CC_CLUSTER_GET;
     }
 
-    if (strncmp(literal, "cluster del", 11) == 0) {
+    if (strncmp(literal, "cluster.del", 11) == 0) {
         return CC_CLUSTER_DEL;
     }
 
-    if (strncmp(literal, "cluster push", 12) == 0) {
+    if (strncmp(literal, "cluster.push", 12) == 0) {
         return CC_CLUSTER_PUSH;
     }
 
-    if (strncmp(literal, "cluster pop", 11) == 0) {
+    if (strncmp(literal, "cluster.pop", 11) == 0) {
         return CC_CLUSTER_POP;
     }
 
@@ -389,12 +389,14 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
                 cmd.expr.cluster_get.cluster_name.value = ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
+                break;
             }
             if (cli_parser_expect_peek(p, CCT_STRING)) {
                 cmd.expr.cluster_get.get.key.len = cli_parser_get_string_len(&(p->cur_tok));
                 cmd.expr.cluster_get.get.key.value = ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;
+                break;
             }
             break;
         case CC_CLUSTER_DEL:
