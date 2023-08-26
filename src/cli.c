@@ -24,6 +24,7 @@ commands:\n\
     entries                             = get all the entries\n\
     push <value>                        = push a value\n\
     pop                                 = pop value\n\
+\n\
     cluster.new <name> <key>            = create a new cluster\n\
     cluster.drop <name>                 = delete an entire cluster\n\
     cluster.set <name> <key> <value>    = set a key and value in a cluster\n\
