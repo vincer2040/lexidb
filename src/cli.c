@@ -24,6 +24,13 @@ commands:\n\
     entries                             = get all the entries\n\
     push <value>                        = push a value\n\
     pop                                 = pop value\n\
+    cluster.new <name> <key>            = create a new cluster\n\
+    cluster.drop <name>                 = delete an entire cluster\n\
+    cluster.set <name> <key> <value>    = set a key and value in a cluster\n\
+    cluster.get <name> <key>            = get a value from a cluster\n\
+    cluster.del <name> <key>            = delete a value from a cluster\n\
+    cluster.push <name> <value>         = push a value in a cluster\n\
+    cluster.pop <name>                  = pop a value from a cluster\n\
 \n\
     clear                               = clear the screen\n\
     exit                                = exit the process\n\
