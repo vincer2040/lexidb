@@ -158,18 +158,18 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         hilexi_cluster_del(l, name, name_len, key, key_len);
     } break;
     case CC_CLUSTER_PUSH: {
-        uint8_t* name = cmd->expr.cluster_set.cluster_name.value;
-        size_t name_len = cmd->expr.cluster_set.cluster_name.len;
-        ValueT vt = cmd->expr.cluster_set.set.value.type;
+        uint8_t* name = cmd->expr.cluster_push.cluster_name.value;
+        size_t name_len = cmd->expr.cluster_push.cluster_name.len;
+        ValueT vt = cmd->expr.cluster_push.push.value.type;
         if (vt == VTINT) {
-            int64_t val = ((int64_t)(cmd->expr.cluster_set.set.value.ptr));
+            int64_t val = ((int64_t)(cmd->expr.cluster_push.push.value.ptr));
             if (hilexi_cluster_push_int(l, name, name_len, val) != 0) {
                 printf("set int fail\n");
                 return;
             }
         } else if (vt == VTSTRING) {
-            char* val = cmd->expr.cluster_set.set.value.ptr;
-            size_t val_size = cmd->expr.cluster_set.set.value.size;
+            char* val = cmd->expr.cluster_push.push.value.ptr;
+            size_t val_size = cmd->expr.cluster_push.push.value.size;
             if (hilexi_cluster_push(l, name, name_len, val, val_size) != 0) {
                 printf("set string fail\n");
                 return;
@@ -180,8 +180,8 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         }
     } break;
     case CC_CLUSTER_POP: {
-        uint8_t* name = cmd->expr.cluster_del.cluster_name.value;
-        size_t name_len = cmd->expr.cluster_del.cluster_name.len;
+        uint8_t* name = cmd->expr.cluster_pop.cluster_name.value;
+        size_t name_len = cmd->expr.cluster_pop.cluster_name.len;
         hilexi_cluster_pop(l, name, name_len);
     } break;
     default:
