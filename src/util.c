@@ -125,6 +125,11 @@ void print_help(char* program_name) {
     printf("usage: %s [options]\n\n%s", program_name, HELP);
 }
 
+/**
+ * This function is responsible for determining if
+ * the user just wants the version, help, and
+ * if the arguments are valid
+ */
 int done_from_args(int argc, char** argv) {
     int i;
     for (i = 1; i < argc; ++i) {
@@ -147,7 +152,23 @@ int done_from_args(int argc, char** argv) {
         }
         if (strncmp(arg, "--logfile", 9) == 0) {
             if (i + 1 >= argc) {
-                printf("--logfile requires an argument <logfile>\n");
+                printf("--logfile requires an argument: path to logfile\n");
+                goto done;
+            }
+            ++i;
+            continue;
+        }
+        if (strncmp(arg, "--lexi.conf", 11) == 0) {
+            if (i + 1 >= argc) {
+                printf("--lexi.conf requires an argument: path to lexi.conf\n");
+                goto done;
+            }
+            ++i;
+            continue;
+        }
+        if (strncmp(arg, "--log-level", 10) == 0) {
+            if (i + 1 >= argc) {
+                printf("--log-level requires an argument: <none | cmd | debug | verbose>\n");
                 goto done;
             }
             ++i;

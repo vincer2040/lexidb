@@ -36,6 +36,7 @@ typedef struct {
 
 typedef struct {
     int fd;
+    int is_authed;
     Connection* conn;
     LexiDB* db;
 } Client;

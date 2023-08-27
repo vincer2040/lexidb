@@ -26,7 +26,7 @@ add_executable(ht_test tests/test_ht_resize.c src/ht.c src/util.c src/sha256.c s
 
 add_executable(lexidb src/cluster.c src/log.c
     src/server.c src/sha256.c src/util.c
-    src/siphash.c src/ht.c src/db.c)
+    src/siphash.c src/ht.c src/db.c src/config.c)
 
 add_executable(lexi-cli src/cli.c src/cli-util.c src/cli-cmd.c src/hilexi.c)
 

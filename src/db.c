@@ -1,3 +1,4 @@
+#include "config.h"
 #include "util.h"
 #include "server.h"
 
@@ -9,6 +10,8 @@ int main(int argc, char** argv) {
     if (done_from_args(argc, argv) == 1) {
         return 0;
     }
+
+    configure_from_args(argc, argv);
 
     server(ADDR, PORT);
 
