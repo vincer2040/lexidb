@@ -15,7 +15,7 @@ Note: you must be running Linux on a 64 bit architecture
 #### building
 
 ```console
-git clone git@github.com:boreddad/lexidb.git
+git clone git@github.com:vincer2040/lexidb.git
 cd lexidb
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
