@@ -23,7 +23,7 @@
         }                                                                      \
     }
 
-void t1() {
+void test_it_works() {
     Token toks[] = {
         {.type = TYPE, .literal = ((uint8_t*)"*")},
         {.type = LEN, .literal = ((uint8_t*)"2")},
@@ -64,7 +64,7 @@ void t1() {
     printf("lexer test 1 passed (it works)\n");
 }
 
-void t2() {
+void test_simple_string() {
     Token toks[] = {
         { .type = PING, .literal = ((uint8_t*)"+PING\r\n") },
     };
@@ -86,7 +86,7 @@ void t2() {
     printf("lexer test 2 passed (simple strings)\n");
 }
 
-void t3() {
+void test_integers() {
     Builder b = builder_create(11);
     Token toks[] = {
         { .type = INT, .literal = ((uint8_t*)":") },
@@ -118,9 +118,9 @@ void t3() {
 }
 
 int main(void) {
-    t1();
-    t2();
-    t3();
+    test_it_works();
+    test_simple_string();
+    test_integers();
     printf("all lexer tests passed\n");
     return 0;
 }
