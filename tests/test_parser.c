@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void t1() {
+void test_it_works() {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -44,7 +44,7 @@ void t1() {
     printf("parser test 1 passed (it works)\n");
 }
 
-void t2() {
+void test_simple_string() {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -71,7 +71,7 @@ void t2() {
     printf("parser test 2 passed (arr missing retcar after len)\n");
 }
 
-void t3() {
+void test_integers() {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -266,9 +266,9 @@ void t9() {
 
 
 int main(void) {
-    t1();
-    t2();
-    t3();
+    test_it_works();
+    test_simple_string();
+    test_integers();
     t4();
     t5();
     t6();

@@ -1,5 +1,6 @@
 #include "server.h"
 #include "builder.h"
+#include "cluster.h"
 #include "cmd.h"
 #include "de.h"
 #include "ht.h"
@@ -773,6 +774,132 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         conn->write_size = builder.ins;
         conn->write_buf = builder_out(&builder);
+    } break;
+    case CLUSTER_KEYS: {
+        Builder builder;
+        HtEntriesIter* iter;
+        ClusterKeysCmd cluster_keys_cmd;
+        Entry* cur;
+        uint8_t* name;
+        size_t name_len;
+        builder = builder_create(32);
+
+        if (client->db->cluster->len == 0) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        cluster_keys_cmd = cmd->expression.cluster_keys;
+
+        name = cluster_keys_cmd.cluster_name.value;
+        name_len = cluster_keys_cmd.cluster_name.len;
+
+        iter =
+            cluster_namespace_entries_iter(client->db->cluster, name, name_len);
+        if (iter == NULL) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        builder_add_arr(&builder, client->db->ht->len);
+
+        for (cur = iter->cur; cur != NULL;
+             ht_entries_next(iter), cur = iter->cur) {
+            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+        }
+
+        ht_entries_iter_free(iter);
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+    } break;
+    case CLUSTER_VALUES: {
+        Builder builder;
+        HtEntriesIter* iter;
+        ClusterValuesCmd cluster_values_cmd;
+        Entry* cur;
+        uint8_t* name;
+        size_t name_len;
+        builder = builder_create(32);
+
+        if (client->db->cluster->len == 0) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        cluster_values_cmd = cmd->expression.cluster_values;
+
+        name = cluster_values_cmd.cluster_name.value;
+        name_len = cluster_values_cmd.cluster_name.len;
+
+        iter =
+            cluster_namespace_entries_iter(client->db->cluster, name, name_len);
+        if (iter == NULL) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        builder_add_arr(&builder, client->db->ht->len);
+
+        for (cur = iter->cur; cur != NULL;
+             ht_entries_next(iter), cur = iter->cur) {
+            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+        }
+
+        ht_entries_iter_free(iter);
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+    } break;
+    case CLUSTER_ENTRIES: {
+        Builder builder;
+        HtEntriesIter* iter;
+        ClusterEntriesCmd cluster_entries_cmd;
+        Entry* cur;
+        uint8_t* name;
+        size_t name_len;
+        builder = builder_create(32);
+
+        if (client->db->cluster->len == 0) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        cluster_entries_cmd = cmd->expression.cluster_entries;
+
+        name = cluster_entries_cmd.cluster_name.value;
+        name_len = cluster_entries_cmd.cluster_name.len;
+
+        iter =
+            cluster_namespace_entries_iter(client->db->cluster, name, name_len);
+        if (iter == NULL) {
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        builder_add_arr(&builder, client->db->ht->len);
+
+        for (cur = iter->cur; cur != NULL;
+             ht_entries_next(iter), cur = iter->cur) {
+            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+        }
+
+        ht_entries_iter_free(iter);
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
     } break;
     }
 }

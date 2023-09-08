@@ -155,3 +155,45 @@ int cluster_namespace_pop(Cluster* cluster, uint8_t* cluster_key,
 int cluster_namespace_drop(Cluster* cluster, uint8_t* key, size_t key_len) {
     return ht_delete(cluster, key, key_len);
 }
+
+HtKeysIter* cluster_namespace_keys_iter(Cluster* cluster, uint8_t* cluster_key,
+                                        size_t cluster_key_len) {
+    ClusterDB* cdb;
+    void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
+
+    if (ptr == NULL) {
+        return NULL;
+    }
+
+    cdb = *((ClusterDB**)ptr);
+
+    return ht_keys_iter(cdb->ht);
+}
+
+HtValuesIter* cluster_namespace_values_iter(Cluster* cluster,
+                                            uint8_t* cluster_key,
+                                            size_t cluster_key_len) {
+    ClusterDB* cdb;
+    void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
+    if (ptr == NULL) {
+        return NULL;
+    }
+
+    cdb = *((ClusterDB**)ptr);
+
+    return ht_values_iter(cdb->ht);
+}
+
+HtEntriesIter* cluster_namespace_entries_iter(Cluster* cluster,
+                                              uint8_t* cluster_key,
+                                              size_t cluster_key_len) {
+    ClusterDB* cdb;
+    void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
+    if (ptr == NULL) {
+        return NULL;
+    }
+
+    cdb = *((ClusterDB**)ptr);
+
+    return ht_entries_iter(cdb->ht);
+}

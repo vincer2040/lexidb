@@ -87,6 +87,26 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
             return CLUSTER_PUSH;
         }
 
+        if (memcmp(str, "CLUSTER.KEYS", 12) == 0) {
+            return CLUSTER_KEYS;
+        }
+
+        return INV;
+    }
+
+    if (str_len == 14) {
+        if (memcmp(str, "CLUSTER.VALUES", 14) == 0) {
+            return CLUSTER_VALUES;
+        }
+
+        return INV;
+    }
+
+    if (str_len == 15) {
+        if (memcmp(str, "CLUSTER.ENTRIES", 15) == 0) {
+            return CLUSTER_ENTRIES;
+        }
+
         return INV;
     }
 
@@ -425,6 +445,73 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
 
         return cmd;
     }
+
+    case CLUSTER_KEYS: {
+        Statement name_stmt;
+        if (astmt->len != 2) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_keys.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_keys.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
+        return cmd;
+    }
+
+    case CLUSTER_VALUES: {
+        Statement name_stmt;
+        if (astmt->len != 2) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_values.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_values.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
+        return cmd;
+    }
+
+    case CLUSTER_ENTRIES: {
+        Statement name_stmt;
+        if (astmt->len != 2) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        name_stmt = astmt->statements[1];
+
+        if (name_stmt.type != SBULK) {
+            cmd.type = INV;
+            return cmd;
+        }
+
+        cmd.expression.cluster_entries.cluster_name.value =
+            name_stmt.statement.bulk.str;
+        cmd.expression.cluster_entries.cluster_name.len =
+            name_stmt.statement.bulk.len;
+
+        return cmd;
+    }
+
     default:
         cmd.type = INV;
         return cmd;

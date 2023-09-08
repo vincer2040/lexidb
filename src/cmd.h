@@ -24,6 +24,9 @@ typedef enum {
     CLUSTER_DEL,
     CLUSTER_PUSH,
     CLUSTER_POP,
+    CLUSTER_KEYS,
+    CLUSTER_VALUES,
+    CLUSTER_ENTRIES,
 } CmdT;
 
 typedef struct {
@@ -92,6 +95,18 @@ typedef struct {
     Key cluster_name;
 } ClusterPopCmd;
 
+typedef struct {
+    Key cluster_name;
+} ClusterKeysCmd;
+
+typedef struct {
+    Key cluster_name;
+} ClusterValuesCmd;
+
+typedef struct {
+    Key cluster_name;
+} ClusterEntriesCmd;
+
 typedef union {
     SetCmd set;
     GetCmd get;
@@ -104,6 +119,9 @@ typedef union {
     ClusterDelCmd cluster_del;
     ClusterPushCmd cluster_push;
     ClusterPopCmd cluster_pop;
+    ClusterKeysCmd cluster_keys;
+    ClusterValuesCmd cluster_values;
+    ClusterEntriesCmd cluster_entries;
 } CmdExpression;
 
 typedef struct {
