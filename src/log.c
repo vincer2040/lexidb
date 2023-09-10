@@ -39,16 +39,17 @@ void log_cmd(Cmd* cmd) {
 
     t = cmd->type;
 
-    if (t == INV) {
+    switch (t) {
+    case INV:
         printf("INVALID\n");
         return;
-    }
+        break;
 
-    if (t == CPING) {
+    case CPING:
         printf("PING\n");
-    }
+        break;
 
-    if (t == SET) {
+    case SET:
         key = cmd->expression.set.key;
         v = cmd->expression.set.value;
         printf("SET ");
@@ -74,8 +75,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
-    if (t == GET) {
+        break;
+
+    case GET:
         printf("GET ");
         key = cmd->expression.get.key;
         key_len = key.len;
@@ -84,8 +86,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
-    if (t == DEL) {
+        break;
+
+    case DEL:
         printf("DEL ");
         key = cmd->expression.del.key;
         key_len = key.len;
@@ -94,9 +97,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == PUSH) {
+    case PUSH:
         printf("PUSH ");
         v = cmd->expression.push.value;
 
@@ -115,29 +118,29 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == POP) {
+    case POP:
         printf("POP\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == KEYS) {
+    case KEYS:
         printf("KEYS\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == VALUES) {
+    case VALUES:
         printf("VALUES\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == ENTRIES) {
+    case ENTRIES:
         printf("ENTRIES\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_NEW) {
+    case CLUSTER_NEW:
         printf("CLUSTER_NEW ");
         name = cmd->expression.cluster_new.cluster_name;
         name_len = name.len;
@@ -146,9 +149,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_DROP) {
+    case CLUSTER_DROP:
         printf("CLUSTER_DROP ");
         name = cmd->expression.cluster_drop.cluster_name;
         name_len = name.len;
@@ -157,9 +160,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_SET) {
+    case CLUSTER_SET:
         printf("CLUSTER_SET ");
         name = cmd->expression.cluster_set.cluster_name;
         name_len = name.len;
@@ -194,9 +197,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_GET) {
+    case CLUSTER_GET:
         printf("CLUSTER_GET ");
         name = cmd->expression.cluster_get.cluster_name;
         name_len = name.len;
@@ -215,9 +218,9 @@ void log_cmd(Cmd* cmd) {
 
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_DEL) {
+    case CLUSTER_DEL:
         printf("CLUSTER_DEL ");
         name = cmd->expression.cluster_del.cluster_name;
         name_len = name.len;
@@ -235,9 +238,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_PUSH) {
+    case CLUSTER_PUSH:
         printf("CLUSTER_PUSH ");
         name = cmd->expression.cluster_push.cluster_name;
         name_len = name.len;
@@ -263,9 +266,9 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
-    }
+        break;
 
-    if (t == CLUSTER_POP) {
+    case CLUSTER_POP:
         printf("CLUSTER_POP ");
         name = cmd->expression.cluster_pop.cluster_name;
         name_len = name.len;
@@ -274,5 +277,6 @@ void log_cmd(Cmd* cmd) {
         }
         printf("\n");
         fflush(stdout);
+        break;
     }
 }
