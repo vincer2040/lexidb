@@ -775,13 +775,14 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_size = builder.ins;
         conn->write_buf = builder_out(&builder);
     } break;
+
     case CLUSTER_KEYS: {
         Builder builder;
         HtEntriesIter* iter;
         ClusterKeysCmd cluster_keys_cmd;
         Entry* cur;
         uint8_t* name;
-        size_t name_len;
+        size_t name_len, cluster_len;
         builder = builder_create(32);
 
         if (client->db->cluster->len == 0) {
@@ -805,7 +806,10 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             return;
         }
 
-        builder_add_arr(&builder, client->db->ht->len);
+        cluster_len =
+            cluster_namespace_len(client->db->cluster, name, name_len);
+
+        builder_add_arr(&builder, cluster_len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
@@ -817,13 +821,14 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
     } break;
+
     case CLUSTER_VALUES: {
         Builder builder;
         HtEntriesIter* iter;
         ClusterValuesCmd cluster_values_cmd;
         Entry* cur;
         uint8_t* name;
-        size_t name_len;
+        size_t name_len, cluster_len;
         builder = builder_create(32);
 
         if (client->db->cluster->len == 0) {
@@ -847,11 +852,20 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             return;
         }
 
-        builder_add_arr(&builder, client->db->ht->len);
+        cluster_len =
+            cluster_namespace_len(client->db->cluster, name, name_len);
+
+        builder_add_arr(&builder, cluster_len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
-            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+            Object* obj = ((Object*)(cur->value));
+            if (obj->type == OINT) {
+                builder_add_int(&builder, obj->data.i64);
+            } else if (obj->type == STRING) {
+                size_t len = vstr_len(obj->data.str);
+                builder_add_string(&builder, obj->data.str, len);
+            }
         }
 
         ht_entries_iter_free(iter);
@@ -859,13 +873,14 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         conn->write_buf = builder_out(&builder);
         conn->write_size = builder.ins;
     } break;
+
     case CLUSTER_ENTRIES: {
         Builder builder;
         HtEntriesIter* iter;
         ClusterEntriesCmd cluster_entries_cmd;
         Entry* cur;
         uint8_t* name;
-        size_t name_len;
+        size_t name_len, cluster_len;
         builder = builder_create(32);
 
         if (client->db->cluster->len == 0) {
@@ -889,11 +904,24 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             return;
         }
 
-        builder_add_arr(&builder, client->db->ht->len);
+        cluster_len =
+            cluster_namespace_len(client->db->cluster, name, name_len);
+
+        builder_add_arr(&builder, cluster_len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
-            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+            uint8_t* key = cur->key;
+            size_t key_len = cur->key_len;
+            Object* obj = ((Object*)cur->value);
+            builder_add_arr(&builder, 2);
+            builder_add_string(&builder, ((char*)key), key_len);
+            if (obj->type == OINT) {
+                builder_add_int(&builder, obj->data.i64);
+            } else if (obj->type == STRING) {
+                size_t len = vstr_len(obj->data.str);
+                builder_add_string(&builder, obj->data.str, len);
+            }
         }
 
         ht_entries_iter_free(iter);
@@ -1131,7 +1159,8 @@ int server(char* addr_str, uint16_t port) {
 
     server = server_create(sfd);
     if (server == NULL) {
-        fmt_error("failed to allocate memory for server\n") close(sfd);
+        fmt_error("failed to allocate memory for server\n");
+        close(sfd);
         return -1;
     }
 
