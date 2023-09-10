@@ -23,6 +23,9 @@ typedef enum {
     CC_CLUSTER_DEL,
     CC_CLUSTER_PUSH,
     CC_CLUSTER_POP,
+    CC_CLUSTER_KEYS,
+    CC_CLUSTER_VALUES,
+    CC_CLUSTER_ENTRIES,
 } CliCmdT;
 
 typedef struct {

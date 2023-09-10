@@ -198,6 +198,18 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_CLUSTER_POP;
     }
 
+    if (strncmp(literal, "cluster.keys", 12) == 0) {
+        return CC_CLUSTER_KEYS;
+    }
+
+    if (strncmp(literal, "cluster.values", 14) == 0) {
+        return CC_CLUSTER_VALUES;
+    }
+
+    if (strncmp(literal, "cluster.entries", 15) == 0) {
+        return CC_CLUSTER_ENTRIES;
+    }
+
     return CC_INV;
 }
 
@@ -467,6 +479,36 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
                 cmd.expr.cluster_pop.cluster_name.len =
                     cli_parser_get_string_len(&(p->cur_tok));
                 cmd.expr.cluster_pop.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_KEYS:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_keys.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_keys.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_VALUES:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_values.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_values.cluster_name.value =
+                    ((uint8_t*)(p->cur_tok.literal));
+            } else {
+                cmd.type = CC_INV;
+            }
+            break;
+        case CC_CLUSTER_ENTRIES:
+            if (cli_parser_expect_peek(p, CCT_STRING)) {
+                cmd.expr.cluster_entries.cluster_name.len =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.cluster_entries.cluster_name.value =
                     ((uint8_t*)(p->cur_tok.literal));
             } else {
                 cmd.type = CC_INV;

@@ -187,6 +187,21 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         size_t name_len = cmd->expr.cluster_pop.cluster_name.len;
         hilexi_cluster_pop(l, name, name_len);
     } break;
+    case CC_CLUSTER_KEYS: {
+        uint8_t* name = cmd->expr.cluster_keys.cluster_name.value;
+        size_t name_len = cmd->expr.cluster_keys.cluster_name.len;
+        hilexi_cluster_keys(l, name, name_len);
+    } break;
+    case CC_CLUSTER_VALUES: {
+        uint8_t* name = cmd->expr.cluster_values.cluster_name.value;
+        size_t name_len = cmd->expr.cluster_values.cluster_name.len;
+        hilexi_cluster_values(l, name, name_len);
+    } break;
+    case CC_CLUSTER_ENTRIES: {
+        uint8_t* name = cmd->expr.cluster_entries.cluster_name.value;
+        size_t name_len = cmd->expr.cluster_entries.cluster_name.len;
+        hilexi_cluster_entries(l, name, name_len);
+    } break;
     default:
         printf("invalid command\n");
         break;
