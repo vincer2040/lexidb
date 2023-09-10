@@ -124,6 +124,20 @@ int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
     return ht_delete(ht, key, key_len);
 }
 
+size_t cluster_namespace_len(Cluster* cluster, uint8_t* cluster_key,
+                             size_t cluster_key_len) {
+    ClusterDB* cdb;
+    void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
+
+    if (ptr == NULL) {
+        return 0;
+    }
+
+    cdb = *((ClusterDB**)ptr);
+
+    return ht_len(cdb->ht);
+}
+
 int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key,
                            size_t cluster_key_len, void* value) {
     ClusterDB* cdb;

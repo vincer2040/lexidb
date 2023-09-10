@@ -38,6 +38,7 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
 uint8_t ht_has(Ht* ht, uint8_t* key, size_t key_len);
 int ht_delete(Ht* ht, uint8_t* key, size_t key_len);
 void* ht_get(Ht* ht, uint8_t* key, size_t key_len);
+size_t ht_len(Ht* ht);
 void entry_print(Entry* e);
 void ht_print(Ht* ht);
 void ht_free(Ht* ht);

@@ -294,6 +294,10 @@ int ht_delete(Ht* ht, uint8_t* key, size_t key_len) {
     return 0;
 }
 
+size_t ht_len(Ht* ht) {
+    return ht->len;
+}
+
 void entry_print(Entry* e) {
     size_t i;
     uint8_t* key = e->key;

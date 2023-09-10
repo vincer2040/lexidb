@@ -26,6 +26,8 @@ int cluster_namespace_insert(Cluster* cluster, uint8_t* cluster_key,
                              FreeCallBack* cb);
 int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
                           size_t cluster_key_len, uint8_t* key, size_t key_len);
+size_t cluster_namespace_len(Cluster* cluster, uint8_t* cluster_key,
+                             size_t cluster_key_len);
 int cluster_namespace_push(Cluster* cluster, uint8_t* cluster_key,
                            size_t cluster_key_len, void* value);
 int cluster_namespace_pop(Cluster* cluster, uint8_t* cluster_key,
