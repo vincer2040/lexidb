@@ -278,5 +278,39 @@ void log_cmd(Cmd* cmd) {
         printf("\n");
         fflush(stdout);
         break;
+
+    case CLUSTER_KEYS:
+        printf("CLUSTER_KEYS ");
+        name = cmd->expression.cluster_keys.cluster_name;
+        name_len = name.len;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+        printf("\n");
+        fflush(stdout);
+        break;
+
+    case CLUSTER_VALUES:
+        printf("CLUSTER_KEYS ");
+        name = cmd->expression.cluster_values.cluster_name;
+        name_len = name.len;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+        printf("\n");
+        fflush(stdout);
+        break;
+
+    case CLUSTER_ENTRIES:
+        printf("CLUSTER_KEYS ");
+        name = cmd->expression.cluster_entries.cluster_name;
+        name_len = name.len;
+        for (i = 0; i < name_len; ++i) {
+            printf("%c", name.value[i]);
+        }
+        printf("\n");
+        fflush(stdout);
+        break;
+
     }
 }
