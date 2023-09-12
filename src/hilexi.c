@@ -118,6 +118,7 @@ vstr hilexi_unpack_err(HiLexi* l) {
 
     while (*buf != '\r') {
         str = vstr_push_char(str, *buf);
+        buf++;
     }
 
     l->unpack_pos++;
