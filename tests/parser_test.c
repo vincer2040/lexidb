@@ -4,10 +4,12 @@
 #include "../src/token.h"
 #include "../src/builder.h"
 #include <assert.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <check.h>
 
-void test_it_works() {
+START_TEST(test_it_works) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -41,10 +43,10 @@ void test_it_works() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 1 passed (it works)\n");
 }
+END_TEST
 
-void test_simple_string() {
+START_TEST(test_simple_string) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -68,10 +70,10 @@ void test_simple_string() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 2 passed (arr missing retcar after len)\n");
 }
+END_TEST
 
-void test_integers() {
+START_TEST(test_integers) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -95,10 +97,10 @@ void test_integers() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 3 passed (arr missing newl after len)\n");
 }
+END_TEST
 
-void t4() {
+START_TEST(test_missing_arr_len) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -122,10 +124,10 @@ void t4() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 4 passed (arr missing len)\n");
 }
+END_TEST
 
-void t5() {
+START_TEST(test_missing_arr_type) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -149,10 +151,10 @@ void t5() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 5 passed (missing arr type)\n");
 }
+END_TEST
 
-void t6() {
+START_TEST(test_simple_ping) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -175,10 +177,10 @@ void t6() {
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
 
-    printf("parser test 6 passed (simple ping)\n");
 }
+END_TEST
 
-void t7() {
+START_TEST(test_missing_str_type) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -201,10 +203,10 @@ void t7() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 7 passed (missing str type)\n");
 }
+END_TEST
 
-void t8() {
+START_TEST(test_missing_str_len) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
@@ -227,10 +229,10 @@ void t8() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-    printf("parser test 8 passed (missing str len)\n");
 }
+END_TEST
 
-void t9() {
+START_TEST(test_integers_two) {
     Builder b = builder_create(32);
     size_t buf_len;
     uint8_t* buf;
@@ -260,21 +262,36 @@ void t9() {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
+}
+END_TEST
 
-    printf("parser test 9 passsed (integers)\n");
+Suite* suite() {
+    Suite* s;
+    TCase* tc_core;
+    s = suite_create("parser_test");
+    tc_core = tcase_create("Core");
+    tcase_add_test(tc_core, test_it_works);
+    tcase_add_test(tc_core, test_simple_string);
+    tcase_add_test(tc_core, test_integers);
+    tcase_add_test(tc_core, test_missing_arr_len);
+    tcase_add_test(tc_core, test_missing_arr_type);
+    tcase_add_test(tc_core, test_simple_ping);
+    tcase_add_test(tc_core, test_missing_str_type);
+    tcase_add_test(tc_core, test_missing_str_len);
+    tcase_add_test(tc_core, test_integers_two);
+    suite_add_tcase(s, tc_core);
+    return s;
 }
 
-
-int main(void) {
-    test_it_works();
-    test_simple_string();
-    test_integers();
-    t4();
-    t5();
-    t6();
-    t7();
-    t8();
-    t9();
-    printf("all parser tests passed\n");
-    return 0;
+int main() {
+    int number_failed;
+    Suite* s;
+    SRunner* sr;
+    s = suite();
+    sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+

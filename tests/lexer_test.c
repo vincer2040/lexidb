@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <check.h>
 
 #define assert_uint_eq(a, b)                                                   \
     {                                                                          \
@@ -23,7 +24,7 @@
         }                                                                      \
     }
 
-void test_it_works() {
+START_TEST(test_it_works) {
     Token toks[] = {
         {.type = TYPE, .literal = ((uint8_t*)"*")},
         {.type = LEN, .literal = ((uint8_t*)"2")},
@@ -60,11 +61,10 @@ void test_it_works() {
         tok = lexer_next_token(&l);
         assert_uint_eq(tok.type, toks[i].type);
     }
-
-    printf("lexer test 1 passed (it works)\n");
 }
+END_TEST
 
-void test_simple_string() {
+START_TEST(test_simple_string) {
     Token toks[] = {
         { .type = PING, .literal = ((uint8_t*)"+PING\r\n") },
     };
@@ -82,11 +82,10 @@ void test_simple_string() {
         tok = lexer_next_token(&l);
         assert_uint_eq(tok.type, toks[i].type);
     }
-
-    printf("lexer test 2 passed (simple strings)\n");
 }
+END_TEST
 
-void test_integers() {
+START_TEST(test_integers) {
     Builder b = builder_create(11);
     Token toks[] = {
         { .type = INT, .literal = ((uint8_t*)":") },
@@ -116,11 +115,28 @@ void test_integers() {
 
     printf("lexer test 3 passed (integers)\n");
 }
+END_TEST
 
-int main(void) {
-    test_it_works();
-    test_simple_string();
-    test_integers();
-    printf("all lexer tests passed\n");
-    return 0;
+Suite* suite() {
+    Suite* s;
+    TCase* tc_core;
+    s = suite_create("lexer_test");
+    tc_core = tcase_create("Core");
+    tcase_add_test(tc_core, test_it_works);
+    tcase_add_test(tc_core, test_simple_string);
+    tcase_add_test(tc_core, test_integers);
+    suite_add_tcase(s, tc_core);
+    return s;
+}
+
+int main() {
+    int number_failed;
+    Suite* s;
+    SRunner* sr;
+    s = suite();
+    sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
