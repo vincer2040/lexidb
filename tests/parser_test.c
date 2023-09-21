@@ -32,14 +32,14 @@ START_TEST(test_it_works) {
 
     Statement stmt0 = astmt.statements[0];
     Cmd cmd0 = cmd_from_statement(&stmt0);
-    assert(cmd0.type == SET);
-    assert(cmd0.expression.set.key.len == 5);
-    assert(cmd0.expression.set.value.size == 7);
+    ck_assert(cmd0.type == SET);
+    ck_assert(cmd0.expression.set.key.len == 5);
+    ck_assert(cmd0.expression.set.value.size == 7);
 
     Statement stmt1 = astmt.statements[1];
     Cmd cmd1 = cmd_from_statement(&stmt1);
-    assert(cmd1.type == GET);
-    assert(cmd0.expression.get.key.len == 5);
+    ck_assert(cmd1.type == GET);
+    ck_assert(cmd0.expression.get.key.len == 5);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -66,7 +66,7 @@ START_TEST(test_simple_string) {
 
     e_len = parser_errors_len(&p);
 
-    assert(e_len == 1);
+    ck_assert(e_len == 1);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -93,7 +93,7 @@ START_TEST(test_integers) {
 
     e_len = parser_errors_len(&p);
 
-    assert(e_len == 1);
+    ck_assert(e_len == 1);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -120,7 +120,7 @@ START_TEST(test_missing_arr_len) {
 
     e_len = parser_errors_len(&p);
 
-    assert(e_len == 1);
+    ck_assert(e_len == 1);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -147,7 +147,7 @@ START_TEST(test_missing_arr_type) {
 
     e_len = parser_errors_len(&p);
 
-    assert(e_len == 1);
+    ck_assert(e_len == 1);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -168,11 +168,11 @@ START_TEST(test_simple_ping) {
 
     cmd_ir = parse_cmd(&p);
 
-    assert(cmd_ir.stmt.type == SPING);
-    assert(cmd_ir.stmt.statement.sst == SST_PING);
+    ck_assert(cmd_ir.stmt.type == SPING);
+    ck_assert(cmd_ir.stmt.statement.sst == SST_PING);
 
     cmd = cmd_from_statement(&(cmd_ir.stmt));
-    assert(cmd.type == CPING);
+    ck_assert(cmd.type == CPING);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -199,7 +199,7 @@ START_TEST(test_missing_str_type) {
 
     e_len = parser_errors_len(&p);
 
-    assert(e_len > 0); // e_len should equal 3 for some reason
+    ck_assert(e_len > 0); // e_len should equal 3 for some reason
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -225,7 +225,7 @@ START_TEST(test_missing_str_len) {
 
     e_len = parser_errors_len(&p);
 
-    assert(e_len > 0); // e_len = 3
+    ck_assert(e_len > 0); // e_len = 3
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -253,12 +253,12 @@ START_TEST(test_integers_two) {
     p = parser_new(&l);
     cmd_ir = parse_cmd(&p);
 
-    assert(cmd_ir.stmt.type == SARR);
+    ck_assert(cmd_ir.stmt.type == SARR);
 
     cmd = cmd_from_statement(&(cmd_ir.stmt));
-    assert(cmd.expression.set.value.type == VTINT);
+    ck_assert(cmd.expression.set.value.type == VTINT);
     v = ((int64_t)(cmd.expression.set.value.ptr));
-    assert(v == 42069);
+    ck_assert(v == 42069);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);

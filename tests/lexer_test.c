@@ -6,24 +6,6 @@
 #include <string.h>
 #include <check.h>
 
-#define assert_uint_eq(a, b)                                                   \
-    {                                                                          \
-        if ((a) != (b)) {                                                      \
-            fprintf(stderr, "%s:%d, %u != %u\n", __FILE__, __LINE__, (a),      \
-                    (b));                                                      \
-            abort();                                                           \
-        }                                                                      \
-    }
-
-#define assert_mem_eq(a, b, size)                                              \
-    {                                                                          \
-        if (memcmp((a), (b), (size)) != 0) {                                   \
-            fprintf(stderr, "%s:%d, %s != %s\n", __FILE__, __LINE__, (a),      \
-                    (b));                                                      \
-            abort();                                                           \
-        }                                                                      \
-    }
-
 START_TEST(test_it_works) {
     Token toks[] = {
         {.type = TYPE, .literal = ((uint8_t*)"*")},
@@ -59,7 +41,7 @@ START_TEST(test_it_works) {
 
     for (i = 0; i < len; ++i) {
         tok = lexer_next_token(&l);
-        assert_uint_eq(tok.type, toks[i].type);
+        ck_assert_uint_eq(tok.type, toks[i].type);
     }
 }
 END_TEST
@@ -80,7 +62,7 @@ START_TEST(test_simple_string) {
 
     for (i = 0; i < len; ++i) {
         tok = lexer_next_token(&l);
-        assert_uint_eq(tok.type, toks[i].type);
+        ck_assert_uint_eq(tok.type, toks[i].type);
     }
 }
 END_TEST
@@ -108,7 +90,7 @@ START_TEST(test_integers) {
 
     for (i = 0; i < len; ++i) {
         tok = lexer_next_token(&l);
-        assert_uint_eq(tok.type, toks[i].type);
+        ck_assert_uint_eq(tok.type, toks[i].type);
     }
 
     free(buf);
