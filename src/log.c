@@ -69,7 +69,7 @@ void log_cmd(Cmd* cmd) {
                 printf("%c", val[i]);
             }
         } else if (v.type == VTINT) {
-            printf("%lu", ((int64_t)v.ptr));
+            printf("%ld", ((int64_t)v.ptr));
         } else {
             printf("null");
         }
