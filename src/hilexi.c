@@ -168,7 +168,7 @@ int64_t hilexi_unpack_int(HiLexi* l) {
     // maybe just replace this with memcpy ?
     for (i = 1; i < len; ++i, shift -= 8, l->unpack_pos++) {
         uint8_t at = buf[i];
-        temp |= (uint64_t)(at << shift);
+        temp |= (uint64_t)(at) << shift;
     }
 
     // hack for checking if value should be negative
