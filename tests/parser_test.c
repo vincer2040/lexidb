@@ -246,6 +246,8 @@ START_TEST(test_integers_two) {
     builder_add_string(&b, "vince", 5);
     builder_add_int(&b, 42069);
 
+    parser_toggle_debug(0);
+
     buf_len = b.ins;
     buf = builder_out(&b);
 
@@ -259,6 +261,39 @@ START_TEST(test_integers_two) {
     ck_assert(cmd.expression.set.value.type == VTINT);
     v = ((int64_t)(cmd.expression.set.value.ptr));
     ck_assert(v == 42069);
+
+    cmdir_free(&cmd_ir);
+    parser_free_errors(&p);
+}
+END_TEST
+
+START_TEST(test_negative_integers) {
+    Builder b = builder_create(32);
+    size_t buf_len;
+    uint8_t* buf;
+    Lexer l;
+    Parser p;
+    CmdIR cmd_ir;
+    Cmd cmd;
+    int64_t v;
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "SET", 3);
+    builder_add_string(&b, "vince", 5);
+    builder_add_int(&b, -20);
+
+    buf_len = b.ins;
+    buf = builder_out(&b);
+
+    l = lexer_new(buf, buf_len);
+    p = parser_new(&l);
+    cmd_ir = parse_cmd(&p);
+
+    ck_assert(cmd_ir.stmt.type == SARR);
+
+    cmd = cmd_from_statement(&(cmd_ir.stmt));
+    ck_assert(cmd.expression.set.value.type == VTINT);
+    v = ((int64_t)(cmd.expression.set.value.ptr));
+    ck_assert(v == -20);
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
@@ -279,6 +314,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_missing_str_type);
     tcase_add_test(tc_core, test_missing_str_len);
     tcase_add_test(tc_core, test_integers_two);
+    tcase_add_test(tc_core, test_negative_integers);
     suite_add_tcase(s, tc_core);
     return s;
 }
