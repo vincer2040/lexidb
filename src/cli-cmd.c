@@ -240,10 +240,18 @@ size_t cli_parser_get_bulk_string_len(CliToken* tok) {
 int64_t cli_parser_parse_int(CliToken* tok) {
     int64_t res = 0;
     char* literal = tok->literal;
+    int is_negative = 0;
     literal++;
+    if (literal && *literal == '-') {
+        is_negative = 1;
+        literal++;
+    }
     while ((*literal != '\0') && (*literal != ' ')) {
         res = (res * 10) + (*literal - '0');
         literal++;
+    }
+    if (is_negative) {
+        res *= -1;
     }
     return res;
 }
