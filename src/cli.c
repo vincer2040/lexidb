@@ -200,7 +200,7 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
     case CC_CLUSTER_ENTRIES: {
         uint8_t* name = cmd->expr.cluster_entries.cluster_name.value;
         size_t name_len = cmd->expr.cluster_entries.cluster_name.len;
-        hilexi_cluster_entries(l, name, name_len);
+        hilexi_cluster_values(l, name, name_len);
     } break;
     default:
         printf("invalid command\n");
@@ -210,11 +210,13 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
 
 void clear() {
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-    system("clear");
+    int r = system("clear");
+    ((void)r);
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-    system("cls");
+    int r system("cls");
+    ((void)r);
 #endif
 }
 
