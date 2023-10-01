@@ -122,7 +122,7 @@ ssize_t _parser_parse_len(Parser* p) {
     return len;
 }
 
-/* we expext <length>\r\n */
+/* we expect <length>\r\n */
 ssize_t parser_parse_len(Parser* p) {
     ssize_t len;
     if (!parser_expect_peek(p, LEN)) {
