@@ -11,10 +11,8 @@ typedef void FreeCallBack(void* ptr);
 
 typedef struct {
     size_t key_len;
-    size_t val_size;
     uint8_t* key;
     void* value;
-    FreeCallBack* cb;
 } Entry;
 
 typedef struct {
@@ -26,22 +24,23 @@ typedef struct {
 typedef struct {
     size_t len;
     size_t cap;
+    size_t data_size;
     uint8_t seed[16];
     Bucket* buckets;
 } Ht;
 
-Ht* ht_new(size_t initial_cap);
+Ht* ht_new(size_t initial_cap, size_t data_size);
 int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
-                  size_t val_size, FreeCallBack* cb);
+                  FreeCallBack* cb);
 int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
-              size_t val_size, FreeCallBack* cb);
+              FreeCallBack* cb);
 uint8_t ht_has(Ht* ht, uint8_t* key, size_t key_len);
-int ht_delete(Ht* ht, uint8_t* key, size_t key_len);
+int ht_delete(Ht* ht, uint8_t* key, size_t key_len, FreeCallBack* fcb);
 void* ht_get(Ht* ht, uint8_t* key, size_t key_len);
 size_t ht_len(Ht* ht);
 void entry_print(Entry* e);
 void ht_print(Ht* ht);
-void ht_free(Ht* ht);
+void ht_free(Ht* ht, FreeCallBack* fcb);
 
 typedef struct {
     uint8_t* cur;
@@ -49,7 +48,7 @@ typedef struct {
     size_t bucket_idx;
     size_t ht_idx;
     Ht* ht;
-}HtKeysIter;
+} HtKeysIter;
 
 HtKeysIter* ht_keys_iter(Ht* ht);
 void ht_keys_next(HtKeysIter* iter);

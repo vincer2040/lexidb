@@ -25,6 +25,7 @@
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
 void lexidb_free(LexiDB* db);
+void free_cb(void* ptr);
 
 LexiDB* lexidb_new() {
     LexiDB* db;
@@ -34,7 +35,7 @@ LexiDB* lexidb_new() {
         return NULL;
     }
 
-    db->ht = ht_new(HT_INITIAL_CAP);
+    db->ht = ht_new(HT_INITIAL_CAP, sizeof(Object));
     if (db->ht == NULL) {
         free(db);
         return NULL;
@@ -42,14 +43,14 @@ LexiDB* lexidb_new() {
 
     db->cluster = cluster_new(HT_INITIAL_CAP);
     if (db->cluster == NULL) {
-        ht_free(db->ht);
+        ht_free(db->ht, free_cb);
         free(db);
         return NULL;
     }
 
     db->stack = vec_new(32, sizeof(Object));
     if (db->stack == NULL) {
-        ht_free(db->ht);
+        ht_free(db->ht, free_cb);
         cluster_free(db->cluster);
         free(db);
         return NULL;
@@ -170,7 +171,7 @@ void client_close(De* de, Server* s, Client* client, int fd, uint32_t flags) {
 }
 
 void lexidb_free(LexiDB* db) {
-    ht_free(db->ht);
+    ht_free(db->ht, free_cb);
     cluster_free(db->cluster);
     vec_free(db->stack, vec_free_cb);
     free(db);
@@ -246,15 +247,15 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
+            set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 free_cb);
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
+            set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
+            set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 free_cb);
         }
 
@@ -319,7 +320,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         key = del_cmd.key.value;
         key_len = del_cmd.key.len;
 
-        ht_delete(client->db->ht, key, key_len);
+        ht_delete(client->db->ht, key, key_len, free_cb);
 
         builder = builder_create(5);
         builder_add_ok(&builder);
@@ -596,17 +597,17 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             obj = object_new(STRING, value, value_size);
             set_res = cluster_namespace_insert(client->db->cluster, name,
                                                name_len, key, key_len, &obj,
-                                               sizeof obj, free_cb);
+                                                free_cb);
         } else if (cluster_set_cmd.set.value.type == VTINT) {
             obj = object_new(OINT, value, value_size);
             set_res = cluster_namespace_insert(client->db->cluster, name,
                                                name_len, key, key_len, &obj,
-                                               sizeof obj, free_cb);
+                                                free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
             set_res = cluster_namespace_insert(client->db->cluster, name,
                                                name_len, key, key_len, &obj,
-                                               sizeof obj, free_cb);
+                                                free_cb);
         }
 
         if (set_res != 0) {
@@ -679,7 +680,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         key_len = cluster_del_cmd.del.key.len;
 
         cluster_namespace_del(client->db->cluster, name, name_len, key,
-                              key_len);
+                              key_len, free_cb);
 
         builder = builder_create(5);
         builder_add_ok(&builder);

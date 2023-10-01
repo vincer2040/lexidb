@@ -154,8 +154,6 @@ c.set_cluster("fam", "kitty", "is cat")
 
 c.get_cluster("fam", "vince")
 
-c.drop_cluster("fam")
-
 # c.get(rand_str(4074))
 
 

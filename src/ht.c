@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-static void free_entry(Entry* e);
+static void free_entry(Entry* e, FreeCallBack* fcb);
 
 typedef struct HtHasResult {
     uint8_t has;
@@ -15,7 +15,7 @@ typedef struct HtHasResult {
 } HtHasResult;
 
 /* create a new hashtable */
-Ht* ht_new(size_t initial_cap) {
+Ht* ht_new(size_t initial_cap, size_t data_size) {
     Ht* ht;
 
     assert(initial_cap > 0);
@@ -32,6 +32,7 @@ Ht* ht_new(size_t initial_cap) {
     }
 
     ht->cap = initial_cap;
+    ht->data_size = data_size;
 
     get_random_bytes(ht->seed, sizeof ht->seed);
 
@@ -107,7 +108,7 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
     if (len == cap) {
         void* tmp;
         cap += len;
-        tmp= realloc(bucket->entries, sizeof(Entry) * cap);
+        tmp = realloc(bucket->entries, sizeof(Entry) * cap);
         if (tmp == NULL) {
             return -1;
         }
@@ -134,14 +135,12 @@ static int bucket_insert(Bucket* bucket, uint8_t* key, size_t key_len,
 
     /* set the metadata and free callback*/
     bucket->entries[len].key_len = key_len;
-    bucket->entries[len].val_size = val_size;
-    bucket->entries[len].cb = cb;
     bucket->len++;
     return 0;
 }
 
 /* resize the hashtable */
-int ht_resize(Ht* ht) {
+int ht_resize(Ht* ht, FreeCallBack* fcb) {
     size_t i, len;
     void* tmp;
     len = ht->cap;
@@ -176,7 +175,7 @@ int ht_resize(Ht* ht) {
                 continue;
             }
             bucket_insert(&(ht->buckets[hash]), e->key, e->key_len, e->value,
-                          e->val_size, e->cb);
+                          ht->data_size, fcb);
             free(e->key);
             free(e->value);
             memset(&(bucket->entries[j]), 0, sizeof(Entry));
@@ -190,9 +189,10 @@ int ht_resize(Ht* ht) {
 
 /* insert a key and a value */
 int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
-              size_t val_size, FreeCallBack* cb) {
+              FreeCallBack* cb) {
     HtHasResult has = {0};
     int insert_result;
+    size_t val_size = ht->data_size;
 
     if (cb == NULL) {
         errno = EINVAL;
@@ -200,7 +200,7 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
     }
 
     if (ht->len == ht->cap) {
-        ht_resize(ht);
+        ht_resize(ht, cb);
     }
 
     ht_internal_has(ht, key, key_len, &has);
@@ -210,17 +210,13 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
         Entry e = bucket.entries[has.insert];
 
         /* free old value and assign new one */
-        e.cb(e.value);
+        cb(e.value);
         bucket.entries[has.insert].value = malloc(val_size);
         if (e.value == NULL) {
             errno = ENOMEM;
             return -1;
         }
         memcpy(bucket.entries[has.insert].value, value, val_size);
-
-        /* assign new metadata */
-        bucket.entries[has.insert].val_size = val_size;
-        bucket.entries[has.insert].cb = cb;
 
         return 0;
     }
@@ -236,7 +232,7 @@ int ht_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
 }
 
 int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
-                  size_t val_size, FreeCallBack* cb) {
+                  FreeCallBack* cb) {
     HtHasResult has = {0};
 
     if (cb == NULL) {
@@ -249,7 +245,7 @@ int ht_try_insert(Ht* ht, uint8_t* key, size_t key_len, void* value,
     if (has.has) {
         return -1;
     } else {
-        return ht_insert(ht, key, key_len, value, val_size, cb);
+        return ht_insert(ht, key, key_len, value, cb);
     }
     return 0;
 }
@@ -271,15 +267,15 @@ void* ht_get(Ht* ht, uint8_t* key, size_t key_len) {
 }
 
 /* delete an entry from a bucket */
-static void bucket_remove_entry(Bucket* bucket, size_t idx) {
-    free_entry(&(bucket->entries[idx]));
+static void bucket_remove_entry(Bucket* bucket, size_t idx, FreeCallBack* fcb) {
+    free_entry(&(bucket->entries[idx]), fcb);
     memmove(&(bucket->entries[idx]), &(bucket->entries[idx + 1]),
             sizeof(Entry) * (bucket->len - idx));
     bucket->len--;
 }
 
 /* delete an entry */
-int ht_delete(Ht* ht, uint8_t* key, size_t key_len) {
+int ht_delete(Ht* ht, uint8_t* key, size_t key_len, FreeCallBack* fcb) {
     HtHasResult has = {0};
 
     ht_internal_has(ht, key, key_len, &has);
@@ -288,29 +284,26 @@ int ht_delete(Ht* ht, uint8_t* key, size_t key_len) {
         return -1;
     }
 
-    bucket_remove_entry(&(ht->buckets[has.hash]), has.insert);
+    bucket_remove_entry(&(ht->buckets[has.hash]), has.insert, fcb);
     ht->len--;
 
     return 0;
 }
 
-size_t ht_len(Ht* ht) {
-    return ht->len;
-}
+size_t ht_len(Ht* ht) { return ht->len; }
 
 void entry_print(Entry* e) {
     size_t i;
     uint8_t* key = e->key;
     size_t key_len = e->key_len;
     void* value = e->value;
-    size_t value_size = e->val_size;
 
     printf("(key: ");
     for (i = 0; i < key_len; ++i) {
         printf("%c", key[i]);
     }
 
-    printf("): %p (size: %lu)\n", value, value_size);
+    printf("): %p\n", value);
 }
 
 static void bucket_print(Bucket* bucket) {
@@ -337,33 +330,32 @@ void ht_print(Ht* ht) {
     printf("\n");
 }
 
-static void free_entry(Entry* e) {
-    e->cb(e->value);
+static void free_entry(Entry* e, FreeCallBack* fcb) {
+    fcb(e->value);
     free(e->key);
     e->value = NULL;
     e->key = NULL;
     e->key_len = 0;
-    e->val_size = 0;
 }
 
-static void free_bucket(Bucket* bucket) {
+static void free_bucket(Bucket* bucket, FreeCallBack* fcb) {
     size_t i, len;
     len = bucket->len;
     for (i = 0; i < len; ++i) {
         Entry e = bucket->entries[i];
-        free_entry(&e);
+        free_entry(&e, fcb);
     }
     free(bucket->entries);
     bucket->entries = NULL;
     bucket->len = 0;
 }
 
-void ht_free(Ht* ht) {
+void ht_free(Ht* ht, FreeCallBack* fcb) {
     size_t i, len;
     len = ht->cap;
     for (i = 0; i < len; ++i) {
         Bucket b = ht->buckets[i];
-        free_bucket(&b);
+        free_bucket(&b, fcb);
     }
     free(ht->buckets);
     ht->buckets = NULL;
