@@ -12,6 +12,7 @@
 void print_array_stmt(ArrayStatement* stmt);
 void statement_free(Statement* stmt);
 Statement parser_parse_statement(Parser* p);
+ParserErrors parser_init_errors(size_t initial_cap);
 
 static int parser_debug = 1;
 
@@ -73,6 +74,10 @@ ParserError parser_new_err(TokenT exp, Token* got) {
 void parser_append_error(Parser* p, ParserError* e) {
     size_t len = p->errors.len;
     size_t cap = p->errors.cap;
+    if (cap == 0) {
+        p->errors = parser_init_errors(5);
+        cap = 5;
+    }
     if (len == cap) {
         cap += cap;
         p->errors.errs = realloc(p->errors.errs, sizeof(ParserError) * cap);
@@ -352,8 +357,6 @@ Parser parser_new(Lexer* l) {
 
     parser_next_token(&p);
     parser_next_token(&p);
-
-    p.errors = parser_init_errors(5);
 
     return p;
 }
