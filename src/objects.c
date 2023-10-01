@@ -29,7 +29,6 @@ void object_free(Object* obj) {
 
     if (objt == STRING) {
         vstr_delete(obj->data.str);
-        // string_free(obj->data.str);
     }
     memset(obj, 0, sizeof *obj);
 }

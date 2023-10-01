@@ -138,8 +138,6 @@ void vec_free_cb(void* ptr) {
     object_free(obj);
 }
 
-void free_int_cb(void* ptr) { free(ptr); }
-
 void connection_close(De* de, Connection* conn, int fd, uint32_t flags) {
     LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr, conn->port);
     if (conn->read_buf) {
@@ -253,11 +251,11 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT, value, value_size);
             set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
-                                free_int_cb);
+                                free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
             set_res = ht_insert(client->db->ht, key, key_len, &obj, sizeof obj,
-                                free_int_cb);
+                                free_cb);
         }
 
         if (set_res != 0) {
@@ -603,12 +601,12 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             obj = object_new(OINT, value, value_size);
             set_res = cluster_namespace_insert(client->db->cluster, name,
                                                name_len, key, key_len, &obj,
-                                               sizeof obj, free_int_cb);
+                                               sizeof obj, free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
             set_res = cluster_namespace_insert(client->db->cluster, name,
                                                name_len, key, key_len, &obj,
-                                               sizeof obj, free_int_cb);
+                                               sizeof obj, free_cb);
         }
 
         if (set_res != 0) {
