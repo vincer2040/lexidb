@@ -67,3 +67,17 @@ lexi> pop
 lexi> pop
 "bar"
 ```
+
+### Client libraries 
+
+currently, there are client implentations in:
+
+1. C - Included in this repo (hilexi.c)
+
+2. [nodejs](https://github.com/vincer2040/lexi-ts)
+
+3. [C++](https://github.com/vincer2040/lexi-cpp)
+
+4. [rust](https://github.com/vincer2040/lexi-rs)
+
+See those repos for for more information 
