@@ -2,19 +2,22 @@
 
 An in-memory data structure database
 
-## Getting started
+Note: This project is for currently for educational purposes only. If you are looking 
+to use something similar in a production environment, you should use [redis](https://github.com/redis/redis). 
 
-Note: you must be running Linux on a 64 bit architecture
+## Getting started
 
 ### Requirements
 
-1. cmake >= 3.10
+1. a 64 bit machine running a linux distrobution that supports `epoll`
 
-2. gcc
+2. cmake >= 3.10
+
+3. gcc
 
 #### building
 
-```console
+```bash
 git clone git@github.com:vincer2040/lexidb.git
 cd lexidb
 mkdir build && cd build
@@ -24,7 +27,7 @@ make
 
 #### running the server
 
-```console
+```bash
 ./lexidb
 ```
 
@@ -33,15 +36,14 @@ make
 
 in a new terminal
 
-```console
+```bash
 ./lexi-cli
 ```
 
 #### run some commands
 
-```console
+```bash
 ./lexi-cli
-
 lexi> set foo bar
 ok
 lexi> get foo
@@ -56,5 +58,12 @@ lexi> set foo "bar baz"
 ok
 lexi> get foo
 "bar baz"
+lexi> push bar
+ok
+lexi> push foo
+ok
+lexi> pop
+"foo"
+lexi> pop
+"bar"
 ```
-
