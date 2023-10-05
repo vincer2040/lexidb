@@ -8,6 +8,7 @@
 int main(int argc, char** argv) {
 
     int default_port = PORT;
+    Ht* args;
 
     // if (done_from_args(argc, argv) == 1) {
     //     return 0;
@@ -28,9 +29,17 @@ int main(int argc, char** argv) {
     config_add_option(&config, "--logfile", "-lf", COT_STRING, "lexi.log",
                       "the file to log to");
 
-    configure(config, argc, argv);
+    args = configure(config, argc, argv);
+
+    if (args) {
+        ht_print(args);
+    } else {
+        config_free(config);
+        return 1;
+    }
 
     config_free(config);
+    free_configuration_ht(args);
 
     return 0;
 }

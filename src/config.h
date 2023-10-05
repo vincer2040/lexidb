@@ -2,6 +2,7 @@
 
 #define __CONFIG_H__
 
+#include "ht.h"
 #include "vec.h"
 
 typedef enum {
@@ -44,7 +45,8 @@ Configuration* config_new(void);
 int config_add_option(Configuration** config, const char* arg,
                       const char* short_arg, ConfigOptionType type,
                       void* default_value, const char* metadata);
-void configure(Configuration* config, int argc, char** argv);
+Ht* configure(Configuration* config, int argc, char** argv);
 void config_free(Configuration* config);
+void free_configuration_ht(Ht* ht);
 
 #endif /* __CONFIG_H__ */
