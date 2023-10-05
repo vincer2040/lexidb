@@ -145,22 +145,22 @@ Ht* configure(Configuration* config, int argc, char** argv) {
     ConfigOption* cur;
     int i;
     size_t ht_initial_cap = vec_len(config);
-    Ht* ht;
+    Ht* ht = ht_new(ht_initial_cap, sizeof(Object));
     if (argc == 1) {
-        return NULL;
+        goto fill;
     }
 
     if ((argc == 2) && strncmp(argv[1], "--help", 6) == 0) {
         config_print_help(config, argv[0]);
+        ht_free(ht, ht_free_fn);
         return NULL;
     }
 
     if ((argc == 2) && strncmp(argv[1], "-h", 2) == 0) {
         config_print_help(config, argv[0]);
+        ht_free(ht, ht_free_fn);
         return NULL;
     }
-
-    ht = ht_new(ht_initial_cap, sizeof(Object));
 
     for (i = 1; i < argc; ++i) {
         char* arg = argv[i];
@@ -216,6 +216,30 @@ Ht* configure(Configuration* config, int argc, char** argv) {
 
     next:
         continue;
+    }
+
+fill:
+    iter = vec_iter_new(config);
+    for (cur = iter.cur; cur != NULL; vec_iter_next(&iter), cur = iter.cur) {
+        const char* arg = cur->arg;
+        size_t arg_len = strlen(arg);
+        Object new_obj = {0};
+        switch (cur->type) {
+        case COT_STRING:
+            new_obj = object_new(STRING, cur->default_value.str,
+                                 strlen(cur->default_value.str));
+            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
+            break;
+        case COT_INT:
+            new_obj = object_new(
+                OINT64, ((void*)(int64_t)(cur->default_value.integer)), 0);
+            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
+            break;
+        case COT_NULL:
+            new_obj = object_new(ONULL, NULL, 0);
+            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
+            break;
+        }
     }
 
     return ht;
