@@ -37,8 +37,6 @@ typedef struct {
     const char* metadata;
 } ConfigOption;
 
-void configure_from_args(int argc, char** argv);
-
 typedef Vec Configuration;
 
 Configuration* config_new(void);
