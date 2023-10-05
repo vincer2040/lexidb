@@ -92,9 +92,54 @@ void config_print_help(Configuration* config, char* name) {
     vec_for_each(config, for_each_fn);
 }
 
+int vec_cmp_fn(void* cmp, void* data) {
+    char* arg = cmp;
+    ConfigOption* opt = data;
+    const char* long_arg = opt->arg;
+    const char* short_arg = opt->short_arg;
+    size_t long_arg_len = strlen(long_arg);
+    size_t short_arg_len = strlen(short_arg);
+    size_t arg_len = strlen(arg);
+
+    if ((arg_len == long_arg_len) &&
+        strncmp(arg, long_arg, long_arg_len) == 0) {
+        return 0;
+    }
+    if ((arg_len == short_arg_len) &&
+        strncmp(arg, short_arg, short_arg_len) == 0) {
+        return 0;
+    }
+    return 1;
+}
+
+void config_print_version(Configuration* config, const char* arg) {
+    ConfigOption opt = {0};
+    int find_res = vec_find(config, (void*)arg, vec_cmp_fn, &opt);
+    if (find_res == 0) {
+        switch (opt.type) {
+        case COT_STRING:
+            printf("%s\n", opt.default_value.str);
+            break;
+        case COT_INT:
+            printf("%d\n", opt.default_value.integer);
+            break;
+        default:
+            printf("no version indicated\n");
+        }
+    } else {
+        printf("no version indicated\n");
+    }
+}
+
 bool is_config_option(char* arg, size_t arg_len, const char* long_arg,
                       size_t long_arg_len, const char* short_arg,
                       size_t short_arg_len) {
+    if (arg_len == 9 && strncmp(arg, "--version", 9) == 0) {
+        return false;
+    }
+    if (arg_len == 2 && strncmp(arg, "-v", 2) == 0) {
+        return false;
+    }
     if ((arg_len == long_arg_len) &&
         strncmp(arg, long_arg, long_arg_len) == 0) {
         return true;
@@ -129,6 +174,7 @@ Ht* configure(Configuration* config, int argc, char** argv) {
     int i;
     size_t ht_initial_cap = vec_len(config);
     Ht* ht = ht_new(ht_initial_cap, sizeof(Object));
+
     if (argc == 1) {
         goto fill;
     }
@@ -141,6 +187,18 @@ Ht* configure(Configuration* config, int argc, char** argv) {
 
     if ((argc == 2) && strncmp(argv[1], "-h", 2) == 0) {
         config_print_help(config, argv[0]);
+        ht_free(ht, ht_free_fn);
+        return NULL;
+    }
+
+    if ((argc == 2) && strncmp(argv[1], "--version", 9) == 0) {
+        config_print_version(config, "--version");
+        ht_free(ht, ht_free_fn);
+        return NULL;
+    }
+
+    if ((argc == 2) && strncmp(argv[1], "-v", 2) == 0) {
+        config_print_version(config, "-v");
         ht_free(ht, ht_free_fn);
         return NULL;
     }

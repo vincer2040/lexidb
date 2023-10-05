@@ -4,6 +4,7 @@
 
 #define ADDR "127.0.0.1"
 #define PORT 6969
+#define VERSION "0.0.1"
 
 int main(int argc, char** argv) {
 
@@ -12,6 +13,8 @@ int main(int argc, char** argv) {
 
     Configuration* config = config_new();
 
+    config_add_option(&config, "--version", "-v", COT_STRING, VERSION,
+                      "the current version of lexidb");
     config_add_option(&config, "--address", "-a", COT_STRING, ADDR,
                       "the address to listen on");
     config_add_option(&config, "--port", "-p", COT_INT, &default_port,
@@ -34,6 +37,6 @@ int main(int argc, char** argv) {
         return 0;
     } else {
         config_free(config);
-        return 1;
+        return 0;
     }
 }
