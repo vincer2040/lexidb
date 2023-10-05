@@ -10,14 +10,6 @@ int main(int argc, char** argv) {
     int default_port = PORT;
     Ht* args;
 
-    // if (done_from_args(argc, argv) == 1) {
-    //     return 0;
-    // }
-
-    // configure_from_args(argc, argv);
-
-    // server(ADDR, PORT);
-
     Configuration* config = config_new();
 
     config_add_option(&config, "--address", "-a", COT_STRING, ADDR,
@@ -32,14 +24,16 @@ int main(int argc, char** argv) {
     args = configure(config, argc, argv);
 
     if (args) {
-        ht_print(args);
+        Object* port = ht_get(args, (uint8_t*)"--port", 6);
+        Object* addr = ht_get(args, (uint8_t*)"--address", 9);
+        server(addr->data.str, (uint16_t)port->data.i64);
+
+        config_free(config);
+        free_configuration_ht(args);
+
+        return 0;
     } else {
         config_free(config);
         return 1;
     }
-
-    config_free(config);
-    free_configuration_ht(args);
-
-    return 0;
 }
