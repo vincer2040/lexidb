@@ -2,6 +2,7 @@
 #include "ht.h"
 #include "objects.h"
 #include <assert.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -129,14 +130,14 @@ void ht_free_fn(void* ptr) {
     free(obj);
 }
 
-int read_integer(char* value, size_t value_len) {
-    size_t i;
+int read_integer(char* value) {
+    size_t i = 0;
     int res = 0;
 
-    for (i = 0; i < value_len; ++i) {
-        res = (res * 10) - (value[i] - '0');
+    while (isdigit(value[i])) {
+        res = (res * 10) + (value[i] - '0');
+        i++;
     }
-
     return res;
 }
 
@@ -201,7 +202,7 @@ Ht* configure(Configuration* config, int argc, char** argv) {
                     ht_insert(ht, (uint8_t*)long_arg, long_arg_len, &obj,
                               ht_free_fn);
                 } else if (cur->type == COT_INT) {
-                    int r = read_integer(value, value_len);
+                    int r = read_integer(value);
                     obj = object_new(OINT64, (void*)((int64_t)r), 0);
                     ht_insert(ht, (uint8_t*)long_arg, long_arg_len, &obj,
                               ht_free_fn);
