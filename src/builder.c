@@ -200,6 +200,11 @@ int builder_add_int(Builder* builder, int64_t val) {
     return 0;
 }
 
+void builder_reset(Builder* builder) {
+    memset(builder->buf, 0, builder->ins);
+    builder->ins = 0;
+}
+
 uint8_t* builder_out(Builder* builder) { return builder->buf; }
 
 void builder_free(Builder* builder) {
