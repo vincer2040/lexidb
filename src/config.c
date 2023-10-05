@@ -95,12 +95,13 @@ int config_add_option(Configuration** config, const char* arg,
 
 void for_each_fn(void* ptr) {
     ConfigOption* opt = ptr;
-    printf("\t%s (%s)\t\t%s\n", opt->arg, opt->short_arg, opt->metadata);
+    printf("\t%s (%s) -> %s\n", opt->arg, opt->short_arg, opt->metadata);
 }
 
 void config_print_help(Configuration* config, char* name) {
     printf("%s [options]\n", name);
     printf("options:\n");
+    printf("\t--help (-h) -> show help\n");
     vec_for_each(config, for_each_fn);
 }
 
@@ -111,6 +112,12 @@ void configure(Configuration* config, int argc, char** argv) {
 
     if ((argc == 2) && strncmp(argv[1], "--help", strlen("--help")) == 0) {
         config_print_help(config, argv[0]);
+        return;
+    }
+
+    if ((argc == 2) && strncmp(argv[1], "-h", strlen("-h")) == 0) {
+        config_print_help(config, argv[0]);
+        return;
     }
 }
 

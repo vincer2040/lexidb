@@ -15,7 +15,7 @@ typedef enum {
 
 typedef struct {
     char* logfile; // path to logfile
-    char* conf; // path to config file
+    char* conf;    // path to config file
     LogLevel loglevel;
 } Config;
 
