@@ -330,6 +330,45 @@ void ht_print(Ht* ht) {
     printf("\n");
 }
 
+void entry_print_with_cb(Entry* e, PrintCallBack* pfb) {
+    size_t i;
+    uint8_t* key = e->key;
+    size_t key_len = e->key_len;
+    void* value = e->value;
+
+    printf("(key: ");
+    for (i = 0; i < key_len; ++i) {
+        printf("%c", key[i]);
+    }
+
+    printf("): ");
+    pfb(value);
+}
+
+static void bucket_print_with_cb(Bucket* bucket, PrintCallBack* pfb) {
+    size_t i, len;
+    len = bucket->len;
+    for (i = 0; i < len; ++i) {
+        Entry e = bucket->entries[i];
+        printf("\t");
+        entry_print_with_cb(&e, pfb);
+    }
+    printf("\n");
+}
+
+void ht_print_with_cb(Ht* ht, PrintCallBack* pfb) {
+    size_t i, len;
+    len = ht->cap;
+    for (i = 0; i < len; ++i) {
+        Bucket bucket = ht->buckets[i];
+        if (bucket.len > 0) {
+            printf("[slot: %lu]\n", i);
+            bucket_print_with_cb(&bucket, pfb);
+        }
+    }
+    printf("\n");
+}
+
 static void free_entry(Entry* e, FreeCallBack* fcb) {
     fcb(e->value);
     free(e->key);
