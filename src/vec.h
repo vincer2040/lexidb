@@ -36,7 +36,5 @@ int vec_find(Vec* vec, void* cmp_against, VecCmpFn* fn, void* out);
 /* vec iterator */
 VecIter vec_iter_new(Vec* vec);
 void vec_iter_next(VecIter* iter);
-void vec_iter_free(VecIter* iter);
-
 
 #endif /* __VEC_H__ */

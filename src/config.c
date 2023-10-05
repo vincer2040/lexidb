@@ -62,3 +62,56 @@ void configure_from_args(int argc, char** argv) {
         }
     }
 }
+
+Configuration* config_new(void) {
+    Configuration* config;
+    config = vec_new(5, sizeof(ConfigOption));
+    return config;
+}
+
+int config_add_option(Configuration** config, const char* arg,
+                      const char* short_arg, ConfigOptionType type,
+                      void* default_value, const char* metadata) {
+    ConfigOption opt = {0};
+    opt.arg = arg;
+    opt.short_arg = short_arg;
+    opt.type = type;
+
+    switch (type) {
+    case COT_STRING:
+        opt.default_value.str = default_value;
+        break;
+    case COT_INT:
+        opt.default_value.integer = *((int*)default_value);
+        break;
+    case COT_NULL:
+        break;
+    }
+
+    opt.metadata = metadata;
+
+    return vec_push(config, &opt);
+}
+
+void for_each_fn(void* ptr) {
+    ConfigOption* opt = ptr;
+    printf("\t%s (%s)\t\t%s\n", opt->arg, opt->short_arg, opt->metadata);
+}
+
+void config_print_help(Configuration* config, char* name) {
+    printf("%s [options]\n", name);
+    printf("options:\n");
+    vec_for_each(config, for_each_fn);
+}
+
+void configure(Configuration* config, int argc, char** argv) {
+    if (argc == 1) {
+        return;
+    }
+
+    if ((argc == 2) && strncmp(argv[1], "--help", strlen("--help")) == 0) {
+        config_print_help(config, argv[0]);
+    }
+}
+
+void config_free(Configuration* config) { vec_free(config, NULL); }
