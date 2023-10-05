@@ -137,6 +137,10 @@ void vec_for_each(Vec* vec, VecForEach* fn) {
 
 }
 
+size_t vec_len(Vec* vec) {
+    return vec->len;
+}
+
 void vec_free(Vec* vec, VecFreeCallBack* cb) {
     size_t i, len, size;
     len = vec->len;
