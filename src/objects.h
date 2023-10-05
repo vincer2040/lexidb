@@ -8,7 +8,7 @@
 
 typedef enum {
     ONULL,
-    OINT,
+    OINT64,
     STRING
 } ObjectT;
 

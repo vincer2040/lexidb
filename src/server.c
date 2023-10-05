@@ -250,7 +250,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 free_cb);
         } else if (set_cmd.value.type == VTINT) {
-            obj = object_new(OINT, value, value_size);
+            obj = object_new(OINT64, value, value_size);
             set_res = ht_insert(client->db->ht, key, key_len, &obj,
                                 free_cb);
         } else {
@@ -297,7 +297,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
                 str = obj->data.str;
                 len = vstr_len(obj->data.str);
                 builder_add_string(&builder, str, len);
-            } else if (obj->type == OINT) {
+            } else if (obj->type == OINT64) {
                 int64_t i;
                 i = obj->data.i64;
                 builder_add_int(&builder, i);
@@ -343,7 +343,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         if (push_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
         } else if (push_cmd.value.type == VTINT) {
-            obj = object_new(OINT, value, value_size);
+            obj = object_new(OINT64, value, value_size);
         } else {
             obj = object_new(ONULL, NULL, 0);
         }
@@ -382,7 +382,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             builder_add_none(&builder);
         }
 
-        if (obj.type == OINT) {
+        if (obj.type == OINT64) {
             builder = builder_create(11);
             builder_add_int(&builder, obj.data.i64);
         }
@@ -459,7 +459,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
             Object* obj = ((Object*)cur->value);
-            if (obj->type == OINT) {
+            if (obj->type == OINT64) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
@@ -504,7 +504,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             Object* obj = ((Object*)cur->value);
             builder_add_arr(&builder, 2);
             builder_add_string(&builder, ((char*)key), key_len);
-            if (obj->type == OINT) {
+            if (obj->type == OINT64) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
@@ -599,7 +599,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
                                                name_len, key, key_len, &obj,
                                                 free_cb);
         } else if (cluster_set_cmd.set.value.type == VTINT) {
-            obj = object_new(OINT, value, value_size);
+            obj = object_new(OINT64, value, value_size);
             set_res = cluster_namespace_insert(client->db->cluster, name,
                                                name_len, key, key_len, &obj,
                                                 free_cb);
@@ -653,7 +653,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
                 str = obj->data.str;
                 len = vstr_len(obj->data.str);
                 builder_add_string(&builder, str, len);
-            } else if (obj->type == OINT) {
+            } else if (obj->type == OINT64) {
                 int64_t i;
                 i = obj->data.i64;
                 builder_add_int(&builder, i);
@@ -708,7 +708,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         if (cluster_push_cmd.push.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
         } else if (cluster_push_cmd.push.value.type == VTINT) {
-            obj = object_new(OINT, value, value_size);
+            obj = object_new(OINT64, value, value_size);
         } else {
             obj = object_new(ONULL, NULL, 0);
         }
@@ -759,7 +759,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             builder_add_none(&builder);
         }
 
-        if (obj.type == OINT) {
+        if (obj.type == OINT64) {
             builder = builder_create(11);
             builder_add_int(&builder, obj.data.i64);
         }
@@ -859,7 +859,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
             Object* obj = ((Object*)(cur->value));
-            if (obj->type == OINT) {
+            if (obj->type == OINT64) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
@@ -915,7 +915,7 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
             Object* obj = ((Object*)cur->value);
             builder_add_arr(&builder, 2);
             builder_add_string(&builder, ((char*)key), key_len);
-            if (obj->type == OINT) {
+            if (obj->type == OINT64) {
                 builder_add_int(&builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
