@@ -46,5 +46,6 @@ int config_add_option(Configuration** config, const char* arg,
 Ht* configure(Configuration* config, int argc, char** argv);
 void config_free(Configuration* config);
 void free_configuration_ht(Ht* ht);
+LogLevel determine_loglevel(char* level);
 
 #endif /* __CONFIG_H__ */
