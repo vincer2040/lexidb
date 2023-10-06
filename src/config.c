@@ -262,6 +262,7 @@ Ht* configure(Configuration* config, int argc, char** argv) {
 fill:
     iter = vec_iter_new(config);
     for (cur = iter.cur; cur != NULL; vec_iter_next(&iter), cur = iter.cur) {
+        int insert_res;
         const char* arg = cur->arg;
         size_t arg_len = strlen(arg);
         Object new_obj = {0};
@@ -269,17 +270,21 @@ fill:
         case COT_STRING:
             new_obj = object_new(STRING, cur->default_value.str,
                                  strlen(cur->default_value.str));
-            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
             break;
         case COT_INT:
             new_obj = object_new(
                 OINT64, ((void*)(int64_t)(cur->default_value.integer)), 0);
-            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
             break;
         case COT_NULL:
             new_obj = object_new(ONULL, NULL, 0);
-            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
             break;
+        }
+
+        insert_res =
+            ht_try_insert(ht, (uint8_t*)arg, arg_len, &new_obj, ht_free_fn);
+        if (insert_res == -1) {
+            /* insertion failed, we have to free the created object */
+            object_free(&new_obj);
         }
     }
 
