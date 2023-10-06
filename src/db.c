@@ -31,9 +31,11 @@ int main(int argc, char** argv) {
         Object* addr = ht_get(args, (uint8_t*)"--address", 9);
         Object* loglevel_obj = ht_get(args, (uint8_t*)"--loglevel", 10);
         LogLevel loglevel = determine_loglevel(loglevel_obj->data.str);
-        server(addr->data.str, (uint16_t)port->data.i64, loglevel);
 
         config_free(config);
+
+        server(addr->data.str, (uint16_t)port->data.i64, loglevel);
+
         free_configuration_ht(args);
 
         return 0;
