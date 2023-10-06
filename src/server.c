@@ -418,6 +418,77 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         conn->write_size = builder.ins;
     } break;
 
+    case ENQUE: {
+        Object obj;
+        EnqueCmd enque_cmd;
+        Builder builder;
+        int enque_res;
+        void* value;
+        size_t value_size;
+
+        enque_cmd = cmd->expression.enque;
+        value = enque_cmd.value.ptr;
+        value_size = enque_cmd.value.size;
+
+        if (enque_cmd.value.type == VTSTRING) {
+            obj = object_new(STRING, value, value_size);
+        } else if (enque_cmd.value.type == VTINT) {
+            obj = object_new(OINT64, value, value_size);
+        } else {
+            obj = object_new(ONULL, NULL, 0);
+        }
+
+        enque_res = queue_enque(client->db->queue, &obj);
+
+        if (enque_res != 0) {
+            uint8_t* e = (uint8_t*)"could not enque";
+            size_t n = strlen((char*)e);
+            builder = builder_create(n + 3);
+            builder_add_err(&builder, e, n);
+        } else {
+            builder = builder_create(5);
+            builder_add_ok(&builder);
+        }
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+    } break;
+
+    case DEQUE: {
+        Object obj;
+        int deque_res;
+        Builder builder;
+
+        deque_res = queue_deque(client->db->queue, &obj);
+        if (deque_res == -1) {
+            builder = builder_create(7);
+            builder_add_none(&builder);
+            conn->write_buf = builder_out(&builder);
+            conn->write_size = builder.ins;
+            return;
+        }
+
+        if (obj.type == ONULL) {
+            builder = builder_create(7);
+            builder_add_none(&builder);
+        }
+
+        if (obj.type == OINT64) {
+            builder = builder_create(11);
+            builder_add_int(&builder, obj.data.i64);
+        }
+
+        if (obj.type == STRING) {
+            size_t len = vstr_len(obj.data.str);
+            builder = builder_create(32);
+            builder_add_string(&builder, obj.data.str, len);
+            vstr_delete(obj.data.str);
+        }
+
+        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder.ins;
+    } break;
+
     case KEYS: {
         Builder builder;
         HtEntriesIter* iter;

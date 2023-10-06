@@ -125,6 +125,31 @@ void log_cmd(Cmd* cmd) {
         fflush(stdout);
         break;
 
+    case ENQUE:
+        printf("ENQUE ");
+        v = cmd->expression.enque.value;
+
+        if (v.type == VTSTRING) {
+            size_t v_len;
+            char* val = ((char*)(v.ptr));
+            v_len = v.size;
+
+            for (i = 0; i < v_len; ++i) {
+                printf("%c", val[i]);
+            }
+        } else if (v.type == VTINT) {
+            printf("%lu", ((int64_t)v.ptr));
+        } else {
+            printf("null");
+        }
+        printf("\n");
+        fflush(stdout);
+        break;
+
+    case DEQUE:
+        printf("DEQUE\n");
+        break;
+
     case KEYS:
         printf("KEYS\n");
         fflush(stdout);
