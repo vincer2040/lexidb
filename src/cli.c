@@ -95,6 +95,29 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
     case CC_POP:
         hilexi_pop(l);
         break;
+    case CC_ENQUE: {
+        ValueT vt = cmd->expr.push.value.type;
+        if (vt == VTINT) {
+            int64_t val = ((int64_t)(cmd->expr.enque.value.ptr));
+            if (hilexi_enque_int(l, val) != 0) {
+                printf("enque int fail\n");
+                return;
+            }
+        } else if (vt == VTSTRING) {
+            char* val = cmd->expr.enque.value.ptr;
+            size_t val_size = cmd->expr.enque.value.size;
+            if (hilexi_enque(l, val, val_size) != 0) {
+                printf("enque string fail\n");
+                return;
+            }
+        } else {
+            printf("invalid value");
+            return;
+        }
+    } break;
+    case CC_DEQUE:
+        hilexi_deque(l);
+        break;
     case CC_PING:
         hilexi_ping(l);
         break;

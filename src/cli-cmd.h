@@ -16,6 +16,8 @@ typedef enum {
     CC_ENTRIES,
     CC_PUSH,
     CC_POP,
+    CC_ENQUE,
+    CC_DEQUE,
     CC_CLUSTER_NEW,
     CC_CLUSTER_DROP,
     CC_CLUSTER_SET,

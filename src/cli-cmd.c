@@ -162,6 +162,14 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_POP;
     }
 
+    if (strncmp(literal, "enque", 5) == 0) {
+        return CC_ENQUE;
+    }
+
+    if (strncmp(literal, "deque", 5) == 0) {
+        return CC_DEQUE;
+    }
+
     if (strncmp(literal, "keys", 4) == 0) {
         return CC_KEYS;
     }
@@ -342,6 +350,33 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             }
             break;
         case CC_POP:
+            break;
+        case CC_ENQUE:
+            cli_parser_next_token(p);
+
+            if (cli_parser_cur_token_is(p, CCT_BULK)) {
+                cmd.expr.enque.value.type = VTSTRING;
+                cmd.expr.enque.value.size =
+                    cli_parser_get_bulk_string_len(&(p->cur_tok));
+                cmd.expr.enque.value.ptr =
+                    p->cur_tok.literal + 1; // +1 to skip first '"'
+            } else if (cli_parser_cur_token_is(p, CCT_STRING)) {
+                cmd.expr.enque.value.type = VTSTRING;
+                cmd.expr.enque.value.size =
+                    cli_parser_get_string_len(&(p->cur_tok));
+                cmd.expr.enque.value.ptr = p->cur_tok.literal;
+            } else if (cli_parser_cur_token_is(p, CCT_INT)) {
+                cmd.expr.enque.value.type = VTINT;
+                cmd.expr.enque.value.size = sizeof(int64_t);
+                cmd.expr.enque.value.ptr =
+                    ((void*)cli_parser_parse_int(&(p->cur_tok)));
+            } else {
+                cmd.expr.enque.value.type = VTNULL;
+                cmd.expr.enque.value.size = 0;
+                cmd.expr.enque.value.ptr = NULL;
+            }
+            break;
+        case CC_DEQUE:
             break;
         case CC_KEYS:
             break;

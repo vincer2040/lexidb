@@ -618,6 +618,136 @@ int hilexi_pop(HiLexi* l) {
     return 0;
 }
 
+int hilexi_enque(HiLexi* l, char* value, size_t value_len) {
+    Builder b;
+    int sendres, readres;
+    HiLexiData data;
+
+    b = builder_create(32);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "ENQUE", 5);
+    builder_add_string(&b, value, value_len);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+
+    return 0;
+}
+
+int hilexi_enque_int(HiLexi* l, int64_t value) {
+    Builder b;
+    int sendres, readres;
+    HiLexiData data;
+
+    b = builder_create(32);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "ENQUE", 5);
+    builder_add_int(&b, value);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+
+    return 0;
+}
+
+int hilexi_deque(HiLexi* l) {
+    Builder b;
+    int sendres, readres;
+    HiLexiData data;
+
+    b = builder_create(9);
+    builder_add_string(&b, "DEQUE", 5);
+
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+
+    return 0;
+}
+
 int hilexi_keys(HiLexi* l) {
     Builder b;
     int sendres, readres;
