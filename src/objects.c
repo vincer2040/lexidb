@@ -13,7 +13,6 @@ Object object_new(ObjectT type, void* v, size_t val_len) {
     if (type == STRING) {
         obj.data.str = vstr_new_len(val_len);
         obj.data.str = vstr_push_string_len(obj.data.str, v, val_len);
-        // obj.data.str = string_from(v, val_len);
     } else if (type == OINT64) {
         obj.data.i64 = ((int64_t)v);
     } else {
