@@ -9,6 +9,7 @@
 #include "log.h"
 #include "objects.h"
 #include "parser.h"
+#include "queue.h"
 #include "sock.h"
 #include "util.h"
 #include <assert.h>
@@ -26,6 +27,7 @@
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
 void lexidb_free(LexiDB* db);
+void vec_free_cb(void* ptr);
 void free_cb(void* ptr);
 
 LexiDB* lexidb_new() {
@@ -56,6 +58,16 @@ LexiDB* lexidb_new() {
         free(db);
         return NULL;
     }
+
+    db->queue = queue_new(sizeof(Object));
+    if (db->queue == NULL) {
+        ht_free(db->ht, free_cb);
+        cluster_free(db->cluster);
+        vec_free(db->stack, vec_free_cb);
+        free(db);
+        return NULL;
+    }
+
     return db;
 }
 
@@ -180,6 +192,7 @@ void lexidb_free(LexiDB* db) {
     ht_free(db->ht, free_cb);
     cluster_free(db->cluster);
     vec_free(db->stack, vec_free_cb);
+    queue_free(db->queue, vec_free_cb);
     free(db);
 }
 

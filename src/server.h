@@ -6,12 +6,14 @@
 #include "ht.h"
 #include "cluster.h"
 #include "objects.h"
+#include "queue.h"
 #include "vec.h"
 
 typedef struct {
     Ht* ht;
     Cluster* cluster;
     Vec* stack;
+    Queue* queue;
 }LexiDB;
 
 typedef struct {

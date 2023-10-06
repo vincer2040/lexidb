@@ -23,6 +23,7 @@ add_library(builder src/builder.c)
 add_library(sock src/sock.c)
 add_library(cmd src/cmd.c src/lexer.c src/parser.c)
 add_library(de src/de.c)
+add_library(queue src/queue.c)
 
 add_executable(lexidb src/cluster.c src/log.c
     src/server.c src/sha256.c src/util.c
@@ -31,6 +32,6 @@ add_executable(lexidb src/cluster.c src/log.c
 add_executable(lexi-cli src/cli.c src/cli-util.c src/cli-cmd.c src/hilexi.c)
 
 
-target_link_libraries(lexidb de objects builder sock cmd vec)
+target_link_libraries(lexidb de objects builder sock cmd vec queue)
 target_link_libraries(lexi-cli objects builder sock cmd vec)
 
