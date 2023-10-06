@@ -29,7 +29,9 @@ int main(int argc, char** argv) {
     if (args) {
         Object* port = ht_get(args, (uint8_t*)"--port", 6);
         Object* addr = ht_get(args, (uint8_t*)"--address", 9);
-        server(addr->data.str, (uint16_t)port->data.i64);
+        Object* loglevel_obj = ht_get(args, (uint8_t*)"--loglevel", 10);
+        LogLevel loglevel = determine_loglevel(loglevel_obj->data.str);
+        server(addr->data.str, (uint16_t)port->data.i64, loglevel);
 
         config_free(config);
         free_configuration_ht(args);

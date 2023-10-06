@@ -2,6 +2,7 @@
 
 #define __SERVER_H__
 
+#include "config.h"
 #include "ht.h"
 #include "cluster.h"
 #include "objects.h"
@@ -19,6 +20,7 @@ typedef struct {
     uint16_t addr;
     uint16_t flags; /* mainly for padding, no use as of now */
     uint32_t ismaster;
+    LogLevel loglevel;
     LexiDB* db;
     Vec* clients;
 } Server;
@@ -41,6 +43,6 @@ typedef struct {
     LexiDB* db;
 } Client;
 
-int server(char* addr_str, uint16_t port);
+int server(char* addr_str, uint16_t port, LogLevel loglevel);
 
 #endif

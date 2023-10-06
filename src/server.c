@@ -2,6 +2,7 @@
 #include "builder.h"
 #include "cluster.h"
 #include "cmd.h"
+#include "config.h"
 #include "de.h"
 #include "ht.h"
 #include "lexer.h"
@@ -58,7 +59,7 @@ LexiDB* lexidb_new() {
     return db;
 }
 
-Server* server_create(int sfd) {
+Server* server_create(int sfd, LogLevel loglevel) {
     Server* server;
 
     if (sfd < 0) {
@@ -71,6 +72,7 @@ Server* server_create(int sfd) {
     }
 
     server->sfd = sfd;
+    server->loglevel = loglevel;
 
     server->db = lexidb_new();
     if (server->db == NULL) {
@@ -139,8 +141,12 @@ void vec_free_cb(void* ptr) {
     object_free(obj);
 }
 
-void connection_close(De* de, Connection* conn, int fd, uint32_t flags) {
-    LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr, conn->port);
+void connection_close(De* de, Connection* conn, int fd, uint32_t flags,
+                      LogLevel loglevel) {
+    if (loglevel >= LL_INFO) {
+        LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr,
+            conn->port);
+    }
     if (conn->read_buf) {
         free(conn->read_buf);
         conn->read_buf = NULL;
@@ -166,7 +172,7 @@ int remove_client_from_vec(void* a, void* b) {
 
 void client_close(De* de, Server* s, Client* client, int fd, uint32_t flags) {
     vec_remove(s->clients, client, remove_client_from_vec);
-    connection_close(de, client->conn, fd, flags);
+    connection_close(de, client->conn, fd, flags, s->loglevel);
     free(client);
 }
 
@@ -209,10 +215,14 @@ void server_destroy(Server* server) {
  * all commands are in this function
  * to avoid jumping around the whole file.
  */
-void evaluate_cmd(Cmd* cmd, Client* client) {
+void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
     CmdT cmd_type;
     Connection* conn = client->conn;
-    log_cmd(cmd);
+
+    if (loglevel >= LL_CMD) {
+        log_cmd(cmd);
+    }
+
     cmd_type = cmd->type;
 
     switch (cmd_type) {
@@ -247,16 +257,13 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj,
-                                free_cb);
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT64, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj,
-                                free_cb);
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj,
-                                free_cb);
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
         }
 
         if (set_res != 0) {
@@ -595,19 +602,19 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
 
         if (cluster_set_cmd.set.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res = cluster_namespace_insert(client->db->cluster, name,
-                                               name_len, key, key_len, &obj,
-                                                free_cb);
+            set_res =
+                cluster_namespace_insert(client->db->cluster, name, name_len,
+                                         key, key_len, &obj, free_cb);
         } else if (cluster_set_cmd.set.value.type == VTINT) {
             obj = object_new(OINT64, value, value_size);
-            set_res = cluster_namespace_insert(client->db->cluster, name,
-                                               name_len, key, key_len, &obj,
-                                                free_cb);
+            set_res =
+                cluster_namespace_insert(client->db->cluster, name, name_len,
+                                         key, key_len, &obj, free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res = cluster_namespace_insert(client->db->cluster, name,
-                                               name_len, key, key_len, &obj,
-                                                free_cb);
+            set_res =
+                cluster_namespace_insert(client->db->cluster, name, name_len,
+                                         key, key_len, &obj, free_cb);
         }
 
         if (set_res != 0) {
@@ -679,8 +686,8 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
         key = cluster_del_cmd.del.key.value;
         key_len = cluster_del_cmd.del.key.len;
 
-        cluster_namespace_del(client->db->cluster, name, name_len, key,
-                              key_len, free_cb);
+        cluster_namespace_del(client->db->cluster, name, name_len, key, key_len,
+                              free_cb);
 
         builder = builder_create(5);
         builder_add_ok(&builder);
@@ -931,14 +938,17 @@ void evaluate_cmd(Cmd* cmd, Client* client) {
     }
 }
 
-void evaluate_message(uint8_t* data, size_t len, Client* client) {
+void evaluate_message(uint8_t* data, size_t len, Client* client,
+                      LogLevel loglevel) {
     Lexer l;
     Parser p;
     CmdIR cir;
     Cmd cmd;
     Connection* conn = client->conn;
 
-    slowlog(data, len);
+    if (loglevel >= LL_VERBOSE) {
+        slowlog(data, len);
+    }
 
     l = lexer_new(data, len);
     p = parser_new(&l);
@@ -959,7 +969,7 @@ void evaluate_message(uint8_t* data, size_t len, Client* client) {
         return;
     }
 
-    evaluate_cmd(&cmd, client);
+    evaluate_cmd(&cmd, client, loglevel);
 
     cmdir_free(&cir);
     parser_free_errors(&p);
@@ -990,7 +1000,7 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     conn = client->conn;
     if (conn->flags == 1) {
         // we were expecting more data but we now have it all
-        evaluate_message(conn->read_buf, conn->read_pos, client);
+        evaluate_message(conn->read_buf, conn->read_pos, client, s->loglevel);
         conn->flags = 0;
     }
     if (conn->write_buf != NULL) {
@@ -1079,7 +1089,7 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
 
     conn->read_pos += bytes_read;
 
-    evaluate_message(conn->read_buf, conn->read_pos, client);
+    evaluate_message(conn->read_buf, conn->read_pos, client, s->loglevel);
     conn->flags = 0;
 
     de_add_event(de, fd, DE_WRITE, write_to_client, s);
@@ -1116,8 +1126,10 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
-    LOG(LOG_CONNECTION "fd: %d addr: %u port: %u\n", cfd, addr.sin_addr.s_addr,
-        addr.sin_port);
+    if (s->loglevel >= LL_INFO) {
+        LOG(LOG_CONNECTION "fd: %d addr: %u port: %u\n", cfd,
+            addr.sin_addr.s_addr, addr.sin_port);
+    }
 
     c = connection_create(addr.sin_addr.s_addr, addr.sin_port);
     client = client_create(c, s->db, cfd);
@@ -1125,7 +1137,7 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     de_add_event(de, cfd, DE_READ, read_from_client, s);
 }
 
-int server(char* addr_str, uint16_t port) {
+int server(char* addr_str, uint16_t port, LogLevel loglevel) {
     Server* server;
     De* de;
     int sfd;
@@ -1156,7 +1168,7 @@ int server(char* addr_str, uint16_t port) {
         return -1;
     }
 
-    server = server_create(sfd);
+    server = server_create(sfd, loglevel);
     if (server == NULL) {
         fmt_error("failed to allocate memory for server\n");
         close(sfd);
@@ -1177,10 +1189,15 @@ int server(char* addr_str, uint16_t port) {
         return -1;
     }
 
-    LOG(LOG_INFO "server listening on %s:%u\n", addr_str, port);
+    if (server->loglevel >= LL_INFO) {
+        LOG(LOG_INFO "server listening on %s:%u\n", addr_str, port);
+    }
+
     de_await(de);
 
-    LOG(LOG_INFO "server shutting down\n");
+    if (server->loglevel >= LL_INFO) {
+        LOG(LOG_INFO "server shutting down\n");
+    }
 
     server_destroy(server);
     de_free(de);
