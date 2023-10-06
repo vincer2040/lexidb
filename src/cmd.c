@@ -38,6 +38,19 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
+    if (str_len == 5) {
+
+        if (memcmp(str, "ENQUE", 5) == 0) {
+            return ENQUE;
+        }
+
+        if (memcmp(str, "DEQUE", 5) == 0) {
+            return DEQUE;
+        }
+
+        return INV;
+    }
+
     if (str_len == 6) {
         if (memcmp(str, "VALUES", 6) == 0) {
             return VALUES;
@@ -226,6 +239,31 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
             cmd.expression.push.value.type = VTINT;
             cmd.expression.push.value.size = 8;
             cmd.expression.push.value.ptr = ((void*)(val_stmt.statement.i64));
+            return cmd;
+        } else {
+            cmd.type = INV;
+        }
+        return cmd;
+    }
+
+    case ENQUE:{
+        Statement val_stmt;
+        if (astmt->len != 2) {
+            printf("enque expects len of 2, got %lu, cmd, value\n", astmt->len);
+            cmd.type = INV;
+            return cmd;
+        }
+
+        val_stmt = astmt->statements[1];
+        if (val_stmt.type == SBULK) {
+            cmd.expression.enque.value.type = VTSTRING;
+            cmd.expression.enque.value.size = val_stmt.statement.bulk.len;
+            cmd.expression.enque.value.ptr = val_stmt.statement.bulk.str;
+            return cmd;
+        } else if (val_stmt.type == SINT) {
+            cmd.expression.enque.value.type = VTINT;
+            cmd.expression.enque.value.size = 8;
+            cmd.expression.enque.value.ptr = ((void*)(val_stmt.statement.i64));
             return cmd;
         } else {
             cmd.type = INV;

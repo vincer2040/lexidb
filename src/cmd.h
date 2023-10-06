@@ -17,6 +17,8 @@ typedef enum {
     ENTRIES,
     PUSH,
     POP,
+    ENQUE,
+    DEQUE,
     CLUSTER_NEW,
     CLUSTER_DROP,
     CLUSTER_SET,
@@ -62,6 +64,10 @@ typedef struct {
 typedef struct {
     Value value;
 } PushCmd;
+
+typedef struct {
+    Value value;
+} EnqueCmd;
 
 typedef struct {
     Key cluster_name;
@@ -112,6 +118,7 @@ typedef union {
     GetCmd get;
     DelCmd del;
     PushCmd push;
+    EnqueCmd enque;
     ClusterNewCmd cluster_new;
     ClusterDropCmd cluster_drop;
     ClusterSetCmd cluster_set;
