@@ -20,7 +20,6 @@ void slowlog(uint8_t* buf, size_t len) {
             i++;
             for (k = 0; k < 8; ++k, ++i) {
                 printf("%x ", buf[i]);
-                fflush(stdout);
             }
         }
     }
@@ -338,11 +337,6 @@ void log_cmd(Cmd* cmd) {
         break;
     case MULTI_CMD: {
         printf("MULTI_COMMAND len: %lu\n", cmd->expression.multi.len);
-        // size_t i, num_cmds = cmd->expression.multi.len;
-        // for (i = 0; i < num_cmds; ++i) {
-        //     Cmd c = cmd->expression.multi.commands[i];;
-        //     log_cmd(&c);
-        // }
     } break;
     }
 }
