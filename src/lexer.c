@@ -1,8 +1,8 @@
 #include "lexer.h"
 #include "token.h"
 #include <ctype.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 void print_tok(Token tok) {
     switch (tok.type) {
