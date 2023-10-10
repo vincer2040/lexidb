@@ -1020,6 +1020,15 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel, Builder* builder)
         conn->write_size = builder->ins;
     } break;
     case MULTI_CMD: {
+        MultiCmd multi = cmd->expression.multi;
+        size_t i, num_cmds = multi.len;
+        for (i = 0; i < num_cmds; ++i) {
+            Cmd c = multi.commands[i];
+            evaluate_cmd(&c, client, loglevel, builder);
+        }
+        free(multi.commands);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
     }
 }

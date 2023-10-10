@@ -336,6 +336,13 @@ void log_cmd(Cmd* cmd) {
         printf("\n");
         fflush(stdout);
         break;
-
+    case MULTI_CMD: {
+        printf("MULTI_COMMAND len: %lu\n", cmd->expression.multi.len);
+        // size_t i, num_cmds = cmd->expression.multi.len;
+        // for (i = 0; i < num_cmds; ++i) {
+        //     Cmd c = cmd->expression.multi.commands[i];;
+        //     log_cmd(&c);
+        // }
+    } break;
     }
 }
