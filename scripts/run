@@ -154,6 +154,19 @@ c.set_cluster("fam", "kitty", "is cat")
 
 c.get_cluster("fam", "vince")
 
+buf = ProtocolBuilder()\
+        .add_arr(2)\
+        .add_arr(3)\
+        .add_str("SET", 3)\
+        .add_str("vince", 5)\
+        .add_str("is cool", 7)\
+        .add_arr(2)\
+        .add_str("GET", 3)\
+        .add_str("vince", 5)\
+        .get()
+
+c.send(buf)
+
 # c.get(rand_str(4074))
 
 
