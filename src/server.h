@@ -18,8 +18,8 @@ typedef struct {
 
 typedef struct {
     int sfd;
-    uint32_t port;
-    uint16_t addr;
+    uint32_t addr;
+    uint16_t port;
     uint16_t flags; /* mainly for padding, no use as of now */
     uint32_t ismaster;
     LogLevel loglevel;
