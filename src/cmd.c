@@ -1,6 +1,7 @@
 #include "cmd.h"
 #include "parser.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
@@ -133,6 +134,8 @@ CmdT cmdt_from_statement(Statement* stmt) {
     case SBULK:
         return cmd_from_bulk(stmt->statement.bulk.str,
                              stmt->statement.bulk.len);
+    case SARR:
+        return MULTI_CMD;
     default:
         return INV;
     }
@@ -547,6 +550,21 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         cmd.expression.cluster_entries.cluster_name.len =
             name_stmt.statement.bulk.len;
 
+        return cmd;
+    }
+
+    case MULTI_CMD: {
+        Cmd cmd = { 0 };
+        MultiCmd multi = { 0 };
+        size_t i, num_cmds = astmt->len;
+        multi.commands = calloc(num_cmds, sizeof(struct Cmd));
+        for (i = 0; i < num_cmds; ++i) {
+            Statement stmt = astmt->statements[i];
+            multi.commands[i] = cmd_from_statement(&stmt);
+        }
+        multi.len = num_cmds;
+        cmd.type = MULTI_CMD;
+        cmd.expression.multi = multi;
         return cmd;
     }
 

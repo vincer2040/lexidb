@@ -6,6 +6,8 @@
 #include "parser.h"
 #include <stddef.h>
 
+struct Cmd;
+
 typedef enum {
     INV,
     CPING,
@@ -29,6 +31,7 @@ typedef enum {
     CLUSTER_KEYS,
     CLUSTER_VALUES,
     CLUSTER_ENTRIES,
+    MULTI_CMD,
 } CmdT;
 
 typedef struct {
@@ -113,6 +116,11 @@ typedef struct {
     Key cluster_name;
 } ClusterEntriesCmd;
 
+typedef struct {
+    size_t len;
+    struct Cmd* commands;
+} MultiCmd;
+
 typedef union {
     SetCmd set;
     GetCmd get;
@@ -129,9 +137,10 @@ typedef union {
     ClusterKeysCmd cluster_keys;
     ClusterValuesCmd cluster_values;
     ClusterEntriesCmd cluster_entries;
+    MultiCmd multi;
 } CmdExpression;
 
-typedef struct {
+typedef struct Cmd {
     CmdT type;
     CmdExpression expression;
 } Cmd;
