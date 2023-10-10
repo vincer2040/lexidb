@@ -228,7 +228,7 @@ void server_destroy(Server* server) {
  * all commands are in this function
  * to avoid jumping around the whole file.
  */
-void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
+void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel, Builder* builder) {
     CmdT cmd_type;
     Connection* conn = client->conn;
 
@@ -240,20 +240,20 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
 
     switch (cmd_type) {
     case INV: {
-        Builder builder = builder_create(7);
-        builder_add_err(&builder, ((uint8_t*)"invalid command"), 15);
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        // Builder builder = builder_create(7);
+        builder_add_err(builder, ((uint8_t*)"invalid command"), 15);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
     case CPING: {
-        Builder builder = builder_create(7);
-        builder_add_pong(&builder);
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        // Builder builder = builder_create(7);
+        builder_add_pong(builder);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case SET: {
-        Builder builder;
+        // Builder builder;
         Object obj;
         int set_res;
         SetCmd set_cmd;
@@ -282,15 +282,15 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
             size_t n = strlen((char*)e);
-            builder = builder_create(n + 3);
-            builder_add_err(&builder, e, n);
+            // builder = builder_create(n + 3);
+            builder_add_err(builder, e, n);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case GET: {
@@ -298,7 +298,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         uint8_t* key;
         size_t key_len;
         void* get_res;
-        Builder builder;
+        // Builder builder;
 
         get_cmd = cmd->expression.get;
         key = get_cmd.key.value;
@@ -306,33 +306,33 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         get_res = ht_get(client->db->ht, key, key_len);
 
         if (get_res == NULL) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
+            // builder = builder_create(7);
+            builder_add_none(builder);
         } else {
             Object* obj = ((Object*)get_res);
             vstr str;
-            builder = builder_create(32);
+            // builder = builder_create(32);
             if (obj->type == STRING) {
                 size_t len;
                 str = obj->data.str;
                 len = vstr_len(obj->data.str);
-                builder_add_string(&builder, str, len);
+                builder_add_string(builder, str, len);
             } else if (obj->type == OINT64) {
                 int64_t i;
                 i = obj->data.i64;
-                builder_add_int(&builder, i);
+                builder_add_int(builder, i);
             } else {
-                builder_add_none(&builder);
+                builder_add_none(builder);
             }
         }
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case DEL: {
         DelCmd del_cmd;
-        Builder builder;
+        // Builder builder;
         uint8_t* key;
         size_t key_len;
 
@@ -342,16 +342,16 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
 
         ht_delete(client->db->ht, key, key_len, free_cb);
 
-        builder = builder_create(5);
-        builder_add_ok(&builder);
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        // builder = builder_create(5);
+        builder_add_ok(builder);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case PUSH: {
         Object obj;
         PushCmd push_cmd;
-        Builder builder;
+        // Builder builder;
         int push_res;
         void* value;
         size_t value_size;
@@ -372,56 +372,56 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         if (push_res != 0) {
             uint8_t* e = ((uint8_t*)"could not push");
             size_t n = strlen((char*)e);
-            builder = builder_create(n + 3);
-            builder_add_err(&builder, e, n);
+            // builder = builder_create(n + 3);
+            builder_add_err(builder, e, n);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case POP: {
         Object obj;
         int pop_res;
-        Builder builder;
+        // Builder builder;
 
         pop_res = vec_pop(client->db->stack, &obj);
         if (pop_res == -1) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            // builder = builder_create(7);
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         if (obj.type == ONULL) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
+            // builder = builder_create(7);
+            builder_add_none(builder);
         }
 
         if (obj.type == OINT64) {
-            builder = builder_create(11);
-            builder_add_int(&builder, obj.data.i64);
+            // builder = builder_create(11);
+            builder_add_int(builder, obj.data.i64);
         }
 
         if (obj.type == STRING) {
             size_t len = vstr_len(obj.data.str);
-            builder = builder_create(32);
-            builder_add_string(&builder, obj.data.str, len);
+            // builder = builder_create(32);
+            builder_add_string(builder, obj.data.str, len);
             vstr_delete(obj.data.str);
         }
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case ENQUE: {
         Object obj;
         EnqueCmd enque_cmd;
-        Builder builder;
+        // Builder builder;
         int enque_res;
         void* value;
         size_t value_size;
@@ -443,170 +443,170 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         if (enque_res != 0) {
             uint8_t* e = (uint8_t*)"could not enque";
             size_t n = strlen((char*)e);
-            builder = builder_create(n + 3);
-            builder_add_err(&builder, e, n);
+            // builder = builder_create(n + 3);
+            builder_add_err(builder, e, n);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case DEQUE: {
         Object obj;
         int deque_res;
-        Builder builder;
+        // Builder builder;
 
         deque_res = queue_deque(client->db->queue, &obj);
         if (deque_res == -1) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            // builder = builder_create(7);
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         if (obj.type == ONULL) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
+            // builder = builder_create(7);
+            builder_add_none(builder);
         }
 
         if (obj.type == OINT64) {
-            builder = builder_create(11);
-            builder_add_int(&builder, obj.data.i64);
+            // builder = builder_create(11);
+            builder_add_int(builder, obj.data.i64);
         }
 
         if (obj.type == STRING) {
             size_t len = vstr_len(obj.data.str);
-            builder = builder_create(32);
-            builder_add_string(&builder, obj.data.str, len);
+            // builder = builder_create(32);
+            builder_add_string(builder, obj.data.str, len);
             vstr_delete(obj.data.str);
         }
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case KEYS: {
-        Builder builder;
+        // Builder builder;
         HtEntriesIter* iter;
         Entry* cur;
-        builder = builder_create(32);
+        // builder = builder_create(32);
 
         if (client->db->ht->len == 0) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         iter = ht_entries_iter(client->db->ht);
         if (iter == NULL) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
-        builder_add_arr(&builder, client->db->ht->len);
+        builder_add_arr(builder, client->db->ht->len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
-            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+            builder_add_string(builder, ((char*)cur->key), cur->key_len);
         }
 
         ht_entries_iter_free(iter);
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
 
     } break;
 
     case VALUES: {
-        Builder builder;
+        // Builder builder;
         HtEntriesIter* iter;
         Entry* cur;
-        builder = builder_create(32);
+        // builder = builder_create(32);
 
         if (client->db->ht->len == 0) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         iter = ht_entries_iter(client->db->ht);
         if (iter == NULL) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
-        builder_add_arr(&builder, client->db->ht->len);
+        builder_add_arr(builder, client->db->ht->len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
             Object* obj = ((Object*)cur->value);
             if (obj->type == OINT64) {
-                builder_add_int(&builder, obj->data.i64);
+                builder_add_int(builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
-                builder_add_string(&builder, obj->data.str, len);
+                builder_add_string(builder, obj->data.str, len);
             }
         }
 
         ht_entries_iter_free(iter);
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
 
     } break;
 
     case ENTRIES: {
-        Builder builder;
+        // Builder builder;
         HtEntriesIter* iter;
         Entry* cur;
-        builder = builder_create(32);
+        // builder = builder_create(32);
 
         if (client->db->ht->len == 0) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         iter = ht_entries_iter(client->db->ht);
         if (iter == NULL) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
-        builder_add_arr(&builder, client->db->ht->len);
+        builder_add_arr(builder, client->db->ht->len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
             uint8_t* key = cur->key;
             size_t key_len = cur->key_len;
             Object* obj = ((Object*)cur->value);
-            builder_add_arr(&builder, 2);
-            builder_add_string(&builder, ((char*)key), key_len);
+            builder_add_arr(builder, 2);
+            builder_add_string(builder, ((char*)key), key_len);
             if (obj->type == OINT64) {
-                builder_add_int(&builder, obj->data.i64);
+                builder_add_int(builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
-                builder_add_string(&builder, obj->data.str, len);
+                builder_add_string(builder, obj->data.str, len);
             }
         }
 
         ht_entries_iter_free(iter);
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
 
     } break;
 
@@ -615,7 +615,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         uint8_t* name;
         size_t name_len;
         int create_res;
-        Builder builder;
+        // Builder builder;
 
         cluster_new_cmd = cmd->expression.cluster_new;
 
@@ -625,20 +625,20 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         create_res = cluster_namespace_new(client->db->cluster, name, name_len,
                                            HT_INITIAL_CAP);
         if (create_res == 1) {
-            builder = builder_create(18);
-            builder_add_err(&builder, ((uint8_t*)"cluster name already taken"),
+            // builder = builder_create(18);
+            builder_add_err(builder, ((uint8_t*)"cluster name already taken"),
                             18);
         } else if (create_res == -1) {
-            builder = builder_create(24);
-            builder_add_err(&builder, ((uint8_t*)"failed to create cluster"),
+            // builder = builder_create(24);
+            builder_add_err(builder, ((uint8_t*)"failed to create cluster"),
                             24);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_DROP: {
@@ -646,7 +646,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         uint8_t* name;
         size_t name_len;
         int drop_res;
-        Builder builder;
+        // Builder builder;
 
         cluster_drop_cmd = cmd->expression.cluster_drop;
 
@@ -655,15 +655,15 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
 
         drop_res = cluster_namespace_drop(client->db->cluster, name, name_len);
         if (drop_res == -1) {
-            builder = builder_create(12);
-            builder_add_err(&builder, ((uint8_t*)"invalid name"), 12);
+            // builder = builder_create(12);
+            builder_add_err(builder, ((uint8_t*)"invalid name"), 12);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_SET: {
@@ -672,7 +672,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         void* value;
         size_t name_len, key_len, value_size;
         int set_res;
-        Builder builder;
+        // Builder builder;
         Object obj;
 
         cluster_set_cmd = cmd->expression.cluster_set;
@@ -704,22 +704,22 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
             size_t n = strlen((char*)e);
-            builder = builder_create(n + 3);
-            builder_add_err(&builder, e, n);
+            // builder = builder_create(n + 3);
+            builder_add_err(builder, e, n);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_GET: {
         ClusterGetCmd cluster_get_cmd;
         uint8_t *name, *key;
         size_t name_len, key_len;
-        Builder builder;
+        // Builder builder;
         void* get_res;
 
         cluster_get_cmd = cmd->expression.cluster_get;
@@ -733,35 +733,35 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
                                         key, key_len);
 
         if (get_res == NULL) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
+            // builder = builder_create(7);
+            builder_add_none(builder);
         } else {
             Object* obj = ((Object*)get_res);
             vstr str;
-            builder = builder_create(32);
+            // builder = builder_create(32);
             if (obj->type == STRING) {
                 size_t len;
                 str = obj->data.str;
                 len = vstr_len(obj->data.str);
-                builder_add_string(&builder, str, len);
+                builder_add_string(builder, str, len);
             } else if (obj->type == OINT64) {
                 int64_t i;
                 i = obj->data.i64;
-                builder_add_int(&builder, i);
+                builder_add_int(builder, i);
             } else {
-                builder_add_none(&builder);
+                builder_add_none(builder);
             }
         }
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_DEL: {
         ClusterDelCmd cluster_del_cmd;
         uint8_t *name, *key;
         size_t name_len, key_len;
-        Builder builder;
+        // Builder builder;
 
         cluster_del_cmd = cmd->expression.cluster_del;
 
@@ -773,11 +773,11 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         cluster_namespace_del(client->db->cluster, name, name_len, key, key_len,
                               free_cb);
 
-        builder = builder_create(5);
-        builder_add_ok(&builder);
+        // builder = builder_create(5);
+        builder_add_ok(builder);
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_PUSH: {
@@ -786,7 +786,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         void* value;
         size_t name_len, value_size;
         int push_res;
-        Builder builder;
+        // Builder builder;
         Object obj;
 
         cluster_push_cmd = cmd->expression.cluster_push;
@@ -810,15 +810,15 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         if (push_res != 0) {
             uint8_t* e = ((uint8_t*)"could not push");
             size_t n = strlen((char*)e);
-            builder = builder_create(n + 3);
-            builder_add_err(&builder, e, n);
+            // builder = builder_create(n + 3);
+            builder_add_err(builder, e, n);
         } else {
-            builder = builder_create(5);
-            builder_add_ok(&builder);
+            // builder = builder_create(5);
+            builder_add_ok(builder);
         }
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_POP: {
@@ -826,7 +826,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         uint8_t* name;
         size_t name_len;
         int pop_res;
-        Builder builder;
+        // Builder builder;
         Object obj = {0};
 
         cluster_pop_cmd = cmd->expression.cluster_pop;
@@ -838,47 +838,47 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
             cluster_namespace_pop(client->db->cluster, name, name_len, &obj);
 
         if (pop_res == -1) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
-            conn->write_size = builder.ins;
-            conn->write_buf = builder_out(&builder);
+            // builder = builder_create(7);
+            builder_add_none(builder);
+            conn->write_size = builder->ins;
+            conn->write_buf = builder_out(builder);
             return;
         }
 
         if (obj.type == ONULL) {
-            builder = builder_create(7);
-            builder_add_none(&builder);
+            // builder = builder_create(7);
+            builder_add_none(builder);
         }
 
         if (obj.type == OINT64) {
-            builder = builder_create(11);
-            builder_add_int(&builder, obj.data.i64);
+            // builder = builder_create(11);
+            builder_add_int(builder, obj.data.i64);
         }
 
         if (obj.type == STRING) {
             size_t len = vstr_len(obj.data.str);
-            builder = builder_create(32);
-            builder_add_string(&builder, obj.data.str, len);
+            // builder = builder_create(32);
+            builder_add_string(builder, obj.data.str, len);
             vstr_delete(obj.data.str);
         }
 
-        conn->write_size = builder.ins;
-        conn->write_buf = builder_out(&builder);
+        conn->write_size = builder->ins;
+        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_KEYS: {
-        Builder builder;
+        // Builder builder;
         HtEntriesIter* iter;
         ClusterKeysCmd cluster_keys_cmd;
         Entry* cur;
         uint8_t* name;
         size_t name_len, cluster_len;
-        builder = builder_create(32);
+        // builder = builder_create(32);
 
         if (client->db->cluster->len == 0) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
@@ -890,41 +890,41 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         iter =
             cluster_namespace_entries_iter(client->db->cluster, name, name_len);
         if (iter == NULL) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         cluster_len =
             cluster_namespace_len(client->db->cluster, name, name_len);
 
-        builder_add_arr(&builder, cluster_len);
+        builder_add_arr(builder, cluster_len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
-            builder_add_string(&builder, ((char*)cur->key), cur->key_len);
+            builder_add_string(builder, ((char*)cur->key), cur->key_len);
         }
 
         ht_entries_iter_free(iter);
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case CLUSTER_VALUES: {
-        Builder builder;
+        // Builder builder;
         HtEntriesIter* iter;
         ClusterValuesCmd cluster_values_cmd;
         Entry* cur;
         uint8_t* name;
         size_t name_len, cluster_len;
-        builder = builder_create(32);
+        // builder = builder_create(32);
 
         if (client->db->cluster->len == 0) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
@@ -936,47 +936,47 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         iter =
             cluster_namespace_entries_iter(client->db->cluster, name, name_len);
         if (iter == NULL) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         cluster_len =
             cluster_namespace_len(client->db->cluster, name, name_len);
 
-        builder_add_arr(&builder, cluster_len);
+        builder_add_arr(builder, cluster_len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
             Object* obj = ((Object*)(cur->value));
             if (obj->type == OINT64) {
-                builder_add_int(&builder, obj->data.i64);
+                builder_add_int(builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
-                builder_add_string(&builder, obj->data.str, len);
+                builder_add_string(builder, obj->data.str, len);
             }
         }
 
         ht_entries_iter_free(iter);
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
     } break;
 
     case CLUSTER_ENTRIES: {
-        Builder builder;
+        // Builder builder;
         HtEntriesIter* iter;
         ClusterEntriesCmd cluster_entries_cmd;
         Entry* cur;
         uint8_t* name;
         size_t name_len, cluster_len;
-        builder = builder_create(32);
+        // builder = builder_create(32);
 
         if (client->db->cluster->len == 0) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
@@ -988,36 +988,38 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel) {
         iter =
             cluster_namespace_entries_iter(client->db->cluster, name, name_len);
         if (iter == NULL) {
-            builder_add_none(&builder);
-            conn->write_buf = builder_out(&builder);
-            conn->write_size = builder.ins;
+            builder_add_none(builder);
+            conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
             return;
         }
 
         cluster_len =
             cluster_namespace_len(client->db->cluster, name, name_len);
 
-        builder_add_arr(&builder, cluster_len);
+        builder_add_arr(builder, cluster_len);
 
         for (cur = iter->cur; cur != NULL;
              ht_entries_next(iter), cur = iter->cur) {
             uint8_t* key = cur->key;
             size_t key_len = cur->key_len;
             Object* obj = ((Object*)cur->value);
-            builder_add_arr(&builder, 2);
-            builder_add_string(&builder, ((char*)key), key_len);
+            builder_add_arr(builder, 2);
+            builder_add_string(builder, ((char*)key), key_len);
             if (obj->type == OINT64) {
-                builder_add_int(&builder, obj->data.i64);
+                builder_add_int(builder, obj->data.i64);
             } else if (obj->type == STRING) {
                 size_t len = vstr_len(obj->data.str);
-                builder_add_string(&builder, obj->data.str, len);
+                builder_add_string(builder, obj->data.str, len);
             }
         }
 
         ht_entries_iter_free(iter);
 
-        conn->write_buf = builder_out(&builder);
-        conn->write_size = builder.ins;
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
+    } break;
+    case MULTI_CMD: {
     } break;
     }
 }
@@ -1028,6 +1030,7 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
     Parser p;
     CmdIR cir;
     Cmd cmd;
+    Builder b;
     Connection* conn = client->conn;
 
     if (loglevel >= LL_VERBOSE) {
@@ -1053,7 +1056,9 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
         return;
     }
 
-    evaluate_cmd(&cmd, client, loglevel);
+    b = builder_create(32);
+
+    evaluate_cmd(&cmd, client, loglevel, &b);
 
     cmdir_free(&cir);
     parser_free_errors(&p);
