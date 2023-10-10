@@ -139,6 +139,7 @@ Client* client_create(Connection* conn, LexiDB* db, int fd) {
     client->fd = fd;
     client->conn = conn;
     client->db = db;
+    client->builder = builder_create(32);
     return client;
 }
 
@@ -164,8 +165,8 @@ void connection_close(De* de, Connection* conn, int fd, uint32_t flags,
         conn->read_buf = NULL;
     }
     if (conn->write_buf) {
-        free(conn->read_buf);
-        conn->read_buf = NULL;
+        free(conn->write_buf);
+        conn->write_buf = NULL;
     }
     free(conn);
     conn = NULL;
@@ -228,7 +229,8 @@ void server_destroy(Server* server) {
  * all commands are in this function
  * to avoid jumping around the whole file.
  */
-void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel, Builder* builder) {
+void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
+                  Builder* builder) {
     CmdT cmd_type;
     Connection* conn = client->conn;
 
@@ -977,7 +979,7 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
     Parser p;
     CmdIR cir;
     Cmd cmd;
-    Builder b;
+    // Builder b;
     Connection* conn = client->conn;
 
     if (loglevel >= LL_VERBOSE) {
@@ -1003,9 +1005,7 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
         return;
     }
 
-    b = builder_create(32);
-
-    evaluate_cmd(&cmd, client, loglevel, &b);
+    evaluate_cmd(&cmd, client, loglevel, &(client->builder));
 
     cmdir_free(&cir);
     parser_free_errors(&p);
@@ -1051,9 +1051,10 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
             fmt_error("failed to send all bytes\n");
             return;
         }
-        free(conn->write_buf);
-        conn->write_buf = NULL;
-        conn->write_size = 0;
+        builder_reset(&(client->builder));
+        // free(conn->write_buf);
+        // conn->write_buf = NULL;
+        // conn->write_size = 0;
     } else {
         bytes_sent = write(fd, "+noop\r\n", 7);
         if (bytes_sent < 0) {

@@ -2,6 +2,7 @@
 
 #define __SERVER_H__
 
+#include "builder.h"
 #include "config.h"
 #include "ht.h"
 #include "cluster.h"
@@ -43,6 +44,7 @@ typedef struct {
     int is_authed;
     Connection* conn;
     LexiDB* db;
+    Builder builder;
 } Client;
 
 int server(char* addr_str, uint16_t port, LogLevel loglevel);
