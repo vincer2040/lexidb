@@ -174,6 +174,10 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_KEYS;
     }
 
+    if (strncmp(literal, "entries", 7) == 0) {
+        return CC_ENTRIES;
+    }
+
     if (strncmp(literal, "values", 6) == 0) {
         return CC_VALUES;
     }
