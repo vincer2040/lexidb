@@ -21,6 +21,7 @@ void slowlog(uint8_t* buf, size_t len) {
             for (k = 0; k < 8; ++k, ++i) {
                 printf("%x ", buf[i]);
             }
+            i--;
         }
     }
     printf("\n");
