@@ -5,7 +5,8 @@
 #include <string.h>
 
 CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
-    if (str_len == 3) {
+    switch (str_len) {
+    case 3: {
 
         if (memcmp(str, "SET", 3) == 0) {
             return SET;
@@ -26,7 +27,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 4) {
+    case 4: {
 
         if (memcmp(str, "PUSH", 4) == 0) {
             return PUSH;
@@ -39,7 +40,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 5) {
+    case 5: {
 
         if (memcmp(str, "ENQUE", 5) == 0) {
             return ENQUE;
@@ -52,7 +53,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 6) {
+    case 6: {
         if (memcmp(str, "VALUES", 6) == 0) {
             return VALUES;
         }
@@ -60,7 +61,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 7) {
+    case 7: {
         if (memcmp(str, "ENTRIES", 7) == 0) {
             return ENTRIES;
         }
@@ -68,7 +69,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 11) {
+    case 11: {
         if (memcmp(str, "CLUSTER.NEW", 11) == 0) {
             return CLUSTER_NEW;
         }
@@ -92,7 +93,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 12) {
+    case 12: {
         if (memcmp(str, "CLUSTER.DROP", 12) == 0) {
             return CLUSTER_DROP;
         }
@@ -108,7 +109,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 14) {
+    case 14: {
         if (memcmp(str, "CLUSTER.VALUES", 14) == 0) {
             return CLUSTER_VALUES;
         }
@@ -116,7 +117,7 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    if (str_len == 15) {
+    case 15: {
         if (memcmp(str, "CLUSTER.ENTRIES", 15) == 0) {
             return CLUSTER_ENTRIES;
         }
@@ -124,7 +125,9 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
-    return INV;
+    default:
+        return INV;
+    }
 }
 
 CmdT cmdt_from_statement(Statement* stmt) {
@@ -249,7 +252,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         return cmd;
     }
 
-    case ENQUE:{
+    case ENQUE: {
         Statement val_stmt;
         if (astmt->len != 2) {
             printf("enque expects len of 2, got %lu, cmd, value\n", astmt->len);
@@ -452,7 +455,8 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
             cmd.expression.cluster_push.push.value.type = VTSTRING;
             cmd.expression.cluster_push.push.value.size =
                 val_stmt.statement.bulk.len;
-            cmd.expression.cluster_push.push.value.ptr = val_stmt.statement.bulk.str;
+            cmd.expression.cluster_push.push.value.ptr =
+                val_stmt.statement.bulk.str;
         } else if (val_stmt.type == SINT) {
             cmd.expression.cluster_push.push.value.type = VTINT;
             cmd.expression.cluster_push.push.value.size = 8;
@@ -554,8 +558,8 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
     }
 
     case MULTI_CMD: {
-        Cmd cmd = { 0 };
-        MultiCmd multi = { 0 };
+        Cmd cmd = {0};
+        MultiCmd multi = {0};
         size_t i, num_cmds = astmt->len;
         multi.commands = calloc(num_cmds, sizeof(struct Cmd));
         for (i = 0; i < num_cmds; ++i) {
