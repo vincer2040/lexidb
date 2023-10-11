@@ -562,7 +562,6 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             }
             break;
         default:
-            printf("invalid command\n");
             cmd.type = CC_INV;
             break;
         }
