@@ -2,8 +2,6 @@
 
 #define __DB_H__
 
-#define VERSION "0.1"
-
 #define HELP                                                                   \
     "\
 Options\n\
