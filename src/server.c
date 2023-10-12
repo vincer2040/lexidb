@@ -962,6 +962,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
     case MULTI_CMD: {
         MultiCmd multi = cmd->expression.multi;
         size_t i, num_cmds = multi.len;
+        builder_add_arr(builder, num_cmds);
         for (i = 0; i < num_cmds; ++i) {
             Cmd c = multi.commands[i];
             evaluate_cmd(&c, client, loglevel, builder);
