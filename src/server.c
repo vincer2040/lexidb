@@ -334,6 +334,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         key_len = del_cmd.key.len;
 
         ht_delete(client->db->ht, key, key_len, free_cb);
+        builder_add_ok(builder);
 
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
