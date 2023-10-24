@@ -14,9 +14,6 @@
 #define UNUSED(v) ((void)v)
 
 void get_random_bytes(uint8_t *p, size_t len);
-int want_version_long(char* argv, size_t len);
-int want_version_short(char* argv, size_t len);
-int done_from_args(int argc, char** argv);
 int create_sigint_handler(void);
 
 #endif
