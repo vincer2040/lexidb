@@ -205,7 +205,7 @@ Ht* configure(Configuration* config, int argc, char** argv) {
 
     for (i = 1; i < argc; ++i) {
         char* arg = argv[i];
-        iter = vec_iter_new(config);
+        iter = vec_iter_new(config, 0);
         cur = iter.cur;
         for (cur = iter.cur; cur != NULL;
              vec_iter_next(&iter), cur = iter.cur) {
@@ -260,7 +260,7 @@ Ht* configure(Configuration* config, int argc, char** argv) {
     }
 
 fill:
-    iter = vec_iter_new(config);
+    iter = vec_iter_new(config, 0);
     for (cur = iter.cur; cur != NULL; vec_iter_next(&iter), cur = iter.cur) {
         int insert_res;
         const char* arg = cur->arg;
