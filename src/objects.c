@@ -1,8 +1,8 @@
 #include "objects.h"
 #include "vstring.h"
 #include <errno.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,3 +32,16 @@ void object_free(Object* obj) {
     memset(obj, 0, sizeof *obj);
 }
 
+void object_print(Object* obj) {
+    switch (obj->type) {
+    case STRING:
+        printf("%s\n", obj->data.str);
+        break;
+    case OINT64:
+        printf("%ld\n", obj->data.i64);
+        break;
+    case ONULL:
+        printf("null\n");
+        break;
+    }
+}

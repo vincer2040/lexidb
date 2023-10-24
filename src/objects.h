@@ -26,5 +26,6 @@ typedef struct {
 /* generic object */
 Object object_new(ObjectT type, void* v, size_t val_len);
 void object_free(Object* obj);
+void object_print(Object* obj);
 
 #endif
