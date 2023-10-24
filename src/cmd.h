@@ -32,6 +32,7 @@ typedef enum {
     CLUSTER_VALUES,
     CLUSTER_ENTRIES,
     MULTI_CMD,
+    REPLICATE,
 } CmdT;
 
 typedef struct {

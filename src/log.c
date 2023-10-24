@@ -339,5 +339,7 @@ void log_cmd(Cmd* cmd) {
     case MULTI_CMD: {
         printf("MULTI_COMMAND len: %lu\n", cmd->expression.multi.len);
     } break;
+    case REPLICATE:
+        printf("REPLICATE\n");
     }
 }

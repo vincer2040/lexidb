@@ -69,6 +69,14 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
         return INV;
     }
 
+    case 9: {
+        if (memcmp(str, "REPLICATE", 9) == 0) {
+            return REPLICATE;
+        }
+
+        return INV;
+    }
+
     case 11: {
         if (memcmp(str, "CLUSTER.NEW", 11) == 0) {
             return CLUSTER_NEW;

@@ -3,9 +3,9 @@
 #define __SERVER_H__
 
 #include "builder.h"
+#include "cluster.h"
 #include "config.h"
 #include "ht.h"
-#include "cluster.h"
 #include "objects.h"
 #include "queue.h"
 #include "vec.h"
@@ -15,14 +15,15 @@ typedef struct {
     Cluster* cluster;
     Vec* stack;
     Queue* queue;
-}LexiDB;
+} LexiDB;
 
 typedef struct {
     int sfd;
     uint32_t addr;
     uint16_t port;
     uint16_t flags; /* mainly for padding, no use as of now */
-    uint32_t ismaster;
+    uint16_t ismaster;
+    uint16_t isslave;
     LogLevel loglevel;
     LexiDB* db;
     Vec* clients;
@@ -41,12 +42,16 @@ typedef struct {
 
 typedef struct {
     int fd;
-    int is_authed;
+    uint32_t isauthed;
+    uint32_t ismaster;
+    uint32_t isslave;
     Connection* conn;
     LexiDB* db;
     Builder builder;
 } Client;
 
-int server(char* addr_str, uint16_t port, LogLevel loglevel);
+int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica);
+
+void replicate(LexiDB* db, Client* slave);
 
 #endif

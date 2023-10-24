@@ -71,7 +71,7 @@ LexiDB* lexidb_new() {
     return db;
 }
 
-Server* server_create(int sfd, LogLevel loglevel) {
+Server* server_create(int sfd, LogLevel loglevel, int isreplica) {
     Server* server;
 
     if (sfd < 0) {
@@ -99,6 +99,12 @@ Server* server_create(int sfd, LogLevel loglevel) {
         free(server);
         close(sfd);
         return NULL;
+    }
+
+    if (isreplica == -1) {
+        server->ismaster = 1;
+    } else {
+        server->isslave = 1;
     }
 
     return server;
@@ -972,6 +978,9 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
     } break;
+    case REPLICATE:
+        replicate(client->db, client);
+        break;
     }
 }
 
@@ -1176,7 +1185,7 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     de_add_event(de, cfd, DE_READ, read_from_client, s);
 }
 
-int server(char* addr_str, uint16_t port, LogLevel loglevel) {
+int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica) {
     Server* server;
     De* de;
     int sfd;
@@ -1207,7 +1216,7 @@ int server(char* addr_str, uint16_t port, LogLevel loglevel) {
         return -1;
     }
 
-    server = server_create(sfd, loglevel);
+    server = server_create(sfd, loglevel, isreplica);
     if (server == NULL) {
         fmt_error("failed to allocate memory for server\n");
         close(sfd);
