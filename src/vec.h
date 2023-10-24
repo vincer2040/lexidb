@@ -4,6 +4,8 @@
 
 #include <stddef.h>
 
+#define VEC_ITER_REVERSE 1
+
 typedef void VecFreeCallBack(void* ptr);
 typedef void VecForEach(void* ptr);
 typedef int VecCmpFn(void* cmp_against, void* cur);
@@ -21,6 +23,7 @@ typedef struct {
     void* cur;
     void* next;
     size_t at_idx;
+    int direction;
     Vec* vec;
 } VecIter;
 
@@ -35,7 +38,7 @@ int vec_find(Vec* vec, void* cmp_against, VecCmpFn* fn, void* out);
 size_t vec_len(Vec* vec);
 
 /* vec iterator */
-VecIter vec_iter_new(Vec* vec);
+VecIter vec_iter_new(Vec* vec, int direction);
 void vec_iter_next(VecIter* iter);
 
 #endif /* __VEC_H__ */

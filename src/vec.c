@@ -156,7 +156,7 @@ void vec_free(Vec* vec, VecFreeCallBack* cb) {
     free(vec);
 }
 
-VecIter vec_iter_new(Vec* vec) {
+VecIter vec_iter_new(Vec* vec, int direction) {
     VecIter iter;
     size_t len;
     size_t data_size;
@@ -164,12 +164,21 @@ VecIter vec_iter_new(Vec* vec) {
     len = vec->len - 1;
     data_size = vec->data_size;
 
-    iter.start = vec->data;
-    iter.end = vec->data + (len * data_size);
+    if (direction == VEC_ITER_REVERSE) {
+        iter.start = vec->data + (len * data_size);
+        iter.end = vec->data;
+        iter.cur = iter.start;
+        iter.next = vec->data + ((len - 1) * data_size);
+        iter.direction = VEC_ITER_REVERSE;
+        iter.at_idx = len - 1;
+    } else {
+        iter.start = vec->data;
+        iter.end = vec->data + (len * data_size);
 
-    iter.cur = iter.start;
+        iter.cur = iter.start;
 
-    iter.next = vec->data + data_size;
+        iter.next = vec->data + data_size;
+    }
 
     iter.vec = vec;
 
@@ -177,7 +186,12 @@ VecIter vec_iter_new(Vec* vec) {
 }
 
 void vec_iter_next(VecIter* iter) {
-    iter->at_idx++;
+    if (iter->direction == VEC_ITER_REVERSE) {
+        iter->at_idx--;
+    } else {
+        iter->at_idx++;
+    }
+
     iter->cur = iter->next;
 
     if (iter->cur == iter->end) {
