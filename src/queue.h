@@ -24,4 +24,14 @@ int queue_deque(Queue* q, void* out);
 int queue_enque(Queue* q, void* data);
 void queue_free(Queue* q, QFreeFn* fn);
 
+typedef struct {
+    Queue* q;
+    QNode* cur;
+    QNode* next;
+    size_t cur_idx;
+} QIter;
+
+QIter queue_iter_new(Queue* q);
+void queue_iter_next(QIter* qi);
+
 #endif

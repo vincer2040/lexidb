@@ -59,7 +59,7 @@ int queue_enque(Queue* q, void* data) {
     }
 
     memset(node, 0, size);
-
+    node->next = NULL;
     memcpy(node->data, data, data_size);
 
     if (!q->tail) {
@@ -88,3 +88,24 @@ void queue_free(Queue* q, QFreeFn* fn) {
 
     free(q);
 }
+
+QIter queue_iter_new(Queue* q) {
+    QIter qi = { 0 };
+    qi.q = q;
+    qi.cur = q->head;
+    qi.next = q->head->next;
+    qi.cur_idx = 0;
+    return qi;
+}
+
+void queue_iter_next(QIter* qi) {
+    if (qi->next == NULL) {
+        qi->cur = NULL;
+        qi->next = NULL;
+        return;
+    }
+
+    qi->cur = qi->next;
+    qi->next = qi->cur->next;
+}
+
