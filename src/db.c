@@ -9,6 +9,7 @@
 int main(int argc, char** argv) {
 
     int default_port = PORT;
+    int replica_port = -1;
     Ht* args;
 
     Configuration* config = config_new();
@@ -23,6 +24,8 @@ int main(int argc, char** argv) {
                       "the amount to log");
     config_add_option(&config, "--logfile", "-lf", COT_STRING, "lexi.log",
                       "the file to log to");
+    config_add_option(&config, "--replicaof", "-ro", COT_INT, &replica_port,
+                      "port to replicate");
 
     args = configure(config, argc, argv);
 
@@ -30,11 +33,12 @@ int main(int argc, char** argv) {
         Object* port = ht_get(args, (uint8_t*)"--port", 6);
         Object* addr = ht_get(args, (uint8_t*)"--address", 9);
         Object* loglevel_obj = ht_get(args, (uint8_t*)"--loglevel", 10);
+        Object* replicaof_obj = ht_get(args, (uint8_t*)"--replicaof", 11);
         LogLevel loglevel = determine_loglevel(loglevel_obj->data.str);
 
         config_free(config);
 
-        server(addr->data.str, (uint16_t)port->data.i64, loglevel);
+        server(addr->data.str, (uint16_t)port->data.i64, loglevel, (int)replicaof_obj->data.i64);
 
         free_configuration_ht(args);
 
