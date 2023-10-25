@@ -178,6 +178,8 @@ VecIter vec_iter_new(Vec* vec, int direction) {
         iter.cur = iter.start;
 
         iter.next = vec->data + data_size;
+        iter.at_idx = 0;
+        iter.direction = 0;
     }
 
     iter.vec = vec;
@@ -191,7 +193,6 @@ void vec_iter_next(VecIter* iter) {
     } else {
         iter->at_idx++;
     }
-
     iter->cur = iter->next;
 
     if (iter->cur == iter->end) {
