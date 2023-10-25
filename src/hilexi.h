@@ -22,7 +22,7 @@ typedef struct {
     size_t write_len;
 } HiLexi;
 
-typedef enum { OK, ERR } HiLexiResultT;
+typedef enum { HI_OK, HI_ERR } HiLexiResultT;
 
 typedef enum {
     HL_ARR,
