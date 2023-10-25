@@ -28,14 +28,16 @@ typedef enum {
     SARR,
     SBULK,
     SINT,
-    SPING
+    SPING,
+    SOK,
 } StatementType;
 
 struct Statement;
 
 typedef enum {
     SST_INVALID,
-    SST_PING
+    SST_PING,
+    SST_OK,
 } SimpleStringStatement;
 
 /* this does not containt an allocated string, just a ptr at the position

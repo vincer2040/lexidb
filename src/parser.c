@@ -227,13 +227,14 @@ ArrayStatement parser_parse_array(Parser* p) {
  * work if this check gets removed though
  */
 SimpleStringStatement parser_parse_simple_string(Parser* p) {
+    SimpleStringStatement sss = p->cur_tok.type == PING ? SST_PING : SST_OK;
     if (!parser_expect_peek(p, EOFT)) {
         ParserError e = parser_new_err(EOFT, &(p->peek_tok));
         parser_append_error(p, &e);
         parser_debug("expected EOF after simple\n");
         return SST_INVALID;
     }
-    return SST_PING;
+    return sss;
 }
 
 /**
@@ -314,6 +315,11 @@ Statement parser_parse_statement(Parser* p) {
     }
     if (parser_cur_token_is(p, PING)) {
         stmt.type = SPING;
+        stmt.statement.sst = parser_parse_simple_string(p);
+        return stmt;
+    }
+    if (parser_cur_token_is(p, OK)) {
+        stmt.type = SOK;
         stmt.statement.sst = parser_parse_simple_string(p);
         return stmt;
     }

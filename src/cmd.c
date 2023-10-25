@@ -599,6 +599,9 @@ Cmd cmd_from_statement(Statement* stmt) {
     case SPING:
         cmd.type = CPING;
         return cmd;
+    case SOK:
+        cmd.type = COK;
+        return cmd;
     default:
         cmd.type = INV;
         return cmd;

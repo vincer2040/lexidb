@@ -9,6 +9,8 @@ void print_tok(Token tok) {
     case EOFT:
         printf("EOF\n");
         break;
+    case OK:
+        printf("OK\n");
     case PING:
         printf("PING\n");
         break;
@@ -61,6 +63,13 @@ void lexer_read_ping(Lexer* l) {
     }
 }
 
+void lexer_read_ok(Lexer* l) {
+    size_t i;
+    for (i = 0; i < 5; ++i) {
+        lexer_read_char(l);
+    }
+}
+
 void lexer_read_int(Lexer* l) {
     size_t i;
     for (i = 0; i < 8; ++i) {
@@ -96,6 +105,11 @@ Token lexer_next_token(Lexer* l) {
             tok.type = PING;
             tok.literal = u8("+PING\r\n");
             lexer_read_ping(l);
+            break;
+        } else if ((l->inp_len = 5) && (memcmp(l->input, "+OK\r\n", 5) == 0)) {
+            tok.type = OK;
+            tok.literal = u8("+OK\r\n");
+            lexer_read_ok(l);
             break;
         } else {
             tok.type = ILLEGAL;

@@ -10,6 +10,7 @@ struct Cmd;
 
 typedef enum {
     INV,
+    COK,
     CPING,
     SET,
     GET,

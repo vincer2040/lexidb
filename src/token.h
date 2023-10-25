@@ -6,6 +6,7 @@
 
 typedef enum {
     EOFT,
+    OK,
     PING,
     TYPE,
     LEN,

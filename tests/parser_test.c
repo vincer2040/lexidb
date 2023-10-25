@@ -311,6 +311,16 @@ START_TEST(test_array_zero_len) {
 }
 END_TEST
 
+START_TEST(test_ok) {
+    uint8_t* buf = (uint8_t*)"+OK\r\n";
+    Lexer l = lexer_new(buf, strlen((char*)buf));
+    Parser p = parser_new(&l);
+    CmdIR ir = parse_cmd(&p);
+    ck_assert_uint_eq(ir.stmt.type, SOK);
+    cmdir_free(&ir);
+}
+END_TEST
+
 Suite* suite() {
     Suite* s;
     TCase* tc_core;
@@ -327,6 +337,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_integers_two);
     tcase_add_test(tc_core, test_negative_integers);
     tcase_add_test(tc_core, test_array_zero_len);
+    tcase_add_test(tc_core, test_ok);
     suite_add_tcase(s, tc_core);
     return s;
 }
