@@ -4,9 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-Cluster* cluster_new(size_t initial_cap) {
-    return ht_new(initial_cap, sizeof(ClusterDB));
-}
+Cluster* cluster_new(size_t initial_cap) { return ht_new(initial_cap, sizeof(ClusterDB)); }
 
 void cfree_cb(void* ptr) {
     Object* obj = ((Object*)ptr);
@@ -69,12 +67,14 @@ int cluster_namespace_new(Cluster* cluster, uint8_t* key, size_t key_len,
         return -1;
     }
 
-    return ht_insert(cluster, key, key_len, &namespace, clusterdb_free);
+    return ht_insert(cluster, key, key_len, &namespace,
+                     clusterdb_free);
 }
 
 int cluster_namespace_insert(Cluster* cluster, uint8_t* cluster_key,
                              size_t cluster_key_len, uint8_t* key,
-                             size_t key_len, void* value, FreeCallBack* cb) {
+                             size_t key_len, void* value,
+                             FreeCallBack* cb) {
     ClusterDB* cdb;
     Ht* ht;
     void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
@@ -107,8 +107,8 @@ void* cluster_namespace_get(Cluster* cluster, uint8_t* cluster_key,
 }
 
 int cluster_namespace_del(Cluster* cluster, uint8_t* cluster_key,
-                          size_t cluster_key_len, uint8_t* key, size_t key_len,
-                          FreeCallBack* fcb) {
+                          size_t cluster_key_len, uint8_t* key,
+                          size_t key_len, FreeCallBack* fcb) {
     ClusterDB* cdb;
     Ht* ht;
     void* ptr = ht_get(cluster, cluster_key, cluster_key_len);
