@@ -142,6 +142,7 @@ c.ping()
 
 c.set_str("vince", "is cool")
 for i in range(0, 50):
+    c.db_push(rand_str(20))
     c.set_str(rand_str(20), rand_str(25))
 
 c.create_cluster("fam")
