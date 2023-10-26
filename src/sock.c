@@ -14,7 +14,7 @@ int create_tcp_socket(int nonblocking) {
 }
 
 /* convert addr string to uint32_t rep in host byte order */
-uint32_t parse_addr(char* addr_str, size_t len) {
+uint32_t parse_addr(const char* addr_str, size_t len) {
     uint32_t addr;
     int8_t t;
     size_t i;

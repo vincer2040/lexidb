@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 
 int create_tcp_socket(int nonblocking);
-uint32_t parse_addr(char* addr_str, size_t len);
+uint32_t parse_addr(const char* addr_str, size_t len);
 int bind_tcp_sock(int socket, uint32_t addr, uint16_t port);
 int connect_tcp_sock(int socket, char* addr, uint16_t port);
 int connect_tcp_sock_u32(int fd, uint32_t addr, uint16_t port);
