@@ -198,3 +198,27 @@ void builder_free(Builder* builder) {
     builder->cap = 0;
     builder->ins = 0;
 }
+
+void builder_print(Builder* builder) {
+    size_t i, len = builder->ins;;
+    uint8_t* buf = builder->buf;
+    for (i = 0; i < len; ++i) {
+        char at = buf[i];
+        printf("%c", at);
+
+        // if we don't branch like this it logs the
+        // wrong hex values. It might be because of
+        // the 0 values in the string in the int
+        // but I am not a genius
+        if (at == ':') {
+            size_t k;
+            i++;
+            for (k = 0; k < 8; ++k, ++i) {
+                printf("%c", buf[i]);
+            }
+            i--;
+        }
+    }
+    printf("\n");
+    fflush(stdout);
+}
