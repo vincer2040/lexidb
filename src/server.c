@@ -160,8 +160,9 @@ void vec_free_cb(void* ptr) {
     object_free(obj);
 }
 
-void connection_close(De* de, Connection* conn, int fd, uint32_t flags,
+void connection_close(De* de, Client* client, int fd, uint32_t flags,
                       LogLevel loglevel) {
+    Connection* conn = client->conn;
     if (loglevel >= LL_INFO) {
         LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr,
             conn->port);
@@ -170,10 +171,7 @@ void connection_close(De* de, Connection* conn, int fd, uint32_t flags,
         free(conn->read_buf);
         conn->read_buf = NULL;
     }
-    if (conn->write_buf) {
-        free(conn->write_buf);
-        conn->write_buf = NULL;
-    }
+    builder_free(&(client->builder));
     free(conn);
     conn = NULL;
     if (de_del_event(de, fd, flags) == -1) {
@@ -191,7 +189,7 @@ int remove_client_from_vec(void* a, void* b) {
 
 void client_close(De* de, Server* s, Client* client, int fd, uint32_t flags) {
     vec_remove(s->clients, client, remove_client_from_vec);
-    connection_close(de, client->conn, fd, flags, s->loglevel);
+    connection_close(de, client, fd, flags, s->loglevel);
     free(client);
 }
 
@@ -213,9 +211,7 @@ void vec_free_client_cb(void* ptr) {
     if (client->conn->read_buf) {
         free(client->conn->read_buf);
     }
-    if (client->conn->write_buf) {
-        free(client->conn->write_buf);
-    }
+    builder_free(&(client->builder));
     free(client->conn);
     free(client);
 }
@@ -257,6 +253,9 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
     } break;
+
+    case COK:
+        return;
 
     case SET: {
         Object obj;
@@ -980,6 +979,9 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
     } break;
     case REPLICATE:
         replicate(client->db, client);
+        builder_add_ok(builder);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
         break;
     }
 }
@@ -1005,14 +1007,16 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
     if (parser_errors_len(&p)) {
         cmdir_free(&cir);
         parser_free_errors(&p);
+        builder_add_err(&(client->builder), (uint8_t*)"INVALID", 7);
         printf("invalid cmd\n");
-        conn->write_buf = calloc(sizeof(uint8_t), 10);
-        if (conn->write_buf == NULL) {
-            fmt_error("out of memory\n");
-            return;
-        }
-        memcpy(conn->write_buf, "-INVALID\r\n", 10);
-        conn->write_size = 10;
+        // conn->write_buf = calloc(sizeof(uint8_t), 10);
+        // if (conn->write_buf == NULL) {
+        //     fmt_error("out of memory\n");
+        //     return;
+        // }
+        // memcpy(conn->write_buf, "-INVALID\r\n", 10);
+        conn->write_buf = builder_out(&(client->builder));
+        conn->write_size = client->builder.ins;
         return;
     }
 
@@ -1026,6 +1030,16 @@ int find_client_in_vec(void* fdp, void* c) {
     int fd = *((int*)fdp);
     Client* client = *((Client**)c);
     return fd - client->fd;
+}
+
+int find_master_in_vec(void* cmp, void* c) {
+    Client* client = *((Client**)c);
+    UNUSED(cmp);
+    if (client->ismaster) {
+        return 0;
+    } else {
+        return 1;
+    }
 }
 
 void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
@@ -1063,9 +1077,6 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
             return;
         }
         builder_reset(&(client->builder));
-        // free(conn->write_buf);
-        // conn->write_buf = NULL;
-        // conn->write_size = 0;
     } else {
         bytes_sent = write(fd, "+noop\r\n", 7);
         if (bytes_sent < 0) {
@@ -1109,7 +1120,8 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     bytes_read = read(fd, conn->read_buf + conn->read_pos, MAX_READ);
 
     if (bytes_read < 0) {
-        fmt_error("wtf?\n");
+        fmt_error("closing client fd %d\n", fd);
+        client_close(de, s, client, fd, flags);
         return;
     }
 
@@ -1185,6 +1197,103 @@ void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
     de_add_event(de, cfd, DE_READ, read_from_client, s);
 }
 
+int create_master_connection(Server* s, const char* addr, uint16_t port) {
+    int res;
+    int socket;
+    uint32_t adder;
+    Connection* c;
+    Client* client;
+    adder = parse_addr(addr, strlen(addr));
+    /* make it blocking to start, we will make it non blocking after we have
+     * connected to ensure a connection has been established
+     */
+    socket = create_tcp_socket(0);
+    if (connect_tcp_sock_u32(socket, adder, port) == -1) {
+        SLOG_ERROR;
+        return -1;
+    }
+    res = make_socket_nonblocking(socket);
+    if (res == -1) {
+        SLOG_ERROR;
+        close(socket);
+        return -1;
+    }
+    c = connection_create(adder, port);
+    if (c == NULL) {
+        fmt_error("out of memory, buy more ram\n");
+        close(socket);
+        return -1;
+    }
+    client = client_create(c, s->db, socket);
+    if (client == NULL) {
+        fmt_error("out of memory, buy more ram\n");
+        free(c);
+        close(socket);
+    }
+    client->ismaster = 1;
+
+    builder_add_string(&(client->builder), "REPLICATE", 9);
+    client->conn->write_buf = builder_out(&(client->builder));
+    client->conn->write_size = client->builder.ins;
+    vec_push(&(s->clients), &client);
+    return 0;
+}
+
+void read_from_master(De* de, int fd, void* client_data, uint32_t flags) {
+    ssize_t bytes_read;
+    Server* s;
+    Client* client = NULL;
+    Connection* conn;
+    int found;
+
+    s = client_data;
+
+    found = vec_find(s->clients, &fd, find_client_in_vec, &client);
+    if (found == -1) {
+        LOG(LOG_ERROR "could not find client %d\n", fd);
+        de_del_event(de, fd, flags);
+        return;
+    }
+
+    conn = client->conn;
+
+    if (conn->flags == 0) {
+        memset(conn->read_buf, 0, conn->read_cap);
+        conn->read_pos = 0;
+    }
+
+    bytes_read = read(fd, conn->read_buf + conn->read_pos, MAX_READ);
+
+    if (bytes_read < 0) {
+        fmt_error("closing client fd %d\n", fd);
+        client_close(de, s, client, fd, flags);
+        return;
+    }
+
+    if (bytes_read == 0) {
+        client_close(de, s, client, fd, flags);
+        return;
+    }
+
+    // we have filled the buffer
+    if (bytes_read == 4096) {
+        conn->flags = 1;
+        conn->read_pos += MAX_READ;
+        if ((conn->read_cap - conn->read_pos) < 4096) {
+            conn->read_cap += MAX_READ;
+            conn->read_buf =
+                realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
+            memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
+        }
+        return;
+    }
+
+    conn->read_pos += bytes_read;
+
+    evaluate_message(conn->read_buf, conn->read_pos, client, s->loglevel);
+    conn->flags = 0;
+}
+
 int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica) {
     Server* server;
     De* de;
@@ -1227,6 +1336,41 @@ int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica) {
     if (de == NULL) {
         fmt_error("failed to allocate memory for event loop\n");
         return -1;
+    }
+
+    if (server->isslave == 1) {
+        Client* master_client;
+        uint16_t replica_port = isreplica;
+        int cmc_res, found;
+        cmc_res = create_master_connection(server, "127.0.0.1", replica_port);
+        if (cmc_res == -1) {
+            server_destroy(server);
+            de_free(de);
+            fmt_error("failed to connect to master\n");
+            return -1;
+        }
+
+        found = vec_find(server->clients, NULL, find_master_in_vec, &master_client);
+        if (found == -1) {
+            server_destroy(server);
+            de_free(de);
+            LOG(LOG_ERROR "could not find master in client vector\n");
+            return -1;
+        }
+
+        add_event_res = de_add_event(de, master_client->fd, DE_WRITE, write_to_client, server);
+        if ((add_event_res == 1) || (add_event_res == 2)) {
+            de_free(de);
+            server_destroy(server);
+            return -1;
+        }
+
+        add_event_res = de_add_event(de, master_client->fd, DE_READ, read_from_master, server);
+        if ((add_event_res == 1) || (add_event_res == 2)) {
+            de_free(de);
+            server_destroy(server);
+            return -1;
+        }
     }
 
     add_event_res = de_add_event(de, sfd, DE_READ, server_accept, server);
