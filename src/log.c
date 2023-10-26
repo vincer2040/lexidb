@@ -49,6 +49,10 @@ void log_cmd(Cmd* cmd) {
         printf("PING\n");
         break;
 
+    case OK:
+        printf("OK\n");
+        break;
+
     case SET:
         key = cmd->expression.set.key;
         v = cmd->expression.set.value;
