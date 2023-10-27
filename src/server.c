@@ -1008,13 +1008,6 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
         cmdir_free(&cir);
         parser_free_errors(&p);
         builder_add_err(&(client->builder), (uint8_t*)"INVALID", 7);
-        printf("invalid cmd\n");
-        // conn->write_buf = calloc(sizeof(uint8_t), 10);
-        // if (conn->write_buf == NULL) {
-        //     fmt_error("out of memory\n");
-        //     return;
-        // }
-        // memcpy(conn->write_buf, "-INVALID\r\n", 10);
         conn->write_buf = builder_out(&(client->builder));
         conn->write_size = client->builder.ins;
         return;
