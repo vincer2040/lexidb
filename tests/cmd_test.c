@@ -52,7 +52,7 @@ END_TEST
 Suite* suite() {
     Suite* s;
     TCase* tc_core;
-    s = suite_create("parser_test");
+    s = suite_create("cmd test");
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_multi_commands);
     suite_add_tcase(s, tc_core);
