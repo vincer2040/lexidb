@@ -18,18 +18,19 @@ add_subdirectory(tests)
 
 
 add_library(vec src/vec.c)
+add_library(builder src/builder.c)
+add_library(de src/de.c)
+add_library(queue src/queue.c)
+add_library(sock src/sock.c)
+add_library(config src/config.c)
 add_library(objects
     src/objects.c
     src/vstring.c
 )
-add_library(builder src/builder.c)
-add_library(sock src/sock.c)
 add_library(cmd src/cmd.c
     src/lexer.c
     src/parser.c
 )
-add_library(de src/de.c)
-add_library(queue src/queue.c)
 
 add_executable(lexidb
     src/cluster.c
@@ -40,7 +41,6 @@ add_executable(lexidb
     src/siphash.c
     src/ht.c
     src/db.c
-    src/config.c
     src/replication.c
 )
 
@@ -51,6 +51,22 @@ add_executable(lexi-cli
     src/hilexi.c
 )
 
-target_link_libraries(lexidb de objects builder sock cmd vec queue)
-target_link_libraries(lexi-cli objects builder sock cmd vec)
+target_link_libraries(lexidb
+    de
+    objects
+    builder
+    sock
+    cmd
+    vec
+    queue
+    config
+)
+target_link_libraries(lexi-cli
+    objects
+    builder
+    sock
+    cmd
+    vec
+    config
+)
 
