@@ -27,19 +27,22 @@ add_library(objects
     src/objects.c
     src/vstring.c
 )
-add_library(cmd src/cmd.c
+add_library(cmd
+    src/cmd.c
     src/lexer.c
     src/parser.c
+)
+add_library(ht
+    src/ht.c
+    src/sha256.c
+    src/util.c
+    src/siphash.c
 )
 
 add_executable(lexidb
     src/cluster.c
     src/log.c
     src/server.c
-    src/sha256.c
-    src/util.c
-    src/siphash.c
-    src/ht.c
     src/db.c
     src/replication.c
 )
@@ -51,7 +54,13 @@ add_executable(lexi-cli
     src/hilexi.c
 )
 
+target_link_libraries(config
+    objects
+    ht
+)
+
 target_link_libraries(lexidb
+    ht
     de
     objects
     builder
