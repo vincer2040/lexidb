@@ -1,13 +1,23 @@
+#include "../src/builder.h"
 #include "../src/cmd.h"
 #include "../src/lexer.h"
 #include "../src/parser.h"
 #include "../src/token.h"
-#include "../src/builder.h"
 #include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <check.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void assert_array_len(Statement* stmt, size_t len) {
+    ck_assert_uint_eq(stmt->type, SARR);
+    ck_assert_uint_eq(stmt->statement.arr.len, len);
+}
+
+void assert_bulk(Statement* stmt, char* exp, size_t len) {
+    ck_assert_uint_eq(stmt->type, SBULK);
+    ck_assert_mem_eq(stmt->statement.bulk.str, exp, len);
+}
 
 START_TEST(test_it_works) {
     Lexer l;
@@ -52,8 +62,6 @@ START_TEST(test_simple_string) {
     CmdIR cmd_ir;
     size_t e_len;
 
-    parser_toggle_debug(0);
-
     uint8_t* input =
         ((uint8_t*)"*2\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
@@ -78,8 +86,6 @@ START_TEST(test_integers) {
     Parser p;
     CmdIR cmd_ir;
     size_t e_len;
-
-    parser_toggle_debug(0);
 
     uint8_t* input =
         ((uint8_t*)"*2\r*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
@@ -106,8 +112,6 @@ START_TEST(test_missing_arr_len) {
     CmdIR cmd_ir;
     size_t e_len;
 
-    parser_toggle_debug(0);
-
     uint8_t* input =
         ((uint8_t*)"*\r\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
@@ -132,8 +136,6 @@ START_TEST(test_missing_arr_type) {
     Parser p;
     CmdIR cmd_ir;
     size_t e_len;
-
-    parser_toggle_debug(0);
 
     uint8_t* input =
         ((uint8_t*)"3\r\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
@@ -176,7 +178,6 @@ START_TEST(test_simple_ping) {
 
     cmdir_free(&cmd_ir);
     parser_free_errors(&p);
-
 }
 END_TEST
 
@@ -185,8 +186,6 @@ START_TEST(test_missing_str_type) {
     Parser p;
     CmdIR cmd_ir;
     size_t e_len;
-
-    parser_toggle_debug(0);
 
     uint8_t* input =
         ((uint8_t*)"*3\r\n3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis cool\r\n");
@@ -211,8 +210,6 @@ START_TEST(test_missing_str_len) {
     Parser p;
     CmdIR cmd_ir;
     size_t e_len;
-
-    parser_toggle_debug(0);
 
     uint8_t* input =
         ((uint8_t*)"*3\r\n$\r\nSET\r\n$5\r\nvince\r\n$7\r\nis cool\r\n");
@@ -245,8 +242,6 @@ START_TEST(test_integers_two) {
     builder_add_string(&b, "SET", 3);
     builder_add_string(&b, "vince", 5);
     builder_add_int(&b, 42069);
-
-    parser_toggle_debug(0);
 
     buf_len = b.ins;
     buf = builder_out(&b);
@@ -321,6 +316,95 @@ START_TEST(test_ok) {
 }
 END_TEST
 
+START_TEST(test_replication_from_master) {
+    Builder b = builder_create(32);
+    Lexer l;
+    Parser p;
+    CmdIR cmd_ir;
+
+    Statement full_ht_stmt, ht_stmt, full_stack_stmt, stack_stmt, full_q_stmt,
+        q_stmt;
+    builder_add_arr(&b, 4);
+
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "HT", 2);
+    builder_add_arr(&b, 3);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "vince", 5);
+    builder_add_string(&b, "is cool", 7);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "vince1", 6);
+    builder_add_string(&b, "is cool", 7);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "vince2", 6);
+    builder_add_string(&b, "is cool", 7);
+
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "STACK", 5);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "foo", 3);
+    builder_add_string(&b, "bar", 3);
+
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "QUEUE", 5);
+    builder_add_arr(&b, 1);
+    builder_add_string(&b, "baz", 3);
+
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "CLUSTER", 7);
+
+    builder_add_arr(&b, 2);
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "fam", 3);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "HT", 2);
+    builder_add_arr(&b, 1);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "vince", 5);
+    builder_add_string(&b, "is cool", 7);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "STACK", 5);
+    builder_add_arr(&b, 0);
+
+    builder_add_arr(&b, 3);
+    builder_add_string(&b, "fam1", 3);
+    builder_add_arr(&b, 2);
+    builder_add_string(&b, "HT", 2);
+    builder_add_arr(&b, 0);
+    builder_add_string(&b, "STACK", 5);
+    builder_add_arr(&b, 1);
+    builder_add_string(&b, "foobar", 6);
+
+    l = lexer_new(builder_out(&b), b.ins);
+    p = parser_new(&l);
+    cmd_ir = parse_cmd(&p);
+    assert_array_len(&cmd_ir.stmt, 4);
+
+    full_ht_stmt = cmd_ir.stmt.statement.arr.statements[0];
+    assert_array_len(&full_ht_stmt, 2);
+    assert_bulk(&(full_ht_stmt.statement.arr.statements[0]), "HT", 2);
+
+    ht_stmt = full_ht_stmt.statement.arr.statements[1];
+    assert_array_len(&ht_stmt, 3);
+
+    full_stack_stmt = cmd_ir.stmt.statement.arr.statements[1];
+    assert_array_len(&full_stack_stmt, 2);
+    assert_bulk(&(full_stack_stmt.statement.arr.statements[0]), "STACK", 5);
+    stack_stmt = full_stack_stmt.statement.arr.statements[1];
+    assert_array_len(&stack_stmt, 2);
+
+    full_q_stmt = cmd_ir.stmt.statement.arr.statements[2];
+    assert_array_len(&full_q_stmt, 2);
+    assert_bulk(&(full_q_stmt.statement.arr.statements[0]), "QUEUE", 5);
+
+    q_stmt = full_q_stmt.statement.arr.statements[1];
+    assert_array_len(&q_stmt, 1);
+
+    builder_free(&b);
+    cmdir_free(&cmd_ir);
+}
+END_TEST
+
 Suite* suite() {
     Suite* s;
     TCase* tc_core;
@@ -338,6 +422,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_negative_integers);
     tcase_add_test(tc_core, test_array_zero_len);
     tcase_add_test(tc_core, test_ok);
+    tcase_add_test(tc_core, test_replication_from_master);
     suite_add_tcase(s, tc_core);
     return s;
 }
@@ -353,4 +438,3 @@ int main() {
     srunner_free(sr);
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
