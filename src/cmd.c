@@ -98,6 +98,10 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
             return CLUSTER_POP;
         }
 
+        if (memcmp(str, "REPLICATION", 11) == 0) {
+            return REPLICATION;
+        }
+
         return INV;
     }
 
@@ -577,6 +581,12 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         multi.len = num_cmds;
         cmd.type = MULTI_CMD;
         cmd.expression.multi = multi;
+        return cmd;
+    }
+
+    case REPLICATION: {
+        Cmd cmd = { 0 };
+        cmd.type = REPLICATION;
         return cmd;
     }
 

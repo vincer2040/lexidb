@@ -979,6 +979,10 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
     } break;
     case REPLICATE:
         replicate(client->db, client);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
+        break;
+    case REPLICATION:
         builder_add_ok(builder);
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
@@ -992,11 +996,14 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
     Parser p;
     CmdIR cir;
     Cmd cmd;
-    // Builder b;
     Connection* conn = client->conn;
 
     if (loglevel >= LL_VERBOSE) {
         slowlog(data, len);
+    }
+
+    if (client->ismaster == 1) {
+        printf("master is giving command\n");
     }
 
     l = lexer_new(data, len);

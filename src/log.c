@@ -345,5 +345,9 @@ void log_cmd(Cmd* cmd) {
     } break;
     case REPLICATE:
         printf("REPLICATE\n");
+        break;
+    case REPLICATION:
+        printf("REPLICATION\n");
+        break;
     }
 }
