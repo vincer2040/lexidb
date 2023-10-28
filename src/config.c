@@ -173,6 +173,7 @@ Ht* configure(Configuration* config, int argc, char** argv) {
     ConfigOption* cur;
     int i;
     size_t ht_initial_cap = vec_len(config);
+    size_t j, len = vec_len(config);
     Ht* ht = ht_new(ht_initial_cap, sizeof(Object));
 
     if (argc == 1) {
@@ -261,7 +262,8 @@ Ht* configure(Configuration* config, int argc, char** argv) {
 
 fill:
     iter = vec_iter_new(config, 0);
-    for (cur = iter.cur; cur != NULL; vec_iter_next(&iter), cur = iter.cur) {
+    for (j = 0; j < len; ++j) {
+        cur = iter.cur;
         int insert_res;
         const char* arg = cur->arg;
         size_t arg_len = strlen(arg);
@@ -286,6 +288,8 @@ fill:
             /* insertion failed, we have to free the created object */
             object_free(&new_obj);
         }
+
+        vec_iter_next(&iter);
     }
 
     return ht;
