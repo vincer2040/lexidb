@@ -48,7 +48,7 @@ void hilexi_print_arr(Vec* data) {
     }
 }
 
-HiLexi* hilexi_new(char* addr, uint16_t port) {
+HiLexi* hilexi_new(const char* addr, uint16_t port) {
     HiLexi* l;
 
     l = calloc(1, sizeof *l);

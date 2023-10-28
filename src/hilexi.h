@@ -53,7 +53,7 @@ typedef struct {
 } HiLexiResult;
 
 /* set up */
-HiLexi* hilexi_new(char* addr, uint16_t port);
+HiLexi* hilexi_new(const char* addr, uint16_t port);
 int hilexi_connect(HiLexi* l);
 
 /* simple commands */
