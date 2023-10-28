@@ -157,48 +157,65 @@ void vec_free(Vec* vec, VecFreeCallBack* cb) {
 }
 
 VecIter vec_iter_new(Vec* vec, int direction) {
-    VecIter iter = { 0 };;
-    size_t len;
-    size_t data_size;
-
-    len = vec->len - 1;
-    data_size = vec->data_size;
-
-    if (direction == VEC_ITER_REVERSE) {
-        iter.start = vec->data + (len * data_size);
-        iter.end = vec->data;
-        iter.cur = iter.start;
-        iter.next = vec->data + ((len - 1) * data_size);
-        iter.direction = VEC_ITER_REVERSE;
-        iter.at_idx = len - 1;
-    } else {
-        iter.start = vec->data;
-        iter.end = vec->data + (len * data_size);
-        iter.cur = iter.start;
-        iter.next = vec->data + data_size;
-        iter.direction = 0;
-        iter.at_idx = 1;
+    VecIter iter = { 0 };
+    ssize_t len = vec->len - 1;
+    size_t data_size = vec->data_size;
+    if (vec->len == 0) {
+        iter.cur = NULL;
+        iter.next = NULL;
+        iter.next_idx = 1;
+        iter.end_idx = len;
+        iter.direction = direction;
+        iter.vec = vec;
     }
 
-    iter.vec = vec;
+    if (vec->len == 1) {
+        iter.cur = vec->data;
+        iter.next = NULL;
+        iter.next_idx = 1;
+        iter.end_idx = len;
+        iter.direction = direction;
+        iter.vec = vec;
+    }
+
+    if (direction == VEC_ITER_REVERSE) {
+        size_t start_idx = len * data_size;
+        iter.cur = vec->data + start_idx;
+        iter.next = vec->data + ((len - 1) * data_size);
+        iter.next_idx = len - 1;
+        iter.end_idx = 0;
+        iter.direction = VEC_ITER_REVERSE;
+        iter.vec = vec;
+    } else {
+        iter.cur = vec->data;
+        iter.next = vec->data + data_size;
+        iter.next_idx = 1;
+        iter.end_idx = len;
+        iter.direction = 0;
+        iter.vec = vec;
+    }
 
     return iter;
 }
 
 void vec_iter_next(VecIter* iter) {
+    size_t data_size = iter->vec->data_size;
     if (iter->direction == VEC_ITER_REVERSE) {
-        iter->at_idx--;
+        iter->next_idx--;
+        iter->cur = iter->next;
+        if (iter->next_idx < iter->end_idx) {
+            iter->next = NULL;
+        } else {
+            iter->next = iter->vec->data + (data_size * iter->next_idx);
+        }
     } else {
-        iter->at_idx++;
-    }
-
-    iter->cur = iter->next;
-
-    if (iter->cur == iter->end) {
-        iter->next = NULL;
-    } else {
-        size_t i = iter->at_idx * iter->vec->data_size;
-        iter->next = iter->vec->data + i;
+        iter->next_idx++;
+        iter->cur = iter->next;
+        if (iter->next_idx > iter->end_idx) {
+            iter->next = NULL;
+        } else {
+            iter->next = iter->vec->data + (data_size * iter->next_idx);
+        }
     }
 }
 

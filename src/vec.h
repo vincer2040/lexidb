@@ -3,6 +3,7 @@
 #define __VEC_H__
 
 #include <stddef.h>
+#include <sys/types.h>
 
 #define VEC_ITER_REVERSE 1
 
@@ -18,11 +19,10 @@ typedef struct {
 } Vec;
 
 typedef struct {
-    void* start;
-    void* end;
     void* cur;
     void* next;
-    size_t at_idx;
+    ssize_t next_idx;
+    ssize_t end_idx;
     int direction;
     Vec* vec;
 } VecIter;
