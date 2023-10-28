@@ -1,5 +1,6 @@
 #include "cli-cmd.h"
 #include "cli-util.h"
+#include "config.h"
 #include "hilexi.h"
 #include "sock.h"
 #include <errno.h>
@@ -245,10 +246,10 @@ void clear() {
 #endif
 }
 
-int run() {
+int run(const char* addr, uint16_t port) {
     HiLexi* l;
 
-    l = hilexi_new(ADDR, PORT);
+    l = hilexi_new(addr, port);
 
     if (hilexi_connect(l) == -1) {
         printf("failed to connect\n");
@@ -297,7 +298,27 @@ err:
     return -1;
 }
 
-int main() {
-    run();
-    return 0;
+int main(int argc, char** argv) {
+    int default_port = PORT;
+    Configuration* config;
+    Ht* args;
+
+    config = config_new();
+
+    config_add_option(&config, "--port", "-p", COT_INT, &default_port,
+                      "the port to connect to");
+
+    args = configure(config, argc, argv);
+
+    if (args) {
+        Object* port = ht_get(args, (uint8_t*)"--port", 6);
+        config_free(config);
+
+        run("127.0.0.1", (uint16_t)port->data.i64);
+        free_configuration_ht(args);
+        return 0;
+    } else {
+        config_free(config);
+        return 0;
+    }
 }
