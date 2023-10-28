@@ -16,7 +16,6 @@ set(CMAKE_C_FLAGS_RELEASE "-std=c99 -Wall -Werror -pedantic -fstack-clash-protec
 
 add_subdirectory(tests)
 
-
 add_library(vec src/vec.c)
 add_library(builder src/builder.c)
 add_library(de src/de.c)
