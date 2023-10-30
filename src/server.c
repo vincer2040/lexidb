@@ -1354,7 +1354,7 @@ int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica) {
         if (found == -1) {
             server_destroy(server);
             de_free(de);
-            LOG(LOG_ERROR "could not find master in client vector\n");
+            LOG(LOG_ERROR "could not find master in client vector. Server is shutting down\n");
             return -1;
         }
 
