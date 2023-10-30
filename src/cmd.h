@@ -2,8 +2,8 @@
 
 #define __CMD_H__
 
-#include "token.h"
 #include "parser.h"
+#include "token.h"
 #include <stddef.h>
 
 struct Cmd;
@@ -42,11 +42,7 @@ typedef struct {
     uint8_t* value;
 } Key;
 
-typedef enum {
-    VTSTRING,
-    VTINT,
-    VTNULL
-}ValueT;
+typedef enum { VTSTRING, VTINT, VTNULL } ValueT;
 
 typedef struct {
     ValueT type;
