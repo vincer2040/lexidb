@@ -599,11 +599,11 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
                                            HT_INITIAL_CAP);
         if (builder) {
             if (create_res == 1) {
-                builder_add_err(builder, ((uint8_t*)"cluster name already taken"),
-                        18);
+                builder_add_err(builder,
+                                ((uint8_t*)"cluster name already taken"), 18);
             } else if (create_res == -1) {
                 builder_add_err(builder, ((uint8_t*)"failed to create cluster"),
-                        24);
+                                24);
             } else {
                 builder_add_ok(builder);
             }
