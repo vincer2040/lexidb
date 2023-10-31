@@ -1,6 +1,7 @@
 #include "config.h"
 #include "server.h"
 #include "util.h"
+#include <stdio.h>
 
 #define ADDR "127.0.0.1"
 #define PORT 6969
@@ -35,6 +36,13 @@ int main(int argc, char** argv) {
         Object* loglevel_obj = ht_get(args, (uint8_t*)"--loglevel", 10);
         Object* replicaof_obj = ht_get(args, (uint8_t*)"--replicaof", 11);
         LogLevel loglevel = determine_loglevel(loglevel_obj->data.str);
+
+        if (loglevel == LL_INV) {
+            fprintf(stderr, "\"%s\" is not a valid log level\n", loglevel_obj->data.str);
+            free_configuration_ht(args);
+            config_free(config);
+            return 1;
+        }
 
         config_free(config);
 
