@@ -1099,10 +1099,6 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
         slowlog(data, len);
     }
 
-    if (client->ismaster == 1) {
-        printf("master is giving command\n");
-    }
-
     l = lexer_new(data, len);
     p = parser_new(&l);
     cir = parse_cmd(&p);
