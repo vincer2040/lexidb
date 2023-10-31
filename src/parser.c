@@ -14,7 +14,7 @@ void statement_free(Statement* stmt);
 Statement parser_parse_statement(Parser* p);
 ParserErrors parser_init_errors(size_t initial_cap);
 
-static int parser_debug = 1;
+static int parser_debug = 0;
 
 void parser_toggle_debug(int onoff) { parser_debug = onoff; }
 
