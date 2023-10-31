@@ -594,6 +594,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         MultiCmd multi = {0};
         size_t i, num_cmds = astmt->len;
         multi.commands = calloc(num_cmds, sizeof(struct Cmd));
+        assert(multi.commands != NULL);
         for (i = 0; i < num_cmds; ++i) {
             Statement stmt = astmt->statements[i];
             multi.commands[i] = cmd_from_statement(&stmt);
