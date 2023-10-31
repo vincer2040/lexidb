@@ -817,7 +817,7 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
             for (k = 0; k < num_ht_entries; ++k) {
                 Cmd cluster_set_cmd = {0};
                 Statement key_stmt, val_stmt,
-                    entry_stmt = ht_stmt.statement.arr.statements[i];
+                    entry_stmt = ht_stmt.statement.arr.statements[k];
 
                 assert(entry_stmt.type == SARR);
                 assert(entry_stmt.statement.arr.len == 2);
@@ -915,5 +915,22 @@ Cmd cmd_from_statement(Statement* stmt) {
     default:
         cmd.type = INV;
         return cmd;
+    }
+}
+
+void cmd_free(Cmd* cmd) {
+    if (cmd->type == MULTI_CMD || cmd->type == HT || cmd->type == STACK ||
+        cmd->type == QUEUE || cmd->type == CLUSTER ||
+        cmd->type == REPLICATION) {
+        size_t i, len = cmd->expression.multi.len;
+        for (i = 0; i < len; ++i) {
+            Cmd cur = cmd->expression.multi.commands[i];
+            cmd_free(&cur);
+        }
+        if (len > 0) {
+            free(cmd->expression.multi.commands);
+        }
+    } else {
+        return;
     }
 }
