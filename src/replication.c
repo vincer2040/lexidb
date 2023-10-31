@@ -57,7 +57,7 @@ static void replicate_add_stack(Vec* stack, Client* slave) {
     builder_add_string(builder, "STACK", 5);
     if (stack->len != 0) {
         Object* cur;
-        stack_iter = vec_iter_new(stack, VEC_ITER_REVERSE);
+        stack_iter = vec_iter_new(stack, 0);
 
         builder_add_arr(builder, stack->len);
 

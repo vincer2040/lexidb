@@ -274,14 +274,13 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
 
         if (set_cmd.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
         } else if (set_cmd.value.type == VTINT) {
             obj = object_new(OINT64, value, value_size);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
         }
+
+        set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
 
         if (set_res != 0) {
             uint8_t* e = ((uint8_t*)"could not set");
@@ -598,18 +597,20 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
 
         create_res = cluster_namespace_new(client->db->cluster, name, name_len,
                                            HT_INITIAL_CAP);
-        if (create_res == 1) {
-            builder_add_err(builder, ((uint8_t*)"cluster name already taken"),
-                            18);
-        } else if (create_res == -1) {
-            builder_add_err(builder, ((uint8_t*)"failed to create cluster"),
-                            24);
-        } else {
-            builder_add_ok(builder);
-        }
+        if (builder) {
+            if (create_res == 1) {
+                builder_add_err(builder, ((uint8_t*)"cluster name already taken"),
+                        18);
+            } else if (create_res == -1) {
+                builder_add_err(builder, ((uint8_t*)"failed to create cluster"),
+                        24);
+            } else {
+                builder_add_ok(builder);
+            }
 
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
+            conn->write_buf = builder_out(builder);
+        }
     } break;
 
     case CLUSTER_DROP: {
@@ -653,31 +654,26 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
 
         if (cluster_set_cmd.set.value.type == VTSTRING) {
             obj = object_new(STRING, value, value_size);
-            set_res =
-                cluster_namespace_insert(client->db->cluster, name, name_len,
-                                         key, key_len, &obj, free_cb);
         } else if (cluster_set_cmd.set.value.type == VTINT) {
             obj = object_new(OINT64, value, value_size);
-            set_res =
-                cluster_namespace_insert(client->db->cluster, name, name_len,
-                                         key, key_len, &obj, free_cb);
         } else {
             obj = object_new(ONULL, NULL, 0);
-            set_res =
-                cluster_namespace_insert(client->db->cluster, name, name_len,
-                                         key, key_len, &obj, free_cb);
         }
+        set_res = cluster_namespace_insert(client->db->cluster, name, name_len,
+                                           key, key_len, &obj, free_cb);
 
-        if (set_res != 0) {
-            uint8_t* e = ((uint8_t*)"could not set");
-            size_t n = strlen((char*)e);
-            builder_add_err(builder, e, n);
-        } else {
-            builder_add_ok(builder);
+        if (builder) {
+            if (set_res != 0) {
+                uint8_t* e = ((uint8_t*)"could not set");
+                size_t n = strlen((char*)e);
+                builder_add_err(builder, e, n);
+            } else {
+                builder_add_ok(builder);
+            }
+
+            conn->write_size = builder->ins;
+            conn->write_buf = builder_out(builder);
         }
-
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
     } break;
 
     case CLUSTER_GET: {
@@ -766,16 +762,18 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         push_res =
             cluster_namespace_push(client->db->cluster, name, name_len, &obj);
 
-        if (push_res != 0) {
-            uint8_t* e = ((uint8_t*)"could not push");
-            size_t n = strlen((char*)e);
-            builder_add_err(builder, e, n);
-        } else {
-            builder_add_ok(builder);
-        }
+        if (builder) {
+            if (push_res != 0) {
+                uint8_t* e = ((uint8_t*)"could not push");
+                size_t n = strlen((char*)e);
+                builder_add_err(builder, e, n);
+            } else {
+                builder_add_ok(builder);
+            }
 
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
+            conn->write_size = builder->ins;
+            conn->write_buf = builder_out(builder);
+        }
     } break;
 
     case CLUSTER_POP: {
@@ -973,7 +971,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             Cmd c = multi.commands[i];
             evaluate_cmd(&c, client, loglevel, builder);
         }
-        free(multi.commands);
+        cmd_free(cmd);
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
     } break;
@@ -982,12 +980,109 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
         break;
-    case REPLICATION:
+    case REPLICATION: {
+        Cmd ht_cmd = cmd->expression.multi.commands[0];
+        Cmd stack_cmd = cmd->expression.multi.commands[1];
+        Cmd q_cmd = cmd->expression.multi.commands[2];
+        Cmd cluster_cmd = cmd->expression.multi.commands[3];
+        size_t i, len = ht_cmd.expression.multi.len;
+        for (i = 0; i < len; ++i) {
+            Cmd cur_set = ht_cmd.expression.multi.commands[i];
+            SetCmd set = cur_set.expression.set;
+            uint8_t* key = set.key.value;
+            size_t key_len = set.key.len;
+            void* value = set.value.ptr;
+            size_t value_size = set.value.size;
+            Object obj;
+            int set_res;
+            if (set.value.type == VTSTRING) {
+                obj = object_new(STRING, value, value_size);
+            } else if (set.value.type == VTINT) {
+                obj = object_new(OINT64, value, value_size);
+            } else {
+                obj = object_new(ONULL, NULL, 0);
+            }
+            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
+            if (set_res != 0) {
+                uint8_t* e = ((uint8_t*)"could not set");
+                size_t n = strlen((char*)e);
+                cmd_free(cmd);
+                builder_add_err(builder, e, n);
+                conn->write_buf = builder_out(builder);
+                conn->write_size = builder->ins;
+                return;
+            }
+        }
+        len = stack_cmd.expression.multi.len;
+        for (i = 0; i < len; ++i) {
+            Cmd cur_push = stack_cmd.expression.multi.commands[i];
+            PushCmd push = cur_push.expression.push;
+            void* value = push.value.ptr;
+            size_t value_size = push.value.size;
+            Object obj;
+            int push_res;
+            if (push.value.type == VTSTRING) {
+                obj = object_new(STRING, value, value_size);
+            } else if (push.value.type == VTINT) {
+                obj = object_new(OINT64, value, value_size);
+            } else {
+                obj = object_new(ONULL, NULL, 0);
+            }
+            push_res = vec_push(&(client->db->stack), &obj);
+            if (push_res != 0) {
+                uint8_t* e = ((uint8_t*)"could not push");
+                size_t n = strlen((char*)e);
+                cmd_free(cmd);
+                builder_add_err(builder, e, n);
+                conn->write_buf = builder_out(builder);
+                conn->write_size = builder->ins;
+                return;
+            }
+        }
+        len = q_cmd.expression.multi.len;
+        for (i = 0; i < len; ++i) {
+            Cmd cur_enque = stack_cmd.expression.multi.commands[i];
+            EnqueCmd enque = cur_enque.expression.enque;
+            void* value = enque.value.ptr;
+            size_t value_size = enque.value.size;
+            Object obj;
+            int enque_res;
+            if (enque.value.type == VTSTRING) {
+                obj = object_new(STRING, value, value_size);
+            } else if (enque.value.type == VTINT) {
+                obj = object_new(OINT64, value, value_size);
+            } else {
+                obj = object_new(ONULL, NULL, 0);
+            }
+            enque_res = queue_enque(client->db->queue, &obj);
+            if (enque_res != 0) {
+                uint8_t* e = ((uint8_t*)"could not enque");
+                size_t n = strlen((char*)e);
+                cmd_free(cmd);
+                builder_add_err(builder, e, n);
+                conn->write_buf = builder_out(builder);
+                conn->write_size = builder->ins;
+                return;
+            }
+        }
+        len = cluster_cmd.expression.multi.len;
+        for (i = 0; i < len; ++i) {
+            Cmd cur_cluster = cluster_cmd.expression.multi.commands[i];
+            size_t j, clen = cur_cluster.expression.multi.len;
+            for (j = 0; j < clen; ++j) {
+                Cmd cur_cmd = cur_cluster.expression.multi.commands[j];
+                evaluate_cmd(&cur_cmd, client, loglevel, NULL);
+            }
+        }
+        cmd_free(cmd);
         builder_add_ok(builder);
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
-        break;
+    } break;
     default:
+        builder_add_err(builder, (uint8_t*)"-Invalid command", 15);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
         break;
     }
 }
@@ -1352,22 +1447,26 @@ int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica) {
             return -1;
         }
 
-        found = vec_find(server->clients, NULL, find_master_in_vec, &master_client);
+        found =
+            vec_find(server->clients, NULL, find_master_in_vec, &master_client);
         if (found == -1) {
             server_destroy(server);
             de_free(de);
-            LOG(LOG_ERROR "could not find master in client vector. Server is shutting down\n");
+            LOG(LOG_ERROR "could not find master in client vector. Server is "
+                          "shutting down\n");
             return -1;
         }
 
-        add_event_res = de_add_event(de, master_client->fd, DE_WRITE, write_to_client, server);
+        add_event_res = de_add_event(de, master_client->fd, DE_WRITE,
+                                     write_to_client, server);
         if ((add_event_res == 1) || (add_event_res == 2)) {
             de_free(de);
             server_destroy(server);
             return -1;
         }
 
-        add_event_res = de_add_event(de, master_client->fd, DE_READ, read_from_master, server);
+        add_event_res = de_add_event(de, master_client->fd, DE_READ,
+                                     read_from_master, server);
         if ((add_event_res == 1) || (add_event_res == 2)) {
             de_free(de);
             server_destroy(server);
