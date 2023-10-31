@@ -32,6 +32,5 @@ int builder_add_string(Builder* builder, char* str, size_t str_len);
 int builder_add_int(Builder* builder, int64_t val);
 uint8_t* builder_out(Builder* builder);
 void builder_reset(Builder* builder);
-void builder_print(Builder* builder);
 
 #endif
