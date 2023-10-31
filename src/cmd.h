@@ -149,6 +149,6 @@ typedef struct Cmd {
 } Cmd;
 
 Cmd cmd_from_statement(Statement* stmt);
-void cmd_print(Cmd* cmd);
+void cmd_free(Cmd* cmd);
 
 #endif
