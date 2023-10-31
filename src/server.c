@@ -1373,9 +1373,15 @@ void read_from_master(De* de, int fd, void* client_data, uint32_t flags) {
         conn->flags = 1;
         conn->read_pos += MAX_READ;
         if ((conn->read_cap - conn->read_pos) < 4096) {
+            void* tmp;
             conn->read_cap += MAX_READ;
-            conn->read_buf =
-                realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
+            tmp = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
+            if (tmp == NULL) {
+                LOG(LOG_ERROR "failed to reallocate connection write buf, this will not be good\n");
+                conn->read_cap -= MAX_READ;
+                return;
+            }
+            conn->read_buf = tmp;
             memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
         }
         return;
