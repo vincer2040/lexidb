@@ -14,12 +14,6 @@ typedef enum {
     LL_VERBOSE = 5,
 } LogLevel;
 
-typedef struct {
-    char* logfile; // path to logfile
-    char* conf;    // path to config file
-    LogLevel loglevel;
-} Config;
-
 typedef enum {
     COT_STRING,
     COT_INT,
