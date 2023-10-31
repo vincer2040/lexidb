@@ -1328,6 +1328,7 @@ int create_master_connection(Server* s, const char* addr, uint16_t port) {
         fmt_error("out of memory, buy more ram\n");
         free(c);
         close(socket);
+        return -1;
     }
     client->ismaster = 1;
 
