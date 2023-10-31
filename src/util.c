@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 1
 #include "util.h"
-#include "db.h"
 #include "sha256.h"
 #include <signal.h>
 #include <stdint.h>
