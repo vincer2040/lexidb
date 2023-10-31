@@ -205,6 +205,14 @@ ArrayStatement parser_parse_array(Parser* p) {
     }
 
     len = ((size_t)slen);
+
+    if (len == 0) {
+        array_stmt.len = 0;
+        array_stmt.statements = NULL;
+        parser_debug("parsed array with length 0\n");
+        return array_stmt;
+    }
+
     array_stmt.len = len;
     array_stmt.statements = calloc(len, sizeof(Statement));
     if (array_stmt.statements == NULL) {
@@ -372,11 +380,13 @@ void parser_free_errors(Parser* p) { free(p->errors.errs); }
 void array_stmt_free(ArrayStatement* stmt) {
     size_t i, len;
     len = stmt->len;
-    for (i = 0; i < len; ++i) {
-        Statement s = stmt->statements[i];
-        statement_free(&s);
+    if (len > 0) {
+        for (i = 0; i < len; ++i) {
+            Statement s = stmt->statements[i];
+            statement_free(&s);
+        }
+        free(stmt->statements);
     }
-    free(stmt->statements);
 }
 
 void statement_free(Statement* stmt) {

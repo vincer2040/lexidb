@@ -987,6 +987,8 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
         break;
+    default:
+        break;
     }
 }
 

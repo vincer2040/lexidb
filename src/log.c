@@ -349,5 +349,17 @@ void log_cmd(Cmd* cmd) {
     case REPLICATION:
         printf("REPLICATION\n");
         break;
+    case HT:
+        printf("HT\n");
+        break;
+    case STACK:
+        printf("STACK\n");
+        break;
+    case QUEUE:
+        printf("QUEUE\n");
+        break;
+    case CLUSTER:
+        printf("CLUSTER\n");
+        break;
     }
 }

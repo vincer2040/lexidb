@@ -35,6 +35,10 @@ typedef enum {
     MULTI_CMD,
     REPLICATE,
     REPLICATION,
+    HT,
+    STACK,
+    QUEUE,
+    CLUSTER,
 } CmdT;
 
 typedef struct {
