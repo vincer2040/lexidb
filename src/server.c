@@ -1228,9 +1228,15 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         conn->flags = 1;
         conn->read_pos += MAX_READ;
         if ((conn->read_cap - conn->read_pos) < 4096) {
+            void* tmp;
             conn->read_cap += MAX_READ;
-            conn->read_buf =
-                realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
+            tmp = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
+            if (tmp == NULL) {
+                conn->read_cap -= MAX_READ;
+                LOG(LOG_ERROR "failed to realloce read buf for client. this won't be good\n");
+                return;
+            }
+            conn->read_buf = tmp;
             memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
         }
         // if we do not read again before the write event, the message
@@ -1377,7 +1383,8 @@ void read_from_master(De* de, int fd, void* client_data, uint32_t flags) {
             conn->read_cap += MAX_READ;
             tmp = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
             if (tmp == NULL) {
-                LOG(LOG_ERROR "failed to reallocate connection write buf, this will not be good\n");
+                LOG(LOG_ERROR "failed to reallocate connection write buf, this "
+                              "will not be good\n");
                 conn->read_cap -= MAX_READ;
                 return;
             }
