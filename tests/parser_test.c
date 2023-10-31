@@ -19,6 +19,113 @@ void assert_bulk(Statement* stmt, char* exp, size_t len) {
     ck_assert_mem_eq(stmt->statement.bulk.str, exp, len);
 }
 
+static void assert_replication_ht(Cmd* cmd) {
+    size_t i, len;
+    ck_assert_uint_eq(cmd->type, HT);
+    ck_assert_uint_eq(cmd->expression.multi.len, 3);
+    len = cmd->expression.multi.len;
+
+    for (i = 0; i < len; ++i) {
+        Cmd cur = cmd->expression.multi.commands[i];
+        ck_assert_uint_eq(cur.type, SET);
+    }
+}
+
+static void assert_replication_stack(Cmd* cmd) {
+    size_t i, len;
+    ck_assert_uint_eq(cmd->type, STACK);
+    ck_assert_uint_eq(cmd->expression.multi.len, 2);
+    len = cmd->expression.multi.len;
+
+    for (i = 0; i < len; ++i) {
+        Cmd cur = cmd->expression.multi.commands[i];
+        ck_assert_uint_eq(cur.type, PUSH);
+    }
+}
+
+static void assert_replication_queue(Cmd* cmd) {
+    size_t i, len;
+    ck_assert_uint_eq(cmd->type, QUEUE);
+    ck_assert_uint_eq(cmd->expression.multi.len, 1);
+    len = cmd->expression.multi.len;
+
+    for (i = 0; i < len; ++i) {
+        Cmd cur = cmd->expression.multi.commands[i];
+        ck_assert_uint_eq(cur.type, ENQUE);
+    }
+}
+
+static void assert_replication_cluster(Cmd* cmd) {
+    size_t i, len;
+    ck_assert_uint_eq(cmd->type, CLUSTER);
+    ck_assert_uint_eq(cmd->expression.multi.len, 2);
+
+    len = cmd->expression.multi.len;
+
+    for (i = 0; i < len; ++i) {
+        Cmd cur = cmd->expression.multi.commands[i];
+        ck_assert_uint_eq(cur.type, MULTI_CMD);
+        ck_assert_uint_eq(cur.expression.multi.len, 2);
+    }
+}
+
+void create_replication_buf(Builder* b) {
+    builder_add_arr(b, 2);
+    builder_add_string(b, "REPLICATION", 11);
+    builder_add_arr(b, 4);
+
+    builder_add_arr(b, 2);
+    builder_add_string(b, "HT", 2);
+    builder_add_arr(b, 3);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "vince", 5);
+    builder_add_string(b, "is cool", 7);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "vince1", 6);
+    builder_add_string(b, "is cool", 7);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "vince2", 6);
+    builder_add_string(b, "is cool", 7);
+
+    builder_add_arr(b, 2);
+    builder_add_string(b, "STACK", 5);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "foo", 3);
+    builder_add_string(b, "bar", 3);
+
+    builder_add_arr(b, 2);
+    builder_add_string(b, "QUEUE", 5);
+    builder_add_arr(b, 1);
+    builder_add_string(b, "baz", 3);
+
+    builder_add_arr(b, 2);
+    builder_add_string(b, "CLUSTER", 7);
+
+    builder_add_arr(b, 2);
+
+    builder_add_arr(b, 3);
+    builder_add_string(b, "fam", 3);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "HT", 2);
+    builder_add_arr(b, 1);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "vince", 5);
+    builder_add_string(b, "is cool", 7);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "STACK", 5);
+    builder_add_arr(b, 0);
+
+    builder_add_arr(b, 3);
+    builder_add_string(b, "fam1", 4);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "HT", 2);
+    builder_add_arr(b, 0);
+    builder_add_arr(b, 2);
+    builder_add_string(b, "STACK", 5);
+    builder_add_arr(b, 1);
+    builder_add_string(b, "foobar", 6);
+}
+
 START_TEST(test_it_works) {
     Lexer l;
     Parser p;
@@ -30,6 +137,7 @@ START_TEST(test_it_works) {
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -67,6 +175,7 @@ START_TEST(test_simple_string) {
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -92,6 +201,7 @@ START_TEST(test_integers) {
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -117,6 +227,7 @@ START_TEST(test_missing_arr_len) {
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -142,6 +253,7 @@ START_TEST(test_missing_arr_type) {
                    "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -191,6 +303,7 @@ START_TEST(test_missing_str_type) {
         ((uint8_t*)"*3\r\n3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis cool\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -215,6 +328,7 @@ START_TEST(test_missing_str_len) {
         ((uint8_t*)"*3\r\n$\r\nSET\r\n$5\r\nvince\r\n$7\r\nis cool\r\n");
     size_t inp_len = strlen(((char*)input));
 
+    parser_toggle_debug(0);
     l = lexer_new(input, inp_len);
     p = parser_new(&l);
 
@@ -238,6 +352,7 @@ START_TEST(test_integers_two) {
     CmdIR cmd_ir;
     Cmd cmd;
     int64_t v;
+    parser_toggle_debug(0);
     builder_add_arr(&b, 3);
     builder_add_string(&b, "SET", 3);
     builder_add_string(&b, "vince", 5);
@@ -279,6 +394,7 @@ START_TEST(test_negative_integers) {
     buf_len = b.ins;
     buf = builder_out(&b);
 
+    parser_toggle_debug(0);
     l = lexer_new(buf, buf_len);
     p = parser_new(&l);
     cmd_ir = parse_cmd(&p);
@@ -297,6 +413,7 @@ END_TEST
 
 START_TEST(test_array_zero_len) {
     uint8_t* input = (uint8_t*)"*0\r\n";
+    parser_toggle_debug(0);
     Lexer l = lexer_new(input, strlen((char*)input));
     Parser p = parser_new(&l);
     CmdIR ir = parse_cmd(&p);
@@ -308,6 +425,7 @@ END_TEST
 
 START_TEST(test_ok) {
     uint8_t* buf = (uint8_t*)"+OK\r\n";
+    parser_toggle_debug(0);
     Lexer l = lexer_new(buf, strlen((char*)buf));
     Parser p = parser_new(&l);
     CmdIR ir = parse_cmd(&p);
@@ -321,84 +439,27 @@ START_TEST(test_replication_from_master) {
     Lexer l;
     Parser p;
     CmdIR cmd_ir;
+    Cmd cmd, ht_cmd, stack_cmd, queue_cmd, cluster_cmd;
 
-    Statement full_ht_stmt, ht_stmt, full_stack_stmt, stack_stmt, full_q_stmt,
-        q_stmt;
-    builder_add_arr(&b, 4);
+    create_replication_buf(&b);
 
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "HT", 2);
-    builder_add_arr(&b, 3);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "vince", 5);
-    builder_add_string(&b, "is cool", 7);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "vince1", 6);
-    builder_add_string(&b, "is cool", 7);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "vince2", 6);
-    builder_add_string(&b, "is cool", 7);
-
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "STACK", 5);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "foo", 3);
-    builder_add_string(&b, "bar", 3);
-
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "QUEUE", 5);
-    builder_add_arr(&b, 1);
-    builder_add_string(&b, "baz", 3);
-
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "CLUSTER", 7);
-
-    builder_add_arr(&b, 2);
-    builder_add_arr(&b, 3);
-    builder_add_string(&b, "fam", 3);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "HT", 2);
-    builder_add_arr(&b, 1);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "vince", 5);
-    builder_add_string(&b, "is cool", 7);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "STACK", 5);
-    builder_add_arr(&b, 0);
-
-    builder_add_arr(&b, 3);
-    builder_add_string(&b, "fam1", 3);
-    builder_add_arr(&b, 2);
-    builder_add_string(&b, "HT", 2);
-    builder_add_arr(&b, 0);
-    builder_add_string(&b, "STACK", 5);
-    builder_add_arr(&b, 1);
-    builder_add_string(&b, "foobar", 6);
-
+    parser_toggle_debug(0);
     l = lexer_new(builder_out(&b), b.ins);
     p = parser_new(&l);
     cmd_ir = parse_cmd(&p);
-    assert_array_len(&cmd_ir.stmt, 4);
+    cmd = cmd_from_statement(&(cmd_ir.stmt));
 
-    full_ht_stmt = cmd_ir.stmt.statement.arr.statements[0];
-    assert_array_len(&full_ht_stmt, 2);
-    assert_bulk(&(full_ht_stmt.statement.arr.statements[0]), "HT", 2);
+    ck_assert_uint_eq(cmd.type, REPLICATION);
+    ck_assert_uint_eq(cmd.expression.multi.len, 4);
 
-    ht_stmt = full_ht_stmt.statement.arr.statements[1];
-    assert_array_len(&ht_stmt, 3);
-
-    full_stack_stmt = cmd_ir.stmt.statement.arr.statements[1];
-    assert_array_len(&full_stack_stmt, 2);
-    assert_bulk(&(full_stack_stmt.statement.arr.statements[0]), "STACK", 5);
-    stack_stmt = full_stack_stmt.statement.arr.statements[1];
-    assert_array_len(&stack_stmt, 2);
-
-    full_q_stmt = cmd_ir.stmt.statement.arr.statements[2];
-    assert_array_len(&full_q_stmt, 2);
-    assert_bulk(&(full_q_stmt.statement.arr.statements[0]), "QUEUE", 5);
-
-    q_stmt = full_q_stmt.statement.arr.statements[1];
-    assert_array_len(&q_stmt, 1);
+    ht_cmd = cmd.expression.multi.commands[0];
+    assert_replication_ht(&ht_cmd);
+    stack_cmd = cmd.expression.multi.commands[1];
+    assert_replication_stack(&stack_cmd);
+    queue_cmd = cmd.expression.multi.commands[2];
+    assert_replication_queue(&queue_cmd);
+    cluster_cmd = cmd.expression.multi.commands[3];
+    assert_replication_cluster(&cluster_cmd);
 
     builder_free(&b);
     cmdir_free(&cmd_ir);
