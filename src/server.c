@@ -814,18 +814,27 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             return;
         }
 
-        if (obj.type == ONULL) {
-            builder_add_none(builder);
-        }
+        if (client->ismaster || client->isslave) {
+            if (obj.type == STRING) {
+                size_t len = vstr_len(obj.data.str);
+                builder_add_string(builder, obj.data.str, len);
+                vstr_delete(obj.data.str);
+            }
+            builder_add_ok(builder);
+        } else {
+            if (obj.type == ONULL) {
+                builder_add_none(builder);
+            }
 
-        if (obj.type == OINT64) {
-            builder_add_int(builder, obj.data.i64);
-        }
+            if (obj.type == OINT64) {
+                builder_add_int(builder, obj.data.i64);
+            }
 
-        if (obj.type == STRING) {
-            size_t len = vstr_len(obj.data.str);
-            builder_add_string(builder, obj.data.str, len);
-            vstr_delete(obj.data.str);
+            if (obj.type == STRING) {
+                size_t len = vstr_len(obj.data.str);
+                builder_add_string(builder, obj.data.str, len);
+                vstr_delete(obj.data.str);
+            }
         }
 
         conn->write_size = builder->ins;
