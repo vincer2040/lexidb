@@ -22,8 +22,8 @@ typedef struct {
     uint32_t addr;
     uint16_t port;
     uint16_t flags; /* mainly for padding, no use as of now */
-    uint16_t ismaster;
-    uint16_t isslave;
+    uint32_t ismaster;
+    uint32_t isslave;
     LogLevel loglevel;
     LexiDB* db;
     Vec* clients;
