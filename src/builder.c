@@ -210,6 +210,7 @@ int builder_copy_from(Builder* builder, uint8_t* source, size_t needed_len) {
         builder->cap = needed_len;
     }
     memcpy(builder->buf, source, needed_len);
+    builder->ins = needed_len;
     return 0;
 }
 
