@@ -996,7 +996,6 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             Cmd c = multi.commands[i];
             evaluate_cmd(&c, client, loglevel, builder);
         }
-        cmd_free(cmd);
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
     } break;
@@ -1032,7 +1031,6 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             if (set_res != 0) {
                 uint8_t* e = ((uint8_t*)"could not set");
                 size_t n = strlen((char*)e);
-                cmd_free(cmd);
                 builder_add_err(builder, e, n);
                 conn->write_buf = builder_out(builder);
                 conn->write_size = builder->ins;
@@ -1058,7 +1056,6 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             if (push_res != 0) {
                 uint8_t* e = ((uint8_t*)"could not push");
                 size_t n = strlen((char*)e);
-                cmd_free(cmd);
                 builder_add_err(builder, e, n);
                 conn->write_buf = builder_out(builder);
                 conn->write_size = builder->ins;
@@ -1084,7 +1081,6 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             if (enque_res != 0) {
                 uint8_t* e = ((uint8_t*)"could not enque");
                 size_t n = strlen((char*)e);
-                cmd_free(cmd);
                 builder_add_err(builder, e, n);
                 conn->write_buf = builder_out(builder);
                 conn->write_size = builder->ins;
@@ -1100,7 +1096,6 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
                 evaluate_cmd(&cur_cmd, client, loglevel, NULL);
             }
         }
-        cmd_free(cmd);
         builder_add_ok(builder);
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
@@ -1140,7 +1135,6 @@ void notify_master(De* de, Server* server, uint8_t* data, size_t data_len) {
     }
 
     builder_copy_from(&(master->builder), data, data_len);
-    printf("%s\n", data);
     master->conn->write_buf = builder_out(&(master->builder));
     master->conn->write_size = master->builder.ins;
     de_add_event(de, master->fd, DE_WRITE, write_to_client, server);
@@ -1178,16 +1172,24 @@ void evaluate_message(Server* server, De* de, uint8_t* data, size_t len,
         goto done;
     }
     if (server->isslave && is_write_command(cmd.type)) {
-        printf("notify master\n");
-        printf("%lu %s", len, data);
         notify_master(de, server, data, len);
     } else if (server->ismaster && is_write_command(cmd.type)) {
-        printf("notify slaves\n");
         notify_slaves(de, server, data, len);
+    } else if (cmd.type == MULTI_CMD) {
+        size_t i, len = cmd.expression.multi.len;
+        for (i = 0; i < len; ++i) {
+            Cmd cur = cmd.expression.multi.commands[i];
+            if (server->isslave && is_write_command(cur.type)) {
+                notify_master(de, server, data, len);
+            } else if (server->ismaster && is_write_command(cmd.type)) {
+                notify_slaves(de, server, data, len);
+            }
+        }
     }
 
 done:
 
+    cmd_free(&cmd);
     cmdir_free(&cir);
     parser_free_errors(&p);
 }
