@@ -26,6 +26,8 @@
 #define CONN_BUF_INIT_CAP 4096
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
+void write_to_client(De* de, int fd, void* client_data, uint32_t flags);
+int find_master_in_vec(void* cmp, void* c);
 void lexidb_free(LexiDB* db);
 void vec_free_cb(void* ptr);
 void free_cb(void* ptr);
@@ -381,25 +383,32 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         int pop_res;
 
         pop_res = vec_pop(client->db->stack, &obj);
-        if (pop_res == -1) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
+        if (client->ismaster || client->ismaster) {
+            if (obj.type == STRING) {
+                vstr_delete(obj.data.str);
+            }
+            builder_add_ok(builder);
+        } else {
+            if (pop_res == -1) {
+                builder_add_none(builder);
+                conn->write_buf = builder_out(builder);
+                conn->write_size = builder->ins;
+                return;
+            }
 
-        if (obj.type == ONULL) {
-            builder_add_none(builder);
-        }
+            if (obj.type == ONULL) {
+                builder_add_none(builder);
+            }
 
-        if (obj.type == OINT64) {
-            builder_add_int(builder, obj.data.i64);
-        }
+            if (obj.type == OINT64) {
+                builder_add_int(builder, obj.data.i64);
+            }
 
-        if (obj.type == STRING) {
-            size_t len = vstr_len(obj.data.str);
-            builder_add_string(builder, obj.data.str, len);
-            vstr_delete(obj.data.str);
+            if (obj.type == STRING) {
+                size_t len = vstr_len(obj.data.str);
+                builder_add_string(builder, obj.data.str, len);
+                vstr_delete(obj.data.str);
+            }
         }
 
         conn->write_buf = builder_out(builder);
@@ -451,18 +460,25 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             return;
         }
 
-        if (obj.type == ONULL) {
-            builder_add_none(builder);
-        }
+        if (client->ismaster || client->isslave) {
+            if (obj.type == STRING) {
+                vstr_delete(obj.data.str);
+            }
+            builder_add_ok(builder);
+        } else {
+            if (obj.type == ONULL) {
+                builder_add_none(builder);
+            }
 
-        if (obj.type == OINT64) {
-            builder_add_int(builder, obj.data.i64);
-        }
+            if (obj.type == OINT64) {
+                builder_add_int(builder, obj.data.i64);
+            }
 
-        if (obj.type == STRING) {
-            size_t len = vstr_len(obj.data.str);
-            builder_add_string(builder, obj.data.str, len);
-            vstr_delete(obj.data.str);
+            if (obj.type == STRING) {
+                size_t len = vstr_len(obj.data.str);
+                builder_add_string(builder, obj.data.str, len);
+                vstr_delete(obj.data.str);
+            }
         }
 
         conn->write_buf = builder_out(builder);
@@ -976,6 +992,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         conn->write_size = builder->ins;
     } break;
     case REPLICATE:
+        client->isslave = 1;
         replicate(client->db, client);
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
@@ -1087,8 +1104,41 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
     }
 }
 
-void evaluate_message(uint8_t* data, size_t len, Client* client,
-                      LogLevel loglevel) {
+void notify_slaves(De* de, Server* server, uint8_t* data, size_t data_len) {
+    VecIter iter = vec_iter_new(server->clients, 0);
+    size_t i, len = server->clients->len;
+
+    for (i = 0; i < len; ++i) {
+        Client* cur = *((Client**)(iter.cur));
+        if (cur->isslave) {
+            builder_copy_from(&(cur->builder), data, data_len);
+            cur->conn->write_buf = builder_out(&(cur->builder));
+            cur->conn->write_size = cur->builder.ins;
+            de_add_event(de, cur->fd, DE_WRITE, write_to_client, server);
+        }
+        vec_iter_next(&iter);
+    }
+}
+
+void notify_master(De* de, Server* server, uint8_t* data, size_t data_len) {
+    Client* master;
+    int found;
+
+    found = vec_find(server->clients, NULL, find_master_in_vec, &master);
+    if (found == -1) {
+        LOG(LOG_ERROR "no master\n");
+        return;
+    }
+
+    builder_copy_from(&(master->builder), data, data_len);
+    printf("%s\n", data);
+    master->conn->write_buf = builder_out(&(master->builder));
+    master->conn->write_size = master->builder.ins;
+    de_add_event(de, master->fd, DE_WRITE, write_to_client, server);
+}
+
+void evaluate_message(Server* server, De* de, uint8_t* data, size_t len,
+                      Client* client, LogLevel loglevel) {
     Lexer l;
     Parser p;
     CmdIR cir;
@@ -1114,6 +1164,20 @@ void evaluate_message(uint8_t* data, size_t len, Client* client,
     }
 
     evaluate_cmd(&cmd, client, loglevel, &(client->builder));
+
+    if (client->isslave || client->ismaster) {
+        goto done;
+    }
+    if (server->isslave && is_write_command(cmd.type)) {
+        printf("notify master\n");
+        printf("%lu %s", len, data);
+        notify_master(de, server, data, len);
+    } else if (server->ismaster && is_write_command(cmd.type)) {
+        printf("notify slaves\n");
+        notify_slaves(de, server, data, len);
+    }
+
+done:
 
     cmdir_free(&cir);
     parser_free_errors(&p);
@@ -1151,10 +1215,15 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
         return;
     }
 
+    if (client->ismaster) {
+        printf("writing to master\n");
+    }
+
     conn = client->conn;
     if (conn->flags == 1) {
         // we were expecting more data but we now have it all
-        evaluate_message(conn->read_buf, conn->read_pos, client, s->loglevel);
+        evaluate_message(s, de, conn->read_buf, conn->read_pos, client,
+                         s->loglevel);
         conn->flags = 0;
     }
     if (conn->write_buf != NULL) {
@@ -1233,7 +1302,8 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
             tmp = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
             if (tmp == NULL) {
                 conn->read_cap -= MAX_READ;
-                LOG(LOG_ERROR "failed to realloce read buf for client. this won't be good\n");
+                LOG(LOG_ERROR "failed to realloce read buf for client. this "
+                              "won't be good\n");
                 return;
             }
             conn->read_buf = tmp;
@@ -1248,7 +1318,8 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
 
     conn->read_pos += bytes_read;
 
-    evaluate_message(conn->read_buf, conn->read_pos, client, s->loglevel);
+    evaluate_message(s, de, conn->read_buf, conn->read_pos, client,
+                     s->loglevel);
     conn->flags = 0;
 
     de_add_event(de, fd, DE_WRITE, write_to_client, s);
@@ -1397,7 +1468,8 @@ void read_from_master(De* de, int fd, void* client_data, uint32_t flags) {
 
     conn->read_pos += bytes_read;
 
-    evaluate_message(conn->read_buf, conn->read_pos, client, s->loglevel);
+    evaluate_message(s, de, conn->read_buf, conn->read_pos, client,
+                     s->loglevel);
     conn->flags = 0;
 }
 
