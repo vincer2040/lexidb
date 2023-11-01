@@ -780,9 +780,11 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
                 MultiCmd cur_multi = {0};
                 Statement name_stmt, full_ht_stmt, full_stack_stmt, ht_stmt,
                     stack_stmt,
-                    cluster_stmt = cluster_statements.statement.arr.statements[i];
+                    cluster_stmt =
+                        cluster_statements.statement.arr.statements[i];
                 Key cluster_name = {0};
-                size_t k, multi_len, multi_ins, num_ht_entries, num_stack_entries;
+                size_t k, multi_len, multi_ins, num_ht_entries,
+                    num_stack_entries;
                 assert(cluster_stmt.type == SARR);
                 assert(cluster_stmt.statement.arr.len == 3);
                 name_stmt = cluster_stmt.statement.arr.statements[0];
@@ -805,7 +807,8 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
                 num_stack_entries = stack_stmt.statement.arr.len;
 
                 cluster_new_cmd.type = CLUSTER_NEW;
-                cluster_new_cmd.expression.cluster_new.cluster_name = cluster_name;
+                cluster_new_cmd.expression.cluster_new.cluster_name =
+                    cluster_name;
 
                 multi_len = 1 + num_ht_entries + num_stack_entries;
 
@@ -843,7 +846,8 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
                     } else if (val_stmt.type == SINT) {
                         cluster_set_cmd.expression.cluster_set.set.value.type =
                             VTINT;
-                        cluster_set_cmd.expression.cluster_set.set.value.size = 8;
+                        cluster_set_cmd.expression.cluster_set.set.value.size =
+                            8;
                         cluster_set_cmd.expression.cluster_set.set.value.ptr =
                             ((void*)(val_stmt.statement.i64));
                     } else {
@@ -859,19 +863,19 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
                     Cmd cluster_push_cmd = {0};
                     Statement val_stmt = stack_stmt.statement.arr.statements[k];
                     if (val_stmt.type == SBULK) {
-                        cluster_push_cmd.expression.cluster_push.push.value.type =
-                            VTSTRING;
-                        cluster_push_cmd.expression.cluster_push.push.value.size =
-                            val_stmt.statement.bulk.len;
-                        cluster_push_cmd.expression.cluster_push.push.value.ptr =
-                            val_stmt.statement.bulk.str;
+                        cluster_push_cmd.expression.cluster_push.push.value
+                            .type = VTSTRING;
+                        cluster_push_cmd.expression.cluster_push.push.value
+                            .size = val_stmt.statement.bulk.len;
+                        cluster_push_cmd.expression.cluster_push.push.value
+                            .ptr = val_stmt.statement.bulk.str;
                     } else if (val_stmt.type == SINT) {
-                        cluster_push_cmd.expression.cluster_push.push.value.type =
-                            VTINT;
-                        cluster_push_cmd.expression.cluster_push.push.value.size =
-                            8;
-                        cluster_push_cmd.expression.cluster_push.push.value.ptr =
-                            ((void*)(val_stmt.statement.i64));
+                        cluster_push_cmd.expression.cluster_push.push.value
+                            .type = VTINT;
+                        cluster_push_cmd.expression.cluster_push.push.value
+                            .size = 8;
+                        cluster_push_cmd.expression.cluster_push.push.value
+                            .ptr = ((void*)(val_stmt.statement.i64));
                     } else {
                         assert(0 && "invalid value");
                     }
