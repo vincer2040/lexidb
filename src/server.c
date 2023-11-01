@@ -30,7 +30,7 @@ void lexidb_free(LexiDB* db);
 void vec_free_cb(void* ptr);
 void free_cb(void* ptr);
 
-LexiDB* lexidb_new() {
+LexiDB* lexidb_new(void) {
     LexiDB* db;
     db = calloc(1, sizeof *db);
 
