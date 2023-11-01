@@ -199,3 +199,17 @@ void builder_free(Builder* builder) {
     builder->ins = 0;
 }
 
+int builder_copy_from(Builder* builder, uint8_t* source, size_t needed_len) {
+    size_t cur_len = builder->ins;
+    if (cur_len < needed_len) {
+        void* tmp = realloc(builder->buf, needed_len);
+        if (tmp == NULL) {
+            return -1;
+        }
+        builder->buf = tmp;
+        builder->cap = needed_len;
+    }
+    memcpy(builder->buf, source, needed_len);
+    return 0;
+}
+
