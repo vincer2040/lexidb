@@ -150,5 +150,6 @@ typedef struct Cmd {
 
 Cmd cmd_from_statement(Statement* stmt);
 void cmd_free(Cmd* cmd);
+int is_write_command(CmdT type);
 
 #endif

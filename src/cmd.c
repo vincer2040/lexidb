@@ -772,117 +772,119 @@ Cmd cmd_from_array(ArrayStatement* astmt) {
         len = cluster_statements.statement.arr.len;
 
         multi.len = len;
-        multi.commands = calloc(len, sizeof(struct Cmd));
-        for (i = 0; i < len; ++i) {
-            Cmd cur_cmd = {0};
-            Cmd cluster_new_cmd = {0};
-            MultiCmd cur_multi = {0};
-            Statement name_stmt, full_ht_stmt, full_stack_stmt, ht_stmt,
-                stack_stmt,
-                cluster_stmt = cluster_statements.statement.arr.statements[i];
-            Key cluster_name = {0};
-            size_t k, multi_len, multi_ins, num_ht_entries, num_stack_entries;
-            assert(cluster_stmt.type == SARR);
-            assert(cluster_stmt.statement.arr.len == 3);
-            name_stmt = cluster_stmt.statement.arr.statements[0];
-            assert(name_stmt.type == SBULK);
-            cluster_name.len = name_stmt.statement.bulk.len;
-            cluster_name.value = name_stmt.statement.bulk.str;
+        if (len > 0) {
+            multi.commands = calloc(len, sizeof(struct Cmd));
+            for (i = 0; i < len; ++i) {
+                Cmd cur_cmd = {0};
+                Cmd cluster_new_cmd = {0};
+                MultiCmd cur_multi = {0};
+                Statement name_stmt, full_ht_stmt, full_stack_stmt, ht_stmt,
+                    stack_stmt,
+                    cluster_stmt = cluster_statements.statement.arr.statements[i];
+                Key cluster_name = {0};
+                size_t k, multi_len, multi_ins, num_ht_entries, num_stack_entries;
+                assert(cluster_stmt.type == SARR);
+                assert(cluster_stmt.statement.arr.len == 3);
+                name_stmt = cluster_stmt.statement.arr.statements[0];
+                assert(name_stmt.type == SBULK);
+                cluster_name.len = name_stmt.statement.bulk.len;
+                cluster_name.value = name_stmt.statement.bulk.str;
 
-            full_ht_stmt = cluster_stmt.statement.arr.statements[1];
-            assert(full_ht_stmt.type == SARR);
-            assert(full_ht_stmt.statement.arr.len == 2);
-            full_stack_stmt = cluster_stmt.statement.arr.statements[2];
-            assert(full_stack_stmt.type == SARR);
-            assert(full_stack_stmt.statement.arr.len == 2);
+                full_ht_stmt = cluster_stmt.statement.arr.statements[1];
+                assert(full_ht_stmt.type == SARR);
+                assert(full_ht_stmt.statement.arr.len == 2);
+                full_stack_stmt = cluster_stmt.statement.arr.statements[2];
+                assert(full_stack_stmt.type == SARR);
+                assert(full_stack_stmt.statement.arr.len == 2);
 
-            ht_stmt = full_ht_stmt.statement.arr.statements[1];
-            assert(ht_stmt.type == SARR);
-            num_ht_entries = ht_stmt.statement.arr.len;
-            stack_stmt = full_stack_stmt.statement.arr.statements[1];
-            assert(stack_stmt.type == SARR);
-            num_stack_entries = stack_stmt.statement.arr.len;
+                ht_stmt = full_ht_stmt.statement.arr.statements[1];
+                assert(ht_stmt.type == SARR);
+                num_ht_entries = ht_stmt.statement.arr.len;
+                stack_stmt = full_stack_stmt.statement.arr.statements[1];
+                assert(stack_stmt.type == SARR);
+                num_stack_entries = stack_stmt.statement.arr.len;
 
-            cluster_new_cmd.type = CLUSTER_NEW;
-            cluster_new_cmd.expression.cluster_new.cluster_name = cluster_name;
+                cluster_new_cmd.type = CLUSTER_NEW;
+                cluster_new_cmd.expression.cluster_new.cluster_name = cluster_name;
 
-            multi_len = 1 + num_ht_entries + num_stack_entries;
+                multi_len = 1 + num_ht_entries + num_stack_entries;
 
-            cur_multi.commands = calloc(multi_len, sizeof(struct Cmd));
-            cur_multi.len = multi_len;
+                cur_multi.commands = calloc(multi_len, sizeof(struct Cmd));
+                cur_multi.len = multi_len;
 
-            cur_multi.commands[0] = cluster_new_cmd;
-            multi_ins = 1;
+                cur_multi.commands[0] = cluster_new_cmd;
+                multi_ins = 1;
 
-            for (k = 0; k < num_ht_entries; ++k) {
-                Cmd cluster_set_cmd = {0};
-                Statement key_stmt, val_stmt,
-                    entry_stmt = ht_stmt.statement.arr.statements[k];
+                for (k = 0; k < num_ht_entries; ++k) {
+                    Cmd cluster_set_cmd = {0};
+                    Statement key_stmt, val_stmt,
+                        entry_stmt = ht_stmt.statement.arr.statements[k];
 
-                assert(entry_stmt.type == SARR);
-                assert(entry_stmt.statement.arr.len == 2);
-                key_stmt = entry_stmt.statement.arr.statements[0];
-                assert(key_stmt.type == SBULK);
-                val_stmt = entry_stmt.statement.arr.statements[1];
+                    assert(entry_stmt.type == SARR);
+                    assert(entry_stmt.statement.arr.len == 2);
+                    key_stmt = entry_stmt.statement.arr.statements[0];
+                    assert(key_stmt.type == SBULK);
+                    val_stmt = entry_stmt.statement.arr.statements[1];
 
-                cluster_set_cmd.expression.cluster_set.cluster_name =
-                    cluster_name;
-                cluster_set_cmd.expression.cluster_set.set.key.len =
-                    key_stmt.statement.bulk.len;
-                cluster_set_cmd.expression.cluster_set.set.key.value =
-                    key_stmt.statement.bulk.str;
+                    cluster_set_cmd.expression.cluster_set.cluster_name =
+                        cluster_name;
+                    cluster_set_cmd.expression.cluster_set.set.key.len =
+                        key_stmt.statement.bulk.len;
+                    cluster_set_cmd.expression.cluster_set.set.key.value =
+                        key_stmt.statement.bulk.str;
 
-                if (val_stmt.type == SBULK) {
-                    cluster_set_cmd.expression.cluster_set.set.value.type =
-                        VTSTRING;
-                    cluster_set_cmd.expression.cluster_set.set.value.size =
-                        val_stmt.statement.bulk.len;
-                    cluster_set_cmd.expression.cluster_set.set.value.ptr =
-                        val_stmt.statement.bulk.str;
-                } else if (val_stmt.type == SINT) {
-                    cluster_set_cmd.expression.cluster_set.set.value.type =
-                        VTINT;
-                    cluster_set_cmd.expression.cluster_set.set.value.size = 8;
-                    cluster_set_cmd.expression.cluster_set.set.value.ptr =
-                        ((void*)(val_stmt.statement.i64));
-                } else {
-                    assert(0 && "invalid value");
+                    if (val_stmt.type == SBULK) {
+                        cluster_set_cmd.expression.cluster_set.set.value.type =
+                            VTSTRING;
+                        cluster_set_cmd.expression.cluster_set.set.value.size =
+                            val_stmt.statement.bulk.len;
+                        cluster_set_cmd.expression.cluster_set.set.value.ptr =
+                            val_stmt.statement.bulk.str;
+                    } else if (val_stmt.type == SINT) {
+                        cluster_set_cmd.expression.cluster_set.set.value.type =
+                            VTINT;
+                        cluster_set_cmd.expression.cluster_set.set.value.size = 8;
+                        cluster_set_cmd.expression.cluster_set.set.value.ptr =
+                            ((void*)(val_stmt.statement.i64));
+                    } else {
+                        assert(0 && "invalid value");
+                    }
+
+                    cluster_set_cmd.type = CLUSTER_SET;
+                    cur_multi.commands[multi_ins] = cluster_set_cmd;
+                    multi_ins++;
                 }
 
-                cluster_set_cmd.type = CLUSTER_SET;
-                cur_multi.commands[multi_ins] = cluster_set_cmd;
-                multi_ins++;
-            }
+                for (k = 0; k < num_stack_entries; ++k) {
+                    Cmd cluster_push_cmd = {0};
+                    Statement val_stmt = stack_stmt.statement.arr.statements[k];
+                    if (val_stmt.type == SBULK) {
+                        cluster_push_cmd.expression.cluster_push.push.value.type =
+                            VTSTRING;
+                        cluster_push_cmd.expression.cluster_push.push.value.size =
+                            val_stmt.statement.bulk.len;
+                        cluster_push_cmd.expression.cluster_push.push.value.ptr =
+                            val_stmt.statement.bulk.str;
+                    } else if (val_stmt.type == SINT) {
+                        cluster_push_cmd.expression.cluster_push.push.value.type =
+                            VTINT;
+                        cluster_push_cmd.expression.cluster_push.push.value.size =
+                            8;
+                        cluster_push_cmd.expression.cluster_push.push.value.ptr =
+                            ((void*)(val_stmt.statement.i64));
+                    } else {
+                        assert(0 && "invalid value");
+                    }
 
-            for (k = 0; k < num_stack_entries; ++k) {
-                Cmd cluster_push_cmd = {0};
-                Statement val_stmt = stack_stmt.statement.arr.statements[k];
-                if (val_stmt.type == SBULK) {
-                    cluster_push_cmd.expression.cluster_push.push.value.type =
-                        VTSTRING;
-                    cluster_push_cmd.expression.cluster_push.push.value.size =
-                        val_stmt.statement.bulk.len;
-                    cluster_push_cmd.expression.cluster_push.push.value.ptr =
-                        val_stmt.statement.bulk.str;
-                } else if (val_stmt.type == SINT) {
-                    cluster_push_cmd.expression.cluster_push.push.value.type =
-                        VTINT;
-                    cluster_push_cmd.expression.cluster_push.push.value.size =
-                        8;
-                    cluster_push_cmd.expression.cluster_push.push.value.ptr =
-                        ((void*)(val_stmt.statement.i64));
-                } else {
-                    assert(0 && "invalid value");
+                    cluster_push_cmd.type = CLUSTER_PUSH;
+                    cur_multi.commands[multi_ins] = cluster_push_cmd;
+                    multi_ins++;
                 }
 
-                cluster_push_cmd.type = CLUSTER_PUSH;
-                cur_multi.commands[multi_ins] = cluster_push_cmd;
-                multi_ins++;
+                cur_cmd.expression.multi = cur_multi;
+                cur_cmd.type = MULTI_CMD;
+                multi.commands[i] = cur_cmd;
             }
-
-            cur_cmd.expression.multi = cur_multi;
-            cur_cmd.type = MULTI_CMD;
-            multi.commands[i] = cur_cmd;
         }
 
         cmd.type = CLUSTER;
@@ -933,4 +935,27 @@ void cmd_free(Cmd* cmd) {
     } else {
         return;
     }
+}
+
+int is_write_command(CmdT type) {
+    int res = 0;
+    switch (type) {
+    case SET:
+    case DEL:
+    case PUSH:
+    case POP:
+    case ENQUE:
+    case DEQUE:
+    case CLUSTER_NEW:
+    case CLUSTER_DROP:
+    case CLUSTER_SET:
+    case CLUSTER_DEL:
+    case CLUSTER_PUSH:
+    case CLUSTER_POP:
+        res = 1;
+        break;
+    default:
+        break;
+    }
+    return res;
 }
