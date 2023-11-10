@@ -17,33 +17,46 @@ set(CMAKE_C_FLAGS_RELEASE "-std=c99 -Wall -Werror -pedantic -fstack-clash-protec
 add_subdirectory(tests)
 
 add_library(vec src/vec.c)
+
 add_library(builder src/builder.c)
+
 add_library(de src/de.c)
+
 add_library(queue src/queue.c)
+
 add_library(sock src/sock.c)
+
 add_library(config src/config.c)
-add_library(objects
+
+add_library(
+    objects
     src/objects.c
     src/vstring.c
 )
-add_library(cmd
+
+add_library(
+    cmd
     src/cmd.c
     src/lexer.c
     src/parser.c
 )
-add_library(ht
+
+add_library(
+    ht
     src/ht.c
     src/sha256.c
     src/util.c
     src/siphash.c
 )
 
-add_executable(lexidb
+add_executable(
+    lexidb
     src/cluster.c
     src/log.c
     src/server.c
     src/db.c
     src/replication.c
+    src/stats.c
 )
 
 add_executable(lexi-cli
