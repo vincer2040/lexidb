@@ -137,6 +137,10 @@ CmdT cmd_from_bulk(uint8_t* str, size_t str_len) {
             return CLUSTER_KEYS;
         }
 
+        if (memcmp(str, "STATS.CYCLES", 12) == 0) {
+            return STATS_CYCLES;
+        }
+
         return INV;
     }
 

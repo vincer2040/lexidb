@@ -39,6 +39,7 @@ typedef enum {
     STACK,
     QUEUE,
     CLUSTER,
+    STATS_CYCLES,
 } CmdT;
 
 typedef struct {

@@ -361,5 +361,7 @@ void log_cmd(Cmd* cmd) {
     case CLUSTER:
         printf("CLUSTER\n");
         break;
+    case STATS_CYCLES:
+        printf("cycles\n");
     }
 }

@@ -237,7 +237,7 @@ void server_destroy(Server* server) {
  * all commands are in this function
  * to avoid jumping around the whole file.
  */
-void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
+void evaluate_cmd(Cmd* cmd, Server* s, Client* client, LogLevel loglevel,
                   Builder* builder) {
     CmdT cmd_type;
     Connection* conn = client->conn;
@@ -998,7 +998,7 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
         builder_add_arr(builder, num_cmds);
         for (i = 0; i < num_cmds; ++i) {
             Cmd c = multi.commands[i];
-            evaluate_cmd(&c, client, loglevel, builder);
+            evaluate_cmd(&c, s, client, loglevel, builder);
         }
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
@@ -1097,10 +1097,22 @@ void evaluate_cmd(Cmd* cmd, Client* client, LogLevel loglevel,
             size_t j, clen = cur_cluster.expression.multi.len;
             for (j = 0; j < clen; ++j) {
                 Cmd cur_cmd = cur_cluster.expression.multi.commands[j];
-                evaluate_cmd(&cur_cmd, client, loglevel, NULL);
+                evaluate_cmd(&cur_cmd, s, client, loglevel, NULL);
             }
         }
         builder_add_ok(builder);
+        conn->write_buf = builder_out(builder);
+        conn->write_size = builder->ins;
+    } break;
+    case STATS_CYCLES: {
+        VecIter iter = vec_iter_new(s->stats.cycles, 0);
+        size_t i, len = s->stats.cycles->len;
+        builder_add_arr(builder, len);
+        for (i = 0; i < len; ++i) {
+            uint64_t* cur = iter.cur;
+            builder_add_int(builder, *cur);
+            vec_iter_next(&iter);
+        }
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
     } break;
@@ -1170,7 +1182,7 @@ void evaluate_message(Server* server, De* de, uint8_t* data, size_t len,
         return;
     }
 
-    evaluate_cmd(&cmd, client, loglevel, &(client->builder));
+    evaluate_cmd(&cmd, server, client, loglevel, &(client->builder));
 
     if (client->isslave || client->ismaster) {
         goto done;
