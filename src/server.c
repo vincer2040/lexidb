@@ -103,6 +103,8 @@ Server* server_create(int sfd, LogLevel loglevel, int isreplica) {
         return NULL;
     }
 
+    server->stats = stats_new();
+
     if (isreplica == -1) {
         server->ismaster = 1;
     } else {
@@ -222,6 +224,8 @@ void server_destroy(Server* server) {
     close(server->sfd);
     lexidb_free(server->db);
     vec_free(server->clients, vec_free_client_cb);
+    vec_free(server->stats.cycles, NULL);
+    vec_free(server->stats.times, NULL);
     free(server);
     server = NULL;
 }
@@ -1216,6 +1220,10 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     Connection* conn;
     Server* s;
     int found;
+    struct rusage usage;
+    struct timeval time_end;
+    uint64_t cycles, num_cycles;
+    CmdTime cmd_time_tot;
 
     s = client_data;
 
@@ -1265,6 +1273,13 @@ void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
     conn->flags = 0;
     de_del_event(de, fd, DE_WRITE);
     UNUSED(flags);
+
+    cycles = rdtsc();
+    usage = get_cur_usage();
+    time_end = add_user_and_sys_time(usage.ru_utime, usage.ru_stime);
+    cmd_time_tot = cmd_time(client->time_start, time_end);
+    num_cycles = cycles - client->cycle_start;
+    update_stats(&(s->stats), &cmd_time_tot, num_cycles);
 }
 
 void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
@@ -1273,6 +1288,8 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
     Client* client = NULL;
     Connection* conn;
     int found;
+    uint64_t cycles_start = rdtsc();
+    struct rusage usage = get_cur_usage();
 
     s = client_data;
 
@@ -1282,6 +1299,9 @@ void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
         de_del_event(de, fd, flags);
         return;
     }
+
+    client->time_start = add_user_and_sys_time(usage.ru_utime, usage.ru_stime);
+    client->cycle_start = cycles_start;
 
     conn = client->conn;
 
