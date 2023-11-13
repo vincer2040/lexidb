@@ -118,7 +118,7 @@ make it a replica of another lexidb
 ./lexidb --replcaof <port of master lexidb>
 ```
 
-For a full list of commands, run enter help into the lexi-cli, like so 
+For a full list of commands, run `help` into the lexi-cli, like so 
 
 ```bash
 ./lexi-cli
