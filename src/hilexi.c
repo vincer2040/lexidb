@@ -846,6 +846,34 @@ HiLexiData hilexi_cluster_entries(HiLexi* l, const char* cluster_name,
     return res;
 }
 
+HiLexiData hilexi_stats_cycles(HiLexi* l) {
+    HiLexiData res = {0};
+    Builder* b = &(l->builder);
+    int b_res;
+    int read_write_res;
+
+    builder_reset(b);
+
+    b_res = builder_add_string(b, "STATS.CYCLES", 12);
+
+    if (b_res == -1) {
+        res.type = HL_ERR;
+        res.val.hl_err = HL_NO_MEM;
+        return res;
+    }
+
+    l->write_buf = builder_out(b);
+    l->write_len = b->ins;
+    read_write_res = hilexi_read_and_write(l);
+    if (read_write_res == -1) {
+        res.type = HL_ERR;
+        res.val.hl_err = HL_IO;
+        return res;
+    }
+    res = hilexi_lex_and_parse(l);
+    return res;
+}
+
 static HiLexiData hilexi_lex_and_parse(HiLexi* l) {
     HiLexiData res = {0};
     HLLexer lex;

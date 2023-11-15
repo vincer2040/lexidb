@@ -205,6 +205,7 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         data = hilexi_cluster_entries(l, (const char*)name, name_len);
     } break;
     case CC_STATS_CYCLES:
+        data = hilexi_stats_cycles(l);
         break;
     default:
         printf("invalid command\n");

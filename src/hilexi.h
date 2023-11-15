@@ -114,6 +114,9 @@ HiLexiData hilexi_cluster_values(HiLexi* l, const char* cluster_name,
 HiLexiData hilexi_cluster_entries(HiLexi* l, const char* cluster_name,
                                   size_t cluster_name_len);
 
+/* stats */
+HiLexiData hilexi_stats_cycles(HiLexi* l);
+
 /* teardown */
 void hilexi_disconnect(HiLexi* l);
 void hilexi_destory(HiLexi* l);
