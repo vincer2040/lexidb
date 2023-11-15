@@ -1107,11 +1107,15 @@ void evaluate_cmd(Cmd* cmd, Server* s, Client* client, LogLevel loglevel,
     case STATS_CYCLES: {
         VecIter iter = vec_iter_new(s->stats.cycles, 0);
         size_t i, len = s->stats.cycles->len;
-        builder_add_arr(builder, len);
-        for (i = 0; i < len; ++i) {
-            uint64_t* cur = iter.cur;
-            builder_add_int(builder, *cur);
-            vec_iter_next(&iter);
+        if (len == 0) {
+            builder_add_none(builder);
+        } else {
+            builder_add_arr(builder, len);
+            for (i = 0; i < len; ++i) {
+                uint64_t* cur = iter.cur;
+                builder_add_int(builder, *cur);
+                vec_iter_next(&iter);
+            }
         }
         conn->write_buf = builder_out(builder);
         conn->write_size = builder->ins;
