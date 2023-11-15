@@ -228,6 +228,9 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         size_t name_len = cmd->expr.cluster_entries.cluster_name.len;
         hilexi_cluster_values(l, name, name_len);
     } break;
+    case CC_STATS_CYCLES:
+        hilexi_stats_cycles(l);
+        break;
     default:
         printf("invalid command\n");
         break;

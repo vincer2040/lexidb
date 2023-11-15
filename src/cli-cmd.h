@@ -28,6 +28,7 @@ typedef enum {
     CC_CLUSTER_KEYS,
     CC_CLUSTER_VALUES,
     CC_CLUSTER_ENTRIES,
+    CC_STATS_CYCLES,
 } CliCmdT;
 
 typedef struct {

@@ -98,6 +98,7 @@ int hilexi_cluster_drop(HiLexi* l, uint8_t* name, size_t name_len);
 int hilexi_cluster_keys(HiLexi* l, uint8_t* name, size_t name_len);
 int hilexi_cluster_values(HiLexi* l, uint8_t* name, size_t name_len);
 int hilexi_cluster_entries(HiLexi* l, uint8_t* name, size_t name_len);
+int hilexi_stats_cycles(HiLexi* l);
 
 /* teardown */
 void hilexi_disconnect(HiLexi* l);

@@ -222,6 +222,10 @@ CliCmdT cli_parser_parse_cmd_type(CliParser* p) {
         return CC_CLUSTER_ENTRIES;
     }
 
+    if (strncmp(literal, "stats.cycles", 12) == 0) {
+        return CC_STATS_CYCLES;
+    }
+
     return CC_INV;
 }
 
@@ -560,6 +564,8 @@ CliCmd cli_parser_parse_cmd(CliParser* p) {
             } else {
                 cmd.type = CC_INV;
             }
+            break;
+        case CC_STATS_CYCLES:
             break;
         default:
             cmd.type = CC_INV;

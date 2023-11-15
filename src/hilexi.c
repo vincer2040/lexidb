@@ -180,6 +180,7 @@ int64_t hilexi_unpack_int(HiLexi* l) {
 
     l->unpack_pos++;
     l->unpack_pos++;
+    l->unpack_pos++;
 
     return res;
 }
@@ -1405,6 +1406,44 @@ int hilexi_cluster_entries(HiLexi* l, uint8_t* name, size_t name_len) {
 
     readres = hilexi_read(l);
     if (readres == -1) {
+        return -1;
+    }
+
+    data = hilexi_unpack(l);
+    hilexi_print_data(&data);
+    hilexi_free_data(&data);
+    return 0;
+}
+
+int hilexi_stats_cycles(HiLexi* l) {
+    Builder b;
+    int sendres, readres;
+    HiLexiData data;
+    b = builder_create(32);
+    builder_add_string(&b, "STATS.CYCLES", 12);
+    l->write_buf = builder_out(&b);
+    l->write_len = b.ins;
+    l->write_pos = 0;
+    sendres = hilexi_send(l);
+    if (sendres == -1) {
+        if (l->write_pos == 0) {
+            return -1;
+        } else {
+            // todo: send all byes
+            free(l->write_buf);
+            l->write_len = 0;
+            l->write_pos = 0;
+            return -1;
+        }
+    }
+
+    readres = hilexi_read(l);
+    if (readres == -1) {
+        return -1;
+    }
+
+    if (readres == 1) {
+        printf("client sent 4069 bytes, uh oh\n");
         return -1;
     }
 
