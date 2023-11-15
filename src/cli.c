@@ -40,7 +40,10 @@ commands:\n\
     exit                                = exit the process\n\
 "
 
+static void data_print(HiLexiData* data);
+
 void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
+    HiLexiData data = {0};
     switch (cmd->type) {
     case CC_SET: {
         uint8_t* key = cmd->expr.set.key.value;
@@ -48,17 +51,11 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         ValueT vt = cmd->expr.set.value.type;
         if (vt == VTINT) {
             int64_t val = ((int64_t)(cmd->expr.set.value.ptr));
-            if (hilexi_set_int(l, key, key_len, val) != 0) {
-                printf("set int fail\n");
-                return;
-            }
+            data = hilexi_set_int(l, (const char*)key, key_len, val);
         } else if (vt == VTSTRING) {
             char* val = cmd->expr.set.value.ptr;
             size_t val_size = cmd->expr.set.value.size;
-            if (hilexi_set(l, key, key_len, val, val_size) != 0) {
-                printf("set string fail\n");
-                return;
-            }
+            data = hilexi_set(l, (const char*)key, key_len, val, val_size);
         } else {
             printf("invalid value\n");
             return;
@@ -67,84 +64,72 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
     case CC_GET: {
         uint8_t* key = cmd->expr.get.key.value;
         size_t key_len = cmd->expr.get.key.len;
-        hilexi_get(l, key, key_len);
-        return;
+        data = hilexi_get(l, (const char*)key, key_len);
+        break;
     }
     case CC_DEL: {
         uint8_t* key = cmd->expr.del.key.value;
         size_t key_len = cmd->expr.del.key.len;
-        hilexi_del(l, key, key_len);
+        data = hilexi_del(l, (const char*)key, key_len);
     } break;
     case CC_PUSH: {
         ValueT vt = cmd->expr.push.value.type;
         if (vt == VTINT) {
             int64_t val = ((int64_t)(cmd->expr.push.value.ptr));
-            if (hilexi_push_int(l, val) != 0) {
-                printf("push int fail\n");
-                return;
-            }
+            data = hilexi_push_int(l, val);
         } else if (vt == VTSTRING) {
             char* val = cmd->expr.push.value.ptr;
             size_t val_size = cmd->expr.push.value.size;
-            if (hilexi_push(l, val, val_size) != 0) {
-                printf("push string fail\n");
-                return;
-            }
+            data = hilexi_push(l, val, val_size);
         } else {
             printf("invalid value");
             return;
         }
     } break;
     case CC_POP:
-        hilexi_pop(l);
+        data = hilexi_pop(l);
         break;
     case CC_ENQUE: {
         ValueT vt = cmd->expr.push.value.type;
         if (vt == VTINT) {
             int64_t val = ((int64_t)(cmd->expr.enque.value.ptr));
-            if (hilexi_enque_int(l, val) != 0) {
-                printf("enque int fail\n");
-                return;
-            }
+            data = hilexi_enque_int(l, val);
         } else if (vt == VTSTRING) {
             char* val = cmd->expr.enque.value.ptr;
             size_t val_size = cmd->expr.enque.value.size;
-            if (hilexi_enque(l, val, val_size) != 0) {
-                printf("enque string fail\n");
-                return;
-            }
+            data = hilexi_enque(l, val, val_size);
         } else {
             printf("invalid value");
             return;
         }
     } break;
     case CC_DEQUE:
-        hilexi_deque(l);
+        data = hilexi_deque(l);
         break;
     case CC_PING:
-        hilexi_ping(l);
+        data = hilexi_ping(l);
         break;
     case CC_KEYS:
-        hilexi_keys(l);
+        data = hilexi_keys(l);
         break;
     case CC_VALUES:
-        hilexi_values(l);
+        data = hilexi_values(l);
         break;
     case CC_ENTRIES:
-        hilexi_entries(l);
+        data = hilexi_entries(l);
         break;
     case CC_HELP:
         printf(HELP_TEXT);
-        break;
+        return;
     case CC_CLUSTER_NEW: {
         uint8_t* name = cmd->expr.cluster_new.cluster_name.value;
         size_t name_len = cmd->expr.cluster_new.cluster_name.len;
-        hilexi_cluster_new(l, name, name_len);
+        data = hilexi_cluster_new(l, (const char*)name, name_len);
     } break;
     case CC_CLUSTER_DROP: {
         uint8_t* name = cmd->expr.cluster_drop.cluster_name.value;
         size_t name_len = cmd->expr.cluster_drop.cluster_name.len;
-        hilexi_cluster_drop(l, name, name_len);
+        data = hilexi_cluster_drop(l, (const char*)name, name_len);
     } break;
     case CC_CLUSTER_SET: {
         uint8_t* name = cmd->expr.cluster_set.cluster_name.value;
@@ -154,19 +139,13 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         ValueT vt = cmd->expr.cluster_set.set.value.type;
         if (vt == VTINT) {
             int64_t val = ((int64_t)(cmd->expr.cluster_set.set.value.ptr));
-            if (hilexi_cluster_set_int(l, name, name_len, key, key_len, val) !=
-                0) {
-                printf("set int fail\n");
-                return;
-            }
+            data = hilexi_cluster_set_int(l, (const char*)name, name_len,
+                                          (const char*)key, key_len, val);
         } else if (vt == VTSTRING) {
             char* val = cmd->expr.cluster_set.set.value.ptr;
             size_t val_size = cmd->expr.cluster_set.set.value.size;
-            if (hilexi_cluster_set(l, name, name_len, key, key_len, val,
-                                   val_size) != 0) {
-                printf("set string fail\n");
-                return;
-            }
+            data = hilexi_cluster_set(l, (const char*)name, name_len,
+                                      (const char*)key, key_len, val, val_size);
         } else {
             printf("invalid value\n");
             return;
@@ -177,14 +156,16 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         size_t name_len = cmd->expr.cluster_get.cluster_name.len;
         uint8_t* key = cmd->expr.cluster_get.get.key.value;
         size_t key_len = cmd->expr.cluster_get.get.key.len;
-        hilexi_cluster_get(l, name, name_len, key, key_len);
+        data = hilexi_cluster_get(l, (const char*)name, name_len,
+                                  (const char*)key, key_len);
     } break;
     case CC_CLUSTER_DEL: {
         uint8_t* name = cmd->expr.cluster_del.cluster_name.value;
         size_t name_len = cmd->expr.cluster_del.cluster_name.len;
         uint8_t* key = cmd->expr.cluster_del.del.key.value;
         size_t key_len = cmd->expr.cluster_del.del.key.len;
-        hilexi_cluster_del(l, name, name_len, key, key_len);
+        data = hilexi_cluster_del(l, (const char*)name, name_len,
+                                  (const char*)key, key_len);
     } break;
     case CC_CLUSTER_PUSH: {
         uint8_t* name = cmd->expr.cluster_push.cluster_name.value;
@@ -192,17 +173,12 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
         ValueT vt = cmd->expr.cluster_push.push.value.type;
         if (vt == VTINT) {
             int64_t val = ((int64_t)(cmd->expr.cluster_push.push.value.ptr));
-            if (hilexi_cluster_push_int(l, name, name_len, val) != 0) {
-                printf("set int fail\n");
-                return;
-            }
+            data = hilexi_cluster_push_int(l, (const char*)name, name_len, val);
         } else if (vt == VTSTRING) {
             char* val = cmd->expr.cluster_push.push.value.ptr;
             size_t val_size = cmd->expr.cluster_push.push.value.size;
-            if (hilexi_cluster_push(l, name, name_len, val, val_size) != 0) {
-                printf("set string fail\n");
-                return;
-            }
+            data = hilexi_cluster_push(l, (const char*)name, name_len, val,
+                                       val_size);
         } else {
             printf("invalid value\n");
             return;
@@ -211,28 +187,75 @@ void evaluate_cmd(HiLexi* l, CliCmd* cmd) {
     case CC_CLUSTER_POP: {
         uint8_t* name = cmd->expr.cluster_pop.cluster_name.value;
         size_t name_len = cmd->expr.cluster_pop.cluster_name.len;
-        hilexi_cluster_pop(l, name, name_len);
+        data = hilexi_cluster_pop(l, (const char*)name, name_len);
     } break;
     case CC_CLUSTER_KEYS: {
         uint8_t* name = cmd->expr.cluster_keys.cluster_name.value;
         size_t name_len = cmd->expr.cluster_keys.cluster_name.len;
-        hilexi_cluster_keys(l, name, name_len);
+        data = hilexi_cluster_keys(l, (const char*)name, name_len);
     } break;
     case CC_CLUSTER_VALUES: {
         uint8_t* name = cmd->expr.cluster_values.cluster_name.value;
         size_t name_len = cmd->expr.cluster_values.cluster_name.len;
-        hilexi_cluster_values(l, name, name_len);
+        data = hilexi_cluster_values(l, (const char*)name, name_len);
     } break;
     case CC_CLUSTER_ENTRIES: {
         uint8_t* name = cmd->expr.cluster_entries.cluster_name.value;
         size_t name_len = cmd->expr.cluster_entries.cluster_name.len;
-        hilexi_cluster_values(l, name, name_len);
+        data = hilexi_cluster_entries(l, (const char*)name, name_len);
     } break;
     case CC_STATS_CYCLES:
-        hilexi_stats_cycles(l);
         break;
     default:
         printf("invalid command\n");
+        return;
+    }
+
+    data_print(&data);
+    hilexi_data_free(&data);
+}
+
+static void data_print(HiLexiData* data) {
+    switch (data->type) {
+    case HL_ERR:
+        printf("error\n");
+        break;
+    case HL_ARR:{
+        VecIter iter = vec_iter_new(data->val.arr, 0);
+        size_t i, len = data->val.arr->len;
+        for (i = 0; i < len; ++i) {
+            HiLexiData* cur = iter.cur;
+            data_print(cur);
+            vec_iter_next(&iter);
+        }
+    } break;
+    case HL_BULK_STRING:
+        printf("\"%s\"\n", data->val.string);
+        break;
+    case HL_SIMPLE_STRING:
+        switch (data->val.simple) {
+        case HL_INVSS:
+            printf("invalid simple\n");
+            break;
+        case HL_PONG:
+            printf("PONG\n");
+            break;
+        case HL_NONE:
+            printf("NONE\n");
+            break;
+        case HL_OK:
+            printf("OK\n");
+            break;
+        }
+        break;
+    case HL_INT:
+        printf("(int) %ld\n", data->val.integer);
+        break;
+    case HL_ERR_STR:
+        printf("%s\n", data->val.string);
+        break;
+    default:
+        printf("invalid data\n");
         break;
     }
 }
@@ -244,7 +267,7 @@ void clear() {
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-    int r system("cls");
+    int r = system("cls");
     ((void)r);
 #endif
 }

@@ -49,6 +49,13 @@ add_library(
     src/siphash.c
 )
 
+add_library(
+    hilexi
+    src/hilexi.c
+    src/hilexi_parser.c
+    src/builder.c
+)
+
 add_executable(
     lexidb
     src/cluster.c
@@ -59,19 +66,26 @@ add_executable(
     src/stats.c
 )
 
-add_executable(lexi-cli
+add_executable(
+    lexi-cli
     src/cli.c
     src/cli-util.c
     src/cli-cmd.c
-    src/hilexi.c
 )
 
-target_link_libraries(config
+target_link_libraries(
+    hilexi
+    sock
+)
+
+target_link_libraries(
+    config
     objects
     ht
 )
 
-target_link_libraries(lexidb
+target_link_libraries(
+    lexidb
     ht
     de
     objects
@@ -82,12 +96,15 @@ target_link_libraries(lexidb
     queue
     config
 )
-target_link_libraries(lexi-cli
+
+target_link_libraries(
+    lexi-cli
     objects
     builder
     sock
     cmd
     vec
     config
+    hilexi
 )
 
