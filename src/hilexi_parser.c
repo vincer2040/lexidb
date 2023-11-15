@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include <memory.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static void hl_lexer_read_char(HLLexer* l);
 static void hl_lexer_read(HLLexer* l);
@@ -32,7 +34,7 @@ static HLToken hl_lexer_next_token(HLLexer* l) {
     switch (l->ch) {
     case '+':
         tok.type = HLT_SIMPLE;
-        tok.literal = l->input + l->pos;
+        tok.literal = l->input + l->pos - 1;
         hl_lexer_read(l);
         return tok;
     case '$':
@@ -43,12 +45,12 @@ static HLToken hl_lexer_next_token(HLLexer* l) {
         break;
     case ':':
         tok.type = HLT_INT;
-        tok.literal = l->input + l->pos;
+        tok.literal = l->input + l->pos - 1;
         hl_lexer_read(l);
         return tok;
     case '-':
         tok.type = HLT_ERR;
-        tok.literal = l->input + l->pos;
+        tok.literal = l->input + l->pos - 1;
         hl_lexer_read(l);
         return tok;
     case '\r':
@@ -57,15 +59,18 @@ static HLToken hl_lexer_next_token(HLLexer* l) {
     case '\n':
         tok.type = HLT_NEWL;
         break;
+    case 0:
+        tok.type = HLT_EOF;
+        break;
     default:
         if (isdigit(l->ch)) {
             tok.type = HLT_LEN;
-            tok.literal = l->input + l->pos;
+            tok.literal = l->input + l->pos - 1;
             hl_lexer_read(l);
             return tok;
         }
         tok.type = HLT_BULK;
-        tok.literal = l->input + l->pos;
+        tok.literal = l->input + l->pos - 1;
         hl_lexer_read(l);
         return tok;
     }
@@ -294,7 +299,7 @@ static HiLexiData hl_parser_parse_int(HLParser* p) {
 }
 
 HiLexiData hl_parser_parse_error(HLParser* p) {
-    HiLexiData data = { 0 };
+    HiLexiData data = {0};
     uint8_t* buf = p->cur.literal + 1;
     vstr val = vstr_new();
     while (*buf != '\r') {
