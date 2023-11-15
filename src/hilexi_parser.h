@@ -12,6 +12,7 @@ typedef enum {
     HLT_RETCAR,
     HLT_BULK_TYPE,
     HLT_ARR_TYPE,
+    HLT_ERR,
     HLT_BULK,
     HLT_INT,
     HLT_LEN,

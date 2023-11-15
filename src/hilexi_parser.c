@@ -17,6 +17,7 @@ static HiLexiData hl_parse_simple(HLParser* p);
 static HiLexiData hl_parser_parse_bulk(HLParser* p);
 static HiLexiData hl_parser_parse_arr(HLParser* p);
 static HiLexiData hl_parser_parse_int(HLParser* p);
+HiLexiData hl_parser_parse_error(HLParser* p);
 
 HLLexer hl_lexer_new(uint8_t* input, size_t input_len) {
     HLLexer l = {0};
@@ -42,6 +43,11 @@ static HLToken hl_lexer_next_token(HLLexer* l) {
         break;
     case ':':
         tok.type = HLT_INT;
+        tok.literal = l->input + l->pos;
+        hl_lexer_read(l);
+        return tok;
+    case '-':
+        tok.type = HLT_ERR;
         tok.literal = l->input + l->pos;
         hl_lexer_read(l);
         return tok;
@@ -105,9 +111,12 @@ HiLexiData hl_parse(HLParser* p) {
     case HLT_INT:
         data = hl_parser_parse_int(p);
         break;
+    case HLT_ERR:
+        data = hl_parser_parse_error(p);
+        break;
     default:
         data.type = HL_ERR;
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         break;
     }
     return data;
@@ -123,18 +132,18 @@ static HiLexiData hl_parse_simple(HLParser* p) {
         data.val.simple = HL_OK;
     } else {
         data.type = HL_ERR;
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_RETCAR)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_NEWL)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
@@ -152,26 +161,26 @@ static HiLexiData hl_parser_parse_bulk(HLParser* p) {
 
     if (!hl_parser_expect_peek(p, HLT_LEN)) {
         data.type = HL_ERR;
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         return data;
     }
 
     len = hl_parser_parse_len(p);
 
     if (!hl_parser_expect_peek(p, HLT_RETCAR)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_NEWL)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_BULK)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
@@ -185,14 +194,14 @@ static HiLexiData hl_parser_parse_bulk(HLParser* p) {
     }
 
     if (!hl_parser_expect_peek(p, HLT_RETCAR)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         vstr_delete(val);
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_NEWL)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         vstr_delete(val);
         return data;
@@ -213,20 +222,20 @@ static HiLexiData hl_parser_parse_arr(HLParser* p) {
 
     if (!hl_parser_expect_peek(p, HLT_LEN)) {
         data.type = HL_ERR;
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         return data;
     }
 
     len = hl_parser_parse_len(p);
 
     if (!hl_parser_expect_peek(p, HLT_RETCAR)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_NEWL)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
@@ -266,13 +275,13 @@ static HiLexiData hl_parser_parse_int(HLParser* p) {
     }
 
     if (!hl_parser_expect_peek(p, HLT_RETCAR)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
 
     if (!hl_parser_expect_peek(p, HLT_NEWL)) {
-        data.val.err = HL_INV_DATA;
+        data.val.hl_err = HL_INV_DATA;
         data.type = HL_ERR;
         return data;
     }
@@ -281,6 +290,34 @@ static HiLexiData hl_parser_parse_int(HLParser* p) {
 
     data.type = HL_INT;
     data.val.integer = res;
+    return data;
+}
+
+HiLexiData hl_parser_parse_error(HLParser* p) {
+    HiLexiData data = { 0 };
+    uint8_t* buf = p->cur.literal + 1;
+    vstr val = vstr_new();
+    while (*buf != '\r') {
+        val = vstr_push_char(val, *buf);
+        buf++;
+    }
+
+    if (!hl_parser_expect_peek(p, HLT_RETCAR)) {
+        data.val.hl_err = HL_INV_DATA;
+        data.type = HL_ERR;
+        return data;
+    }
+
+    if (!hl_parser_expect_peek(p, HLT_NEWL)) {
+        data.val.hl_err = HL_INV_DATA;
+        data.type = HL_ERR;
+        return data;
+    }
+
+    hl_parser_next_token(p);
+
+    data.type = HL_ERR_STR;
+    data.val.string = val;
     return data;
 }
 

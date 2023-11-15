@@ -62,7 +62,7 @@ HiLexiData hilexi_ping(HiLexi* l) {
     b_res = builder_add_ping(b);
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
     l->write_buf = builder_out(b);
@@ -70,7 +70,7 @@ HiLexiData hilexi_ping(HiLexi* l) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -93,7 +93,7 @@ HiLexiData hilexi_set(HiLexi* l, const char* key, size_t key_len,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -102,7 +102,7 @@ HiLexiData hilexi_set(HiLexi* l, const char* key, size_t key_len,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -125,7 +125,7 @@ HiLexiData hilexi_set_int(HiLexi* l, const char* key, size_t key_len,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -134,7 +134,7 @@ HiLexiData hilexi_set_int(HiLexi* l, const char* key, size_t key_len,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -155,7 +155,7 @@ HiLexiData hilexi_get(HiLexi* l, const char* key, size_t key_len) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -164,7 +164,7 @@ HiLexiData hilexi_get(HiLexi* l, const char* key, size_t key_len) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -185,7 +185,7 @@ HiLexiData hilexi_del(HiLexi* l, const char* key, size_t key_len) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -194,7 +194,7 @@ HiLexiData hilexi_del(HiLexi* l, const char* key, size_t key_len) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -213,7 +213,7 @@ HiLexiData hilexi_keys(HiLexi* l) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -222,7 +222,7 @@ HiLexiData hilexi_keys(HiLexi* l) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -241,7 +241,7 @@ HiLexiData hilexi_values(HiLexi* l) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -250,7 +250,7 @@ HiLexiData hilexi_values(HiLexi* l) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -269,7 +269,7 @@ HiLexiData hilexi_entries(HiLexi* l) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -278,7 +278,7 @@ HiLexiData hilexi_entries(HiLexi* l) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -299,7 +299,7 @@ HiLexiData hilexi_push(HiLexi* l, const char* val, size_t val_len) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -308,7 +308,7 @@ HiLexiData hilexi_push(HiLexi* l, const char* val, size_t val_len) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -329,7 +329,7 @@ HiLexiData hilexi_push_int(HiLexi* l, int64_t val) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -338,7 +338,7 @@ HiLexiData hilexi_push_int(HiLexi* l, int64_t val) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -357,7 +357,7 @@ HiLexiData hilexi_pop(HiLexi* l) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -366,7 +366,7 @@ HiLexiData hilexi_pop(HiLexi* l) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -387,7 +387,7 @@ HiLexiData hilexi_enque(HiLexi* l, const char* val, size_t val_len) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -396,7 +396,7 @@ HiLexiData hilexi_enque(HiLexi* l, const char* val, size_t val_len) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -417,7 +417,7 @@ HiLexiData hilexi_enque_int(HiLexi* l, int64_t val) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -426,7 +426,7 @@ HiLexiData hilexi_enque_int(HiLexi* l, int64_t val) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -445,7 +445,7 @@ HiLexiData hilexi_deque(HiLexi* l) {
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -454,7 +454,7 @@ HiLexiData hilexi_deque(HiLexi* l) {
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -476,7 +476,7 @@ HiLexiData hilexi_cluster_new(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -485,7 +485,7 @@ HiLexiData hilexi_cluster_new(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -507,7 +507,7 @@ HiLexiData hilexi_cluster_drop(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -516,7 +516,7 @@ HiLexiData hilexi_cluster_drop(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -541,7 +541,7 @@ HiLexiData hilexi_cluster_set(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -550,7 +550,7 @@ HiLexiData hilexi_cluster_set(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -575,7 +575,7 @@ HiLexiData hilexi_cluster_set_int(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -584,7 +584,7 @@ HiLexiData hilexi_cluster_set_int(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -608,7 +608,7 @@ HiLexiData hilexi_cluster_get(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -617,7 +617,7 @@ HiLexiData hilexi_cluster_get(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -641,7 +641,7 @@ HiLexiData hilexi_cluster_del(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -650,7 +650,7 @@ HiLexiData hilexi_cluster_del(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -674,7 +674,7 @@ HiLexiData hilexi_cluster_push(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -683,7 +683,7 @@ HiLexiData hilexi_cluster_push(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -706,7 +706,7 @@ HiLexiData hilexi_cluster_push_int(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -715,7 +715,7 @@ HiLexiData hilexi_cluster_push_int(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -737,7 +737,7 @@ HiLexiData hilexi_cluster_pop(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -746,7 +746,7 @@ HiLexiData hilexi_cluster_pop(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -768,7 +768,7 @@ HiLexiData hilexi_cluster_keys(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -777,7 +777,7 @@ HiLexiData hilexi_cluster_keys(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -799,7 +799,7 @@ HiLexiData hilexi_cluster_values(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -808,7 +808,7 @@ HiLexiData hilexi_cluster_values(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -830,7 +830,7 @@ HiLexiData hilexi_cluster_entries(HiLexi* l, const char* cluster_name,
 
     if (b_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_NO_MEM;
+        res.val.hl_err = HL_NO_MEM;
         return res;
     }
 
@@ -839,7 +839,7 @@ HiLexiData hilexi_cluster_entries(HiLexi* l, const char* cluster_name,
     read_write_res = hilexi_read_and_write(l);
     if (read_write_res == -1) {
         res.type = HL_ERR;
-        res.val.err = HL_IO;
+        res.val.hl_err = HL_IO;
         return res;
     }
     res = hilexi_lex_and_parse(l);
@@ -899,6 +899,9 @@ void hilexi_data_free(HiLexiData* data) {
         vec_free(data->val.arr, hilexi_data_vec_free_cb);
         break;
     case HL_BULK_STRING:
+        vstr_delete(data->val.string);
+        break;
+    case HL_ERR_STR:
         vstr_delete(data->val.string);
         break;
     default:

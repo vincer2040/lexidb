@@ -36,6 +36,7 @@ typedef enum {
     HL_SIMPLE_STRING,
     HL_INT,
     HL_INV,
+    HL_ERR_STR,
 } HiLexiDataType;
 
 typedef enum {
@@ -46,7 +47,7 @@ typedef enum {
 } HiLexiSimpleString;
 
 typedef union {
-    HiLexiErr err;
+    HiLexiErr hl_err;
     Vec* arr;
     vstr string;
     int64_t integer;
