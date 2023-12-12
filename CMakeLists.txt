@@ -26,6 +26,16 @@ add_library(
     src/siphash.c
 )
 
+add_library(
+    token
+    src/token.c
+)
+
+add_library(
+    lexer
+    src/lexer.c
+)
+
 add_executable(
     lexidb
     src/db.c
@@ -34,4 +44,9 @@ add_executable(
 target_link_libraries(
     ht
     util
+)
+
+target_link_libraries(
+    lexer
+    token
 )
