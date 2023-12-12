@@ -27,13 +27,8 @@ add_library(
 )
 
 add_library(
-    token
-    src/token.c
-)
-
-add_library(
-    lexer
-    src/lexer.c
+    vstr
+    src/vstr.c
 )
 
 add_executable(
@@ -44,9 +39,4 @@ add_executable(
 target_link_libraries(
     ht
     util
-)
-
-target_link_libraries(
-    lexer
-    token
 )
