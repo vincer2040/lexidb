@@ -31,6 +31,16 @@ add_library(
     src/vstr.c
 )
 
+add_library(
+    object
+    src/object.c
+)
+
+add_library(
+    parser
+    src/parser.c
+)
+
 add_executable(
     lexidb
     src/db.c
@@ -40,3 +50,14 @@ target_link_libraries(
     ht
     util
 )
+
+target_link_libraries(
+    object
+    vstr
+)
+
+target_link_libraries(
+    parser
+    object
+)
+

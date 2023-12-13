@@ -20,3 +20,13 @@ target_include_directories(ht_test PUBLIC "${PROJECT_BINARY_DIR}")
 
 add_test(NAME ht_test COMMAND ht_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing)
 set_tests_properties(ht_test PROPERTIES TIMEOUT 30)
+
+# parser test
+add_executable(parser_test parser_test.c)
+
+target_link_libraries(parser_test PUBLIC check parser pthread)
+
+target_include_directories(parser_test PUBLIC "${PROJECT_BINARY_DIR}")
+
+add_test(NAME parser_test COMMAND parser_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing)
+set_tests_properties(parser_test PROPERTIES TIMEOUT 30)
