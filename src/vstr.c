@@ -172,6 +172,35 @@ int vstr_push_string(vstr* s, const char* str) {
     return vstr_lg_push_string(&(s->str_data.lg), str, str_len);
 }
 
+int vstr_push_string_len(vstr* s, const char* str, size_t str_len) {
+    int push_res;
+    size_t old_len;
+    if (s->is_large) {
+        return vstr_lg_push_string(&(s->str_data.lg), str, str_len);
+    }
+    push_res =
+        vstr_sm_push_string(&(s->str_data.sm), str, str_len, s->small_avail);
+    if (push_res == 0) {
+        s->small_avail -= str_len;
+        return 0;
+    }
+    old_len = vstr_len(s);
+    s->str_data.lg = vstr_make_lg_len(s->str_data.sm.data, old_len);
+    s->is_large = 1;
+    return vstr_lg_push_string(&(s->str_data.lg), str, str_len);
+}
+
+void vstr_reset(vstr* s) {
+    if (s->is_large) {
+        free(s->str_data.lg.data);
+        s->is_large = 0;
+    } else {
+        memset(s->str_data.sm.data, 0, VSTR_MAX_SMALL_SIZE);
+    }
+    s->small_avail = VSTR_MAX_SMALL_SIZE;
+    return;
+}
+
 void vstr_free(vstr* s) {
     if (s->is_large) {
         free(s->str_data.lg.data);
