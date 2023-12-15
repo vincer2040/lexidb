@@ -1,4 +1,5 @@
 #include "object.h"
+#include <stdio.h>
 
 object object_new(objectt type, void* data) {
     object obj = {0};
@@ -40,6 +41,20 @@ int object_cmp(object* a, object* b) {
     }
     }
     return 0;
+}
+
+void object_show(object* obj) {
+    switch (obj->type) {
+    case Null:
+        printf("null\n");
+        break;
+    case Int:
+        printf("%ld\n", obj->data.num);
+        break;
+    case String:
+        printf("%s\n", vstr_data(&(obj->data.string)));
+        break;
+    }
 }
 
 void object_free(object* obj) {

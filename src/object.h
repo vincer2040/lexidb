@@ -21,6 +21,7 @@ typedef struct {
 
 object object_new(objectt type, void* data);
 int object_cmp(object* a, object* b);
+void object_show(object* obj);
 void object_free(object* obj);
 
 #endif /* __OBJECT_H__ */
