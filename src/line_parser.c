@@ -129,7 +129,7 @@ static object parse_object(line_parser* p) {
 
 static vstr parse_string(line_parser* p) {
     vstr s = vstr_new();
-    while (is_letter(p->ch) && p->ch != 0) {
+    while (p->ch != ' ' && p->ch != 0) {
         vstr_push_char(&s, p->ch);
         line_parser_read_char(p);
     }
