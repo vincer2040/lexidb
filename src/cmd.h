@@ -35,8 +35,4 @@ typedef struct {
     } data;
 } cmd;
 
-cmd* cmd_new(void);
-int cmd_append_arg(cmd** cmd, object* arg);
-void cmd_free(cmd* cmd);
-
 #endif /* __CMD_H__ */
