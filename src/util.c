@@ -1,9 +1,11 @@
+#define _XOPEN_SOURCE 600
 #include "sha256.h"
 #include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 void get_random_bytes(uint8_t* p, size_t len) {
@@ -61,4 +63,10 @@ void get_random_bytes(uint8_t* p, size_t len) {
         len -= copylen;
         p += copylen;
     }
+}
+
+struct timespec get_time(void) {
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+    return time;
 }
