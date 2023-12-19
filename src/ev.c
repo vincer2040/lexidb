@@ -133,7 +133,7 @@ void ev_delete_event(ev* ev, int fd, int mask) {
     ev_api_del_event(ev, fd, mask);
 }
 
-int ev_process_events(ev* ev) {
+static int ev_process_events(ev* ev) {
     int num_events, processed = 0;
     struct timeval tv = {0};
     int i;
