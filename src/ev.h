@@ -34,6 +34,12 @@ typedef struct ev {
 } ev;
 
 ev* ev_new(int num_fds);
+int ev_get_num_fds(ev* ev);
+int ev_resize_num_fds(ev* ev, int num_fds);
+int ev_add_event(ev* ev, int fd, int mask, ev_file_fn* fn, void* client_data);
+void ev_delete_event(ev* ev, int fd, int mask);
+void ev_await(ev* ev);
 void ev_free(ev* ev);
+const char* ev_api_name(void);
 
 #endif /* __EV_H__ */
