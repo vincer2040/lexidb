@@ -32,6 +32,11 @@ add_library(
 )
 
 add_library(
+    vec
+    src/vec.c
+)
+
+add_library(
     object
     src/object.c
 )
@@ -41,9 +46,27 @@ add_library(
     src/parser.c
 )
 
+add_library(
+    networking
+    src/networking.c
+)
+
+add_library(
+    ev
+    src/ev.c
+)
+
 add_executable(
     lexidb
+    src/server.c
     src/db.c
+)
+
+add_executable(
+    lexi-cli
+    src/lexi-cli.c
+    src/read_line.c
+    src/line_parser.c
 )
 
 target_link_libraries(
@@ -58,6 +81,21 @@ target_link_libraries(
 
 target_link_libraries(
     parser
+    object
+)
+
+target_link_libraries(
+    lexidb
+    networking
+    ht
+    vstr
+    object
+    ev
+)
+
+target_link_libraries(
+    lexi-cli
+    vstr
     object
 )
 
