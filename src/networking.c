@@ -1,3 +1,4 @@
+#include "networking.h"
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -6,8 +7,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-
-static uint32_t parse_addr(const char* addr_str);
 
 int create_tcp_socket(int non_blocking) {
     if (non_blocking) {
@@ -35,6 +34,16 @@ int tcp_accept(int socket, struct sockaddr_in* addr_in, socklen_t* addr_len) {
     return accept(socket, (struct sockaddr*)addr_in, addr_len);
 }
 
+int tcp_connect(int socket, uint32_t addr, uint16_t port) {
+    struct sockaddr_in sa = { 0 };
+    socklen_t len = sizeof sa;
+    int res;
+    sa.sin_addr.s_addr = htonl(addr);
+    sa.sin_port = htons(port);
+    res = connect(socket, (struct sockaddr*)(&sa), len);
+    return res;
+}
+
 int set_reuse_addr(int sfd) {
     int yes = 1;
     return setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
@@ -49,7 +58,7 @@ int make_socket_nonblocking(int sfd) {
     return fcntl(sfd, F_SETFL, flags);
 }
 
-static uint32_t parse_addr(const char* addr_str) {
+uint32_t parse_addr(const char* addr_str) {
     uint32_t addr = 0;
     uint8_t shift = 24;
     size_t len = strlen(addr_str);
