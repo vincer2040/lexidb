@@ -105,7 +105,7 @@ int server_run(const char* addr, uint16_t port) {
 static result(server) server_new(const char* addr, uint16_t port) {
     result(server) result = {0};
     server s = {0};
-    int sfd = create_tcp_socket(0);
+    int sfd = create_tcp_socket(1);
     ev* ev;
     ht ht;
 
