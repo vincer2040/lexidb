@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.10)
 
 project(lexidb VERSION 0.1)
 
+include(CheckIncludeFile)
+
+check_include_file("sys/epoll.h" HAVE_EPOLL)
+
+configure_file(config.h.in config.h)
+
 enable_testing()
 
 add_subdirectory(tests)
@@ -56,6 +62,11 @@ add_library(
     src/ev.c
 )
 
+add_library(
+    builder
+    src/builder.c
+)
+
 add_executable(
     lexidb
     src/server.c
@@ -91,6 +102,8 @@ target_link_libraries(
     vstr
     object
     ev
+    vec
+    builder
 )
 
 target_link_libraries(
