@@ -13,9 +13,11 @@ const uint8_t* builder_out(builder* b) { return (const uint8_t*)vstr_data(b); }
 
 size_t builder_len(builder* b) { return vstr_len(b); }
 
-int builder_add_ok(builder* b) { return vstr_push_string(b, "+OK\r\n"); }
+int builder_add_ok(builder* b) { return vstr_push_string_len(b, "+OK\r\n", 5); }
 
-int builder_add_pong(builder* b) { return vstr_push_string(b, "+PONG\r\n"); }
+int builder_add_pong(builder* b) { return vstr_push_string_len(b, "+PONG\r\n", 7); }
+
+int builder_add_none(builder* b) { return vstr_push_string_len(b, "+NONE\r\n", 7); }
 
 int builder_add_array(builder* b, size_t arr_len) {
     int res;
