@@ -28,7 +28,7 @@ ht ht_new(size_t data_size, cmp_fn* key_cmp) {
 }
 
 int ht_insert(ht* ht, void* key, size_t key_size, void* data,
-              free_fn* free_data) {
+              free_fn* free_key, free_fn* free_data) {
     uint64_t slot;
     ht_entry* cur;
     ht_entry* head;
@@ -72,6 +72,9 @@ int ht_insert(ht* ht, void* key, size_t key_size, void* data,
             if (free_data) {
                 size_t offset = key_size + ht_padding(key_size);
                 free_data(cur->data + offset);
+            }
+            if (free_key) {
+                free_key(key);
             }
             memcpy(cur->data, data, ht->data_size);
             return 0;

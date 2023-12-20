@@ -10,12 +10,12 @@ START_TEST(test_it_works) {
     int a0 = 0, a1 = 1, a2 = 2, a3 = 3, a4 = 4, a5 = 5;
 
     int* get;
-    ck_assert_int_eq(ht_insert(&ht, "a0", 2, &a0, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a1", 2, &a1, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a2", 2, &a2, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a3", 2, &a3, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a4", 2, &a4, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a5", 2, &a5, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a0", 2, &a0, NULL, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a1", 2, &a1, NULL, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a2", 2, &a2, NULL, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a3", 2, &a3, NULL, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a4", 2, &a4, NULL, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a5", 2, &a5, NULL, NULL), 0);
 
     ck_assert_uint_eq(ht.num_entries, 6);
 
