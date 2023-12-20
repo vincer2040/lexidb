@@ -1,10 +1,12 @@
 #include "server.h"
 #include "builder.h"
+#include "cmd.h"
 #include "ev.h"
 #include "ht.h"
 #include "log.h"
 #include "networking.h"
 #include "object.h"
+#include "parser.h"
 #include "result.h"
 #include "util.h"
 #include "vstr.h"
@@ -19,6 +21,8 @@
 
 typedef struct {
     int sfd;
+    uint16_t port;
+    vstr addr;
     ht ht;
     ev* ev;
     vec* clients;
@@ -52,6 +56,11 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask);
 
 static result(client_ptr)
     create_client(int fd, uint32_t addr, uint16_t port, uint16_t flags);
+
+static void execute_cmd(server* s, client* c);
+static int execute_set_command(server* s, set_cmd* set);
+static object* execute_get_command(server* s, get_cmd* get);
+static int execute_del_command(server* s, del_cmd* del);
 
 static int realloc_client_read_buf(client* c);
 
@@ -272,9 +281,8 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
         c->read_pos += read_amt;
     }
 
-    printf("received: %s\n", c->read_buf);
+    execute_cmd(s, c);
 
-    builder_add_ok(&(c->builder));
     c->write_buf = (uint8_t*)builder_out(&(c->builder));
     c->write_size = builder_len(&(c->builder));
 
@@ -352,6 +360,65 @@ static result(client_ptr)
     c->builder = builder_new();
     res.type = Ok;
     res.data.ok = c;
+    return res;
+}
+
+static void execute_cmd(server* s, client* c) {
+    cmd cmd = parse(c->read_buf, c->read_pos);
+    switch (cmd.type) {
+    case Ping:
+        builder_add_ok(&(c->builder));
+        break;
+    case Set: {
+        int set_res = execute_set_command(s, &(cmd.data.set));
+        if (set_res == -1) {
+            builder_add_err(&(c->builder), "failed to set", 13);
+            break;
+        }
+        builder_add_ok(&(c->builder));
+    } break;
+    case Get: {
+        object* obj = execute_get_command(s, &(cmd.data.get));
+        if (obj == NULL) {
+            builder_add_none(&(c->builder));
+            break;
+        }
+        builder_add_object(&(c->builder), obj);
+    } break;
+    case Del: {
+        int del_res = execute_del_command(s, &(cmd.data.del));
+        if (del_res == -1) {
+            builder_add_err(&(c->builder), "invalid key", 11);
+            break;
+        }
+        builder_add_ok(&(c->builder));
+    } break;
+    case Illegal:
+        builder_add_err(&(c->builder), "Invalid command", 15);
+        break;
+    }
+}
+
+static int execute_set_command(server* s, set_cmd* set) {
+    object key = set->key;
+    object value = set->value;
+    int res = ht_insert(&(s->ht), &key, sizeof(object), &value, ht_free_object,
+                        ht_free_object);
+    return res;
+}
+
+static object* execute_get_command(server* s, get_cmd* get) {
+    object key = get->key;
+    object* res = ht_get(&(s->ht), &key, sizeof(object));
+    object_free(&key);
+    return res;
+}
+
+static int execute_del_command(server* s, del_cmd* del) {
+    object key = del->key;
+    int res = ht_delete(&(s->ht), &key, sizeof(object), ht_free_object,
+                        ht_free_object);
+    object_free(&key);
     return res;
 }
 
