@@ -91,8 +91,6 @@ int ev_add_event(ev* ev, int fd, int mask, ev_file_fn* fn, void* client_data) {
 
     e->mask |= mask;
 
-    printf("mask: %d\n", mask);
-
     if (mask & EV_READ) {
         e->read_fn = fn;
     }
