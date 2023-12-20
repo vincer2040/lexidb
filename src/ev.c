@@ -123,6 +123,7 @@ void ev_delete_event(ev* ev, int fd, int mask) {
         mask |= EV_BOTH;
     }
 
+    ev_api_del_event(ev, fd, mask);
     e->mask = e->mask & (~mask);
 
     if (fd == ev->max_fd && e->mask == EV_NONE) {
