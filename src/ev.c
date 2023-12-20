@@ -183,7 +183,10 @@ static int ev_process_events(ev* ev) {
 
 void ev_await(ev* ev) {
     for (;;) {
-        ev_process_events(ev);
+        int num_processed = ev_process_events(ev);
+        if (num_processed == 0) {
+            break;
+        }
     }
 }
 

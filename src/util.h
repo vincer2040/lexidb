@@ -2,6 +2,7 @@
 
 #define __UTIL_H__
 
+#include <signal.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -28,5 +29,7 @@ typedef enum {
     } result_##val_type
 
 #define result(val_type) result_##val_type
+
+int create_sigint_handler(void);
 
 #endif /* __UTIL_H__ */

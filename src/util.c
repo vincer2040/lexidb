@@ -1,12 +1,15 @@
 #define _XOPEN_SOURCE 600
 #include "sha256.h"
 #include <memory.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+volatile sig_atomic_t sig_int_received = 0;
 
 void get_random_bytes(uint8_t* p, size_t len) {
     /* global */
@@ -69,4 +72,18 @@ struct timespec get_time(void) {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
     return time;
+}
+
+void handler(int mode) {
+    ((void)mode);
+    sig_int_received = 1;
+}
+
+int create_sigint_handler(void) {
+    struct sigaction sa = {0};
+    sa.sa_handler = &handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        return -1;
+    }
+    return 0;
 }

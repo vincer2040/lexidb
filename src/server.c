@@ -2,6 +2,7 @@
 #include "builder.h"
 #include "ev.h"
 #include "ht.h"
+#include "log.h"
 #include "networking.h"
 #include "object.h"
 #include "util.h"
@@ -59,19 +60,30 @@ static void ht_free_object(void* ptr);
 static void client_in_vec_free(void* ptr);
 
 int server_run(const char* addr, uint16_t port) {
-    result(server) rs = server_new(addr, port);
+    result(server) rs;
     server s;
+
+    if (create_sigint_handler() == -1) {
+        error("failed to create sigint handler (errno: %d) %s\n", errno,
+              strerror(errno));
+        return 1;
+    }
+
+    rs = server_new(addr, port);
+
     if (rs.type == Err) {
-        fprintf(stderr, "%s\n", vstr_data(&(rs.data.err)));
+        error("%s\n", vstr_data(&(rs.data.err)));
         vstr_free(&(rs.data.err));
         return 1;
     }
 
     s = rs.data.ok;
 
-    printf("listening on %s %u\n", addr, port);
+    info("listening on %s:%u\n", addr, port);
 
     ev_await(s.ev);
+
+    info("server shutting down\n");
 
     server_free(&s);
 
@@ -150,6 +162,7 @@ static result(server) server_new(const char* addr, uint16_t port) {
 static void server_free(server* s) {
     ev_free(s->ev);
     ht_free(&(s->ht), ht_free_object, ht_free_object);
+    vec_free(s->clients, client_in_vec_free);
     close(s->sfd);
 }
 
@@ -165,23 +178,22 @@ static void server_accept(ev* ev, int fd, void* client_data, int mask) {
     cfd = tcp_accept(fd, &addr, &len);
     if (cfd == -1) {
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            fprintf(stderr, "accept blocked\n");
+            warn("accept blocked\n");
             return;
         } else {
-            fprintf(stderr, "accept failed (errno: %d) %s\n", errno,
-                    strerror(errno));
+            error("accept failed (errno: %d) %s\n", errno, strerror(errno));
             return;
         }
     }
 
     if (make_socket_nonblocking(cfd) == -1) {
-        fprintf(stderr, "failed to make %d nonblocking\n", cfd);
+        error("failed to make %d nonblocking\n", cfd);
         return;
     }
 
     r_client = create_client(cfd, addr.sin_addr.s_addr, addr.sin_port, 0);
     if (r_client.type == Err) {
-        fprintf(stderr, "%s\n", vstr_data(&(r_client.data.err)));
+        error("%s\n", vstr_data(&(r_client.data.err)));
         vstr_free(&(r_client.data.err));
         return;
     }
@@ -190,19 +202,20 @@ static void server_accept(ev* ev, int fd, void* client_data, int mask) {
 
     add = vec_push(&(s->clients), &client);
     if (add == -1) {
-        fprintf(stderr,
-                "failed to add client to client vector (errno: %d) %s\n", errno,
-                strerror(errno));
+        error("failed to add client to client vector (errno: %d) %s\n", errno,
+              strerror(errno));
         return;
     }
 
     add = ev_add_event(s->ev, cfd, EV_READ, read_from_client, s);
     if (add == -1) {
-        fprintf(stderr, "failed to add read event for client (errno: %d) %s\n",
-                errno, strerror(errno));
+        error("failed to add read event for client (errno: %d) %s\n", errno,
+              strerror(errno));
         client_free(client);
         return;
     }
+
+    info("new connection: %d\n", fd);
 }
 
 static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
@@ -214,7 +227,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
 
     found = vec_find(s->clients, &fd, &c, client_compare);
     if (found == -1) {
-        fprintf(stderr, "failed to find client (fd %d) in client vec\n", fd);
+        error("failed to find client (fd %d) in client vec\n", fd);
         ev_delete_event(ev, fd, EV_READ);
         close(fd);
         return;
@@ -226,14 +239,14 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
             return;
         } else {
             // todo
-            fprintf(stderr, "failed to read from client (errno: %d) %s\n",
-                    errno, strerror(errno));
+            error("failed to read from client (errno: %d) %s\n", errno,
+                  strerror(errno));
             return;
         }
     }
 
     if (read_amt == 0) {
-        printf("closing %d\n", fd);
+        info("closing %d\n", fd);
         vec_remove_at(s->clients, found, NULL);
         ev_delete_event(ev, fd, mask);
         client_free(c);
