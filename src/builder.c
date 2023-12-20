@@ -45,6 +45,24 @@ int builder_add_array(builder* b, size_t arr_len) {
     return res;
 }
 
+int builder_add_err(builder* b, const char* str, size_t len) {
+    int res = 0;
+
+    res = vstr_push_char(b, '-');
+    if (res == -1) {
+        return -1;
+    }
+
+    res = vstr_push_string_len(b, str, len);
+    if (res == -1) {
+        return -1;
+    }
+
+    res = builder_add_end(b);
+
+    return res;
+}
+
 int builder_add_string(builder* b, const char* str, size_t str_len) {
     vstr len_vstr;
     const char* len_str;
