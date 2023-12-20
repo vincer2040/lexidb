@@ -20,9 +20,6 @@
  *      - remove at (vec_remove_at)
  *      - linear find (vec_find)
  *      - binary search (vec_binary_search)
- *      - bubble sort (vec_bubble_sort)
- *      - insertion sort (vec_insertion_sort)
- *      - quick sort (vec_quick_sort)
  */
 typedef struct {
     size_t len; /* the number of items in the vector. Also used as an insertion
