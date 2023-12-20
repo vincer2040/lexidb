@@ -53,6 +53,8 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask);
 static result(client_ptr)
     create_client(int fd, uint32_t addr, uint16_t port, uint16_t flags);
 
+static int realloc_client_read_buf(client* c);
+
 static int ht_compare_objects(void* a, void* b);
 static int client_compare(void* fdp, void* clientp);
 
@@ -234,27 +236,41 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
         return;
     }
 
-    read_amt = read(fd, c->read_buf + c->read_pos, c->read_cap - c->read_pos);
-    if (read_amt == -1) {
-        if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
-            // todo
-            return;
-        } else {
-            // todo
-            error("failed to read from client (errno: %d) %s\n", errno,
-                  strerror(errno));
+    for (;;) {
+        /* it should never be greater than, but just in case */
+        if (c->read_pos >= c->read_cap) {
+            if (realloc_client_read_buf(c) == -1) {
+                error("failed to realloce client buffer, closing connection\n");
+                vec_remove_at(s->clients, found, NULL);
+                ev_delete_event(ev, fd, mask);
+                client_free(c);
+                return;
+            }
+        }
+
+        read_amt =
+            read(fd, c->read_buf + c->read_pos, c->read_cap - c->read_pos);
+
+        if (read_amt == 0) {
+            info("closing %d\n", fd);
+            vec_remove_at(s->clients, found, NULL);
+            ev_delete_event(ev, fd, mask);
+            client_free(c);
             return;
         }
-    }
 
-    if (read_amt == 0) {
-        info("closing %d\n", fd);
-        vec_remove_at(s->clients, found, NULL);
-        ev_delete_event(ev, fd, mask);
-        client_free(c);
-        return;
+        if (read_amt == -1) {
+            if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
+                break;
+            } else {
+                // todo
+                error("failed to read from client (errno: %d) %s\n", errno,
+                      strerror(errno));
+                return;
+            }
+        }
+        c->read_pos += read_amt;
     }
-    c->read_pos += read_amt;
 
     printf("received: %s\n", c->read_buf);
 
@@ -337,6 +353,19 @@ static result(client_ptr)
     res.type = Ok;
     res.data.ok = c;
     return res;
+}
+
+static int realloc_client_read_buf(client* c) {
+    void* tmp;
+    size_t new_cap = c->read_cap << 1;
+    tmp = realloc(c->read_buf, new_cap);
+    if (tmp == NULL) {
+        return -1;
+    }
+    c->read_buf = tmp;
+    memset(c->read_buf + c->read_pos, 0, new_cap - c->read_pos);
+    c->read_cap = new_cap;
+    return 0;
 }
 
 static int ht_compare_objects(void* a, void* b) {
