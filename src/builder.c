@@ -1,4 +1,5 @@
 #include "builder.h"
+#include "object.h"
 #include "vstr.h"
 
 #define STRING_TYPE_BYTE '$'
@@ -15,9 +16,13 @@ size_t builder_len(builder* b) { return vstr_len(b); }
 
 int builder_add_ok(builder* b) { return vstr_push_string_len(b, "+OK\r\n", 5); }
 
-int builder_add_pong(builder* b) { return vstr_push_string_len(b, "+PONG\r\n", 7); }
+int builder_add_pong(builder* b) {
+    return vstr_push_string_len(b, "+PONG\r\n", 7);
+}
 
-int builder_add_none(builder* b) { return vstr_push_string_len(b, "+NONE\r\n", 7); }
+int builder_add_none(builder* b) {
+    return vstr_push_string_len(b, "+NONE\r\n", 7);
+}
 
 int builder_add_array(builder* b, size_t arr_len) {
     int res;
@@ -118,6 +123,19 @@ int builder_add_int(builder* b, int64_t val) {
 
     res = builder_add_end(b);
     return res;
+}
+
+int builder_add_object(builder* b, object* obj) {
+    switch (obj->type) {
+    case Null:
+        return builder_add_none(b);
+    case Int:
+        return builder_add_int(b, obj->data.num);
+    case String:
+        return builder_add_string(b, vstr_data(&(obj->data.string)),
+                           vstr_len(&(obj->data.string)));
+    }
+    return -1;
 }
 
 void builder_reset(builder* b) { vstr_reset(b); }
