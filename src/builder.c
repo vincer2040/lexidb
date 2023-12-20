@@ -98,6 +98,28 @@ int builder_add_string(builder* b, const char* str, size_t str_len) {
     return res;
 }
 
+int builder_add_int(builder* b, int64_t val) {
+    size_t i, len = 8;
+    int res = 0;
+    uint64_t uval = val;
+    uint8_t shift = 56;
+    res = vstr_push_char(b, ':');
+    if (res == -1) {
+        return -1;
+    }
+
+    for (i = 0; i < len; ++i, shift -= 8) {
+        uint8_t byte = uval >> shift;
+        res = vstr_push_char(b, byte);
+        if (res == -1) {
+            return -1;
+        }
+    }
+
+    res = builder_add_end(b);
+    return res;
+}
+
 void builder_reset(builder* b) { vstr_reset(b); }
 
 void builder_free(builder* b) { vstr_free(b); }
