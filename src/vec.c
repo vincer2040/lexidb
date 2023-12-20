@@ -92,7 +92,9 @@ int vec_remove_at(vec* vec, size_t idx, void* out) {
     idx_x_size = idx * data_size;
     new_len = len - 1;
     vec->len--;
-    memcpy(out, vec->data + idx_x_size, data_size);
+    if (out) {
+        memcpy(out, vec->data + idx_x_size, data_size);
+    }
     if (new_len == idx) {
         memset(vec->data + idx_x_size, 0, data_size);
         return 0;

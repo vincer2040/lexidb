@@ -1,6 +1,5 @@
-#include <stdio.h>
+#include "server.h"
 
 int main(void) {
-    printf("hello world\n");
-    return 0;
+    return server_run("127.0.0.1", 6969);
 }

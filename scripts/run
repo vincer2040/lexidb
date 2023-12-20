@@ -138,7 +138,11 @@ def rand_str(N):
 
 c = Client("127.0.0.1", 6969).conn()
 
+print("connected")
+
 c.ping()
+
+print("ping")
 
 c.set_str("vince", "is cool")
 for i in range(0, 50):

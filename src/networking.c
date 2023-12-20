@@ -2,6 +2,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -50,19 +51,22 @@ int make_socket_nonblocking(int sfd) {
 
 static uint32_t parse_addr(const char* addr_str) {
     uint32_t addr = 0;
-    size_t i, addr_str_len = strlen(addr_str);
-    uint8_t t = 0;
     uint8_t shift = 24;
-    for (i = 0; i < addr_str_len; ++i) {
-        char at = addr_str[i];
+    size_t len = strlen(addr_str);
+    int8_t t;
+    size_t i;
+    t = 0;
+    for (i = 0; i < len; i++) {
+        char at;
+        at = addr_str[i];
         if (at == '.') {
-            addr |= (((uint32_t)t) << shift);
+            addr ^= (((uint32_t)(t)) << shift);
             t = 0;
             shift -= 8;
             continue;
         }
         t = (t * 10) + (at - '0');
     }
-    addr |= ((uint32_t)t);
+    addr ^= ((uint32_t)(t));
     return addr;
 }

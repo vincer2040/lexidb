@@ -5,6 +5,7 @@
 
 ev* ev_new(int num_fds) {
     ev* ev;
+    int i;
 
     ev = calloc(1, sizeof *ev);
     if (ev == NULL) {
@@ -29,6 +30,10 @@ ev* ev_new(int num_fds) {
         free(ev->events);
         free(ev);
         return NULL;
+    }
+
+    for (i = 0; i < num_fds; ++i) {
+        ev->events[i].mask = EV_NONE;
     }
 
     ev->num_fds = num_fds;
@@ -86,6 +91,8 @@ int ev_add_event(ev* ev, int fd, int mask, ev_file_fn* fn, void* client_data) {
 
     e->mask |= mask;
 
+    printf("mask: %d\n", mask);
+
     if (mask & EV_READ) {
         e->read_fn = fn;
     }
@@ -135,18 +142,17 @@ void ev_delete_event(ev* ev, int fd, int mask) {
 
 static int ev_process_events(ev* ev) {
     int num_events, processed = 0;
-    struct timeval tv = {0};
+    struct timeval* tv = NULL;
     int i;
 
     if (ev->max_fd == -1) {
         return processed;
     }
-    tv.tv_sec = tv.tv_usec = 0;
-    num_events = ev_api_poll(ev, &tv);
+    num_events = ev_api_poll(ev, tv);
     for (i = 0; i < num_events; ++i) {
         int fd = ev->fired[i].fd;
         int mask = ev->fired[i].mask;
-        ev_file_event* e = &(ev->events[i]);
+        ev_file_event* e = &(ev->events[fd]);
         int fired = 0;
         int invert = e->mask & EV_BOTH;
 
