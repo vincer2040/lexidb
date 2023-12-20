@@ -32,11 +32,11 @@
     do {                                                                       \
         struct timespec time = get_time();                                     \
         struct tm* tm = localtime(&time.tv_sec);                               \
-        printf("%d-%d-%d %d:%d:%d", tm->tm_mon, tm->tm_mday,                   \
-               tm->tm_year + 1900, tm->tm_hour, tm->tm_min, tm->tm_sec);       \
-        printf("\033[31m ERROR \033[39m");                                     \
-        printf(__VA_ARGS__);                                                   \
-        fflush(stdout);                                                        \
+        fprintf(stderr, "%d-%d-%d %d:%d:%d", tm->tm_mon, tm->tm_mday,          \
+                tm->tm_year + 1900, tm->tm_hour, tm->tm_min, tm->tm_sec);      \
+        fprintf(stderr, "\033[31m ERROR \033[39m");                            \
+        fprintf(stderr, __VA_ARGS__);                                          \
+        fflush(stderr);                                                        \
     } while (0)
 
 #define debug(...)                                                             \
