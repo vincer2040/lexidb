@@ -5,6 +5,7 @@
 #include "log.h"
 #include "networking.h"
 #include "object.h"
+#include "result.h"
 #include "util.h"
 #include "vstr.h"
 #include <errno.h>
@@ -232,6 +233,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
         close(fd);
         return;
     }
+
     read_amt = read(fd, c->read_buf + c->read_pos, c->read_cap - c->read_pos);
     if (read_amt == -1) {
         if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
@@ -277,6 +279,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
     ssize_t bytes_sent;
     client* c;
     ssize_t found = vec_find(s->clients, &fd, &c, client_compare);
+
     if (found == -1) {
         fprintf(stderr, "failed to find client %d\n", fd);
         ev_delete_event(ev, fd, mask);
