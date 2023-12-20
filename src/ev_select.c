@@ -53,7 +53,7 @@ static void ev_api_del_event(ev* eventLoop, int fd, int mask) {
     if (mask & EV_READ) {
         FD_CLR(fd, &state->rfds);
     }
-    if (mask & EV_READ) {
+    if (mask & EV_WRITE) {
         FD_CLR(fd, &state->wfds);
     }
 }
