@@ -29,11 +29,8 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
-    {"OK", 2, Okc},
-    {"SET", 3, Set},
-    {"GET", 3, Get},
-    {"DEL", 3, Del},
-    {"PING", 4, Ping},
+    {"OK", 2, Okc},  {"SET", 3, Set},   {"GET", 3, Get},
+    {"DEL", 3, Del}, {"PING", 4, Ping},
 };
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
@@ -59,6 +56,11 @@ static inline void parser_read_char(parser* p);
 cmd parse(const uint8_t* input, size_t input_len) {
     parser p = parser_new(input, input_len);
     return parse_cmd(&p);
+}
+
+object parse_from_server(const uint8_t* input, size_t input_len) {
+    parser p = parser_new(input, input_len);
+    return parse_object(&p);
 }
 
 static parser parser_new(const uint8_t* input, size_t input_len) {
@@ -246,6 +248,11 @@ static object parse_object(parser* p) {
         }
 
         obj = object_new(Int, &val);
+        parser_read_char(p);
+    } break;
+    case '+': {
+        vstr s = parse_simple_string(p);
+        obj = object_new(String, &s);
         parser_read_char(p);
     } break;
     default:

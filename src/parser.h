@@ -7,5 +7,6 @@
 #include <stdint.h>
 
 cmd parse(const uint8_t* input, size_t input_len);
+object parse_from_server(const uint8_t* input, size_t input_len);
 
 #endif /* __PARSER_H__ */

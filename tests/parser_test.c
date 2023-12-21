@@ -19,6 +19,12 @@ typedef struct {
     cmd exp;
 } simple_cmd_test;
 
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    const char* exp_string;
+} string_from_server_test;
+
 #define test_object_eq(exp, got)                                               \
     do {                                                                       \
         int cmp = object_cmp(&exp, &got);                                      \
@@ -175,6 +181,41 @@ START_TEST(test_simple_string_cmd) {
 }
 END_TEST
 
+START_TEST(test_parse_string_from_server) {
+    string_from_server_test tests[] = {
+        {
+            (const uint8_t*)"$3\r\nfoo\r\n",
+            strlen("$3\r\nfoo\r\n"),
+            "foo",
+        },
+        {
+            (const uint8_t*)"+PONG\r\n",
+            strlen("+PONG\r\n"),
+            "PONG",
+        },
+        {
+            (const uint8_t*)"+OK\r\n",
+            strlen("+OK\r\n"),
+            "OK",
+        },
+        {
+            (const uint8_t*)"$5\r\nfoo\r\n\r\n",
+            strlen("$3\r\nfoo\r\n\r\n"),
+            "foo\r\n",
+        },
+    };
+    size_t i, len = arr_size(tests);
+
+    for (i = 0; i < len; ++i) {
+        string_from_server_test t = tests[i];
+        object obj = parse_from_server(t.input, t.input_len);
+        ck_assert(obj.type == String);
+        vstr d = obj.data.string;
+        ck_assert_str_eq(t.exp_string, vstr_data(&d));
+    }
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -182,6 +223,7 @@ Suite* suite(void) {
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_array_cmd);
     tcase_add_test(tc_core, test_simple_string_cmd);
+    tcase_add_test(tc_core, test_parse_string_from_server);
     suite_add_tcase(s, tc_core);
     return s;
 }
