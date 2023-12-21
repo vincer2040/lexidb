@@ -67,6 +67,11 @@ add_library(
     src/builder.c
 )
 
+add_library(
+    hilexi
+    src/hilexi.c
+)
+
 add_executable(
     lexidb
     src/server.c
@@ -96,6 +101,14 @@ target_link_libraries(
 )
 
 target_link_libraries(
+    hilexi
+    parser
+    object
+    networking
+    builder
+)
+
+target_link_libraries(
     lexidb
     networking
     ht
@@ -104,11 +117,14 @@ target_link_libraries(
     ev
     vec
     builder
+    parser
 )
 
 target_link_libraries(
     lexi-cli
     vstr
     object
+    util
+    hilexi
 )
 

@@ -263,6 +263,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
         c->read_pos += read_amt;
     }
 
+    printf("received: %s\n", c->read_buf);
     execute_cmd(s, c);
 
     c->write_buf = (uint8_t*)builder_out(&(c->builder));
@@ -307,6 +308,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
     }
 
     if (bytes_sent != c->write_size) {
+        // todo
         fprintf(stderr, "failed to write all bytes to %d\n", fd);
         return;
     }
@@ -348,6 +350,8 @@ static result(client_ptr)
 static void execute_cmd(server* s, client* c) {
     cmd cmd = parse(c->read_buf, c->read_pos);
     switch (cmd.type) {
+    case Okc:
+        break;
     case Ping:
         builder_add_ok(&(c->builder));
         break;

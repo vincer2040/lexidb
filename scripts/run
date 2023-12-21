@@ -138,42 +138,13 @@ def rand_str(N):
 
 c = Client("127.0.0.1", 6969).conn()
 
-print("connected")
-
 c.ping()
 
-print("ping")
-
 c.set_str("vince", "is cool")
-for i in range(0, 50):
-    c.db_push(rand_str(20))
-    c.set_str(rand_str(20), rand_str(25))
 
-c.create_cluster("fam")
-c.set_cluster("fam", "vince", "is cool")
-c.set_cluster("fam", "dom", "is brother")
-c.set_cluster("fam", "madi", "is sister")
-c.set_cluster("fam", "frank", "is dog")
-c.set_cluster("fam", "lomein", "is kitty")
-c.set_cluster("fam", "kitty", "is cat")
+c.get("vince")
 
-c.get_cluster("fam", "vince")
-
-buf = ProtocolBuilder()\
-        .add_arr(2)\
-        .add_arr(3)\
-        .add_str("SET", 3)\
-        .add_str("vince", 5)\
-        .add_str("is cool", 7)\
-        .add_arr(2)\
-        .add_str("GET", 3)\
-        .add_str("vince", 5)\
-        .get()
-
-c.send(buf)
-
-# c.get(rand_str(4074))
-
+c.delete("vince")
 
 c.cl()
 
