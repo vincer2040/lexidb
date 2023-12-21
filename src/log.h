@@ -2,9 +2,11 @@
 
 #define __LOG_H__
 
+#define _XOPEN_SOURCE 600
 #include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define info(...)                                                              \
     do {                                                                       \
