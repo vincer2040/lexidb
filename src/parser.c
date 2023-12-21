@@ -44,6 +44,7 @@ static cmdt parse_simple_string_cmd(parser* p);
 static object parse_object(parser* p);
 static vstr parse_string(parser* p, uint64_t len);
 static vstr parse_simple_string(parser* p);
+static vstr parse_error(parser* p);
 static int64_t parse_integer(parser* p);
 static uint64_t parse_len(parser* p);
 static uint8_t peek_byte(parser* p);
@@ -255,6 +256,11 @@ static object parse_object(parser* p) {
         obj = object_new(String, &s);
         parser_read_char(p);
     } break;
+    case '-': {
+        vstr s = parse_error(p);
+        obj = object_new(String, &s);
+        parser_read_char(p);
+    } break;
     default:
         break;
     }
@@ -284,6 +290,24 @@ static cmdt parse_simple_string_cmd(parser* p) {
 
 static vstr parse_simple_string(parser* p) {
     vstr s = vstr_new_len(5);
+    parser_read_char(p);
+    while (p->ch != '\r') {
+        vstr_push_char(&s, p->ch);
+        parser_read_char(p);
+    }
+    if (!cur_byte_is(p, '\r')) {
+        vstr_free(&s);
+        return s;
+    }
+    if (!expect_peek_byte(p, '\n')) {
+        vstr_free(&s);
+        return s;
+    }
+    return s;
+}
+
+static vstr parse_error(parser* p) {
+    vstr s = vstr_new();
     parser_read_char(p);
     while (p->ch != '\r') {
         vstr_push_char(&s, p->ch);
