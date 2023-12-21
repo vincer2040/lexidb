@@ -35,9 +35,10 @@ int tcp_accept(int socket, struct sockaddr_in* addr_in, socklen_t* addr_len) {
 }
 
 int tcp_connect(int socket, uint32_t addr, uint16_t port) {
-    struct sockaddr_in sa = { 0 };
+    struct sockaddr_in sa = {0};
     socklen_t len = sizeof sa;
     int res;
+    sa.sin_family = AF_INET;
     sa.sin_addr.s_addr = htonl(addr);
     sa.sin_port = htons(port);
     res = connect(socket, (struct sockaddr*)(&sa), len);
