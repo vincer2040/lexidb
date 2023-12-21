@@ -137,7 +137,7 @@ int builder_add_object(builder* b, object* obj) {
         return builder_add_int(b, obj->data.num);
     case String:
         return builder_add_string(b, vstr_data(&(obj->data.string)),
-                           vstr_len(&(obj->data.string)));
+                                  vstr_len(&(obj->data.string)));
     }
     return -1;
 }
