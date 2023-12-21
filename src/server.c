@@ -11,6 +11,7 @@
 #include "util.h"
 #include "vstr.h"
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,31 +19,6 @@
 
 #define SERVER_BACKLOG 10
 #define CLIENT_READ_BUF_CAP 4096
-
-typedef struct {
-    int sfd;
-    uint16_t port;
-    vstr addr;
-    ht ht;
-    ev* ev;
-    vec* clients;
-} server;
-
-typedef struct {
-    int fd;
-    uint32_t addr;
-    uint16_t port;
-    uint16_t flags;
-    uint8_t* read_buf;
-    size_t read_pos;
-    size_t read_cap;
-    uint8_t* write_buf;
-    size_t write_size;
-    builder builder;
-    struct timespec time_connected;
-} client;
-
-typedef client* client_ptr;
 
 result_t(server, vstr);
 result_t(client_ptr, vstr);
@@ -108,6 +84,7 @@ static result(server) server_new(const char* addr, uint16_t port) {
     int sfd = create_tcp_socket(1);
     ev* ev;
     ht ht;
+    vstr addr_str;
 
     if (sfd < 0) {
         result.type = Err;
@@ -132,6 +109,10 @@ static result(server) server_new(const char* addr, uint16_t port) {
         close(sfd);
         return result;
     }
+
+    addr_str = vstr_from(addr);
+    s.addr = addr_str;
+    s.port = port;
 
     s.clients = vec_new(sizeof(client*));
     if (s.clients == NULL) {
@@ -163,6 +144,7 @@ static result(server) server_new(const char* addr, uint16_t port) {
 
     ht = ht_new(sizeof(object), ht_compare_objects);
 
+    s.pid = getpid();
     s.sfd = sfd;
     s.ht = ht;
     s.ev = ev;
