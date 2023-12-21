@@ -52,6 +52,9 @@ typedef struct {
 #define test_cmd(exp, cmd)                                                     \
     do {                                                                       \
         switch (exp.type) {                                                    \
+        case Okc:                                                              \
+            ck_assert(cmd.type == Okc);                                        \
+            break;                                                             \
         case Set:                                                              \
             test_set_cmd(exp, cmd);                                            \
             break;                                                             \
@@ -156,6 +159,11 @@ START_TEST(test_simple_string_cmd) {
             (const uint8_t*)"+PING\r\n",
             strlen("+PING\r\n"),
             {Ping},
+        },
+        {
+            (const uint8_t*)"+OK\r\n",
+            strlen("+OK\r\n"),
+            {Okc},
         },
     };
     size_t i, len = arr_size(tests);

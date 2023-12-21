@@ -29,6 +29,7 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
+    {"OK", 2, Okc},
     {"SET", 3, Set},
     {"GET", 3, Get},
     {"DEL", 3, Del},

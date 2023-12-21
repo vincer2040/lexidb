@@ -7,6 +7,7 @@
 
 typedef enum {
     Illegal,
+    Okc,
     Ping,
     Set,
     Get,
