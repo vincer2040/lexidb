@@ -22,8 +22,13 @@ result_t(hilexi, vstr);
 result_t(object, vstr);
 
 result(hilexi) hilexi_new(const char* addr, uint16_t port);
-object hilexi_ping(hilexi* l);
 int hilexi_connect(hilexi* l);
+
+result(object) hilexi_ping(hilexi* l);
+result(object) hilexi_set(hilexi* l, object* key, object* value);
+result(object) hilexi_get(hilexi* l, object* key);
+result(object) hilexi_del(hilexi* l, object* key);
+
 void hilexi_close(hilexi* l);
 
 #endif /* __HI_LEXI_H__ */

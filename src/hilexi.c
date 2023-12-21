@@ -2,6 +2,7 @@
 #include "builder.h"
 #include "networking.h"
 #include "parser.h"
+#include "result.h"
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -71,15 +72,154 @@ int hilexi_connect(hilexi* l) {
     return res;
 }
 
-object hilexi_ping(hilexi* l) {
-    builder_add_ping(&(l->builder));
+result(object) hilexi_ping(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_ping(&(l->builder));
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add ping to builder");
+        return res;
+    }
     if (hilexi_write(l) == -1) {
-        return object_new(Null, NULL);
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
     }
     if (hilexi_read(l) == -1) {
-        return object_new(Null, NULL);
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
     }
-    return hilexi_parse(l);
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_set(hilexi* l, object* key, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "SET", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add set to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), key);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add key to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_get(hilexi* l, object* key) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "GET", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add set to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), key);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add key to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_del(hilexi* l, object* key) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "DEL", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add set to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), key);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add key to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
 }
 
 void hilexi_close(hilexi* l) {
