@@ -1,3 +1,4 @@
+#include "../src/builder.h"
 #include "../src/cmd.h"
 #include "../src/object.h"
 #include "../src/parser.h"
@@ -216,6 +217,32 @@ START_TEST(test_parse_string_from_server) {
 }
 END_TEST
 
+START_TEST(test_parse_int_from_server) {
+    int64_t tests[] = {
+        1337,
+        -1337,
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        int64_t t = tests[i];
+        builder b = builder_new();
+        const uint8_t* out;
+        size_t out_len;
+        object parsed;
+        int64_t got;
+        builder_add_int(&b, t);
+
+        out = builder_out(&b);
+        out_len = builder_len(&b);
+        parsed = parse_from_server(out, out_len);
+        ck_assert(parsed.type == Int);
+
+        got = parsed.data.num;
+        ck_assert_int_eq(got, t);
+    }
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -224,6 +251,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_array_cmd);
     tcase_add_test(tc_core, test_simple_string_cmd);
     tcase_add_test(tc_core, test_parse_string_from_server);
+    tcase_add_test(tc_core, test_parse_int_from_server);
     suite_add_tcase(s, tc_core);
     return s;
 }
