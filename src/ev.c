@@ -1,7 +1,13 @@
 #include "ev.h"
+#include "config.h"
 #include <stdlib.h>
+#include <sys/time.h>
 
+#if HAVE_EPOLL
+#include "ev_epoll.c"
+#else
 #include "ev_select.c"
+#endif
 
 ev* ev_new(int num_fds) {
     ev* ev;

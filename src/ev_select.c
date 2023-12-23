@@ -85,7 +85,7 @@ static int ev_api_poll(ev* ev, struct timeval* tvp) {
             numevents++;
         }
     } else if (retval == -1 && errno != EINTR) {
-        fprintf(stderr, "aeApiPoll: select, %s", strerror(errno));
+        fprintf(stderr, "ev_api_poll: select, %s", strerror(errno));
     }
 
     return numevents;
