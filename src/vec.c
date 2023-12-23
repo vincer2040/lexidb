@@ -112,7 +112,9 @@ ssize_t vec_find(vec* vec, void* cmp_data, void* out, cmp_fn* fn) {
         void* at = vec->data + (i * data_size);
         int cmp_res = fn(cmp_data, at);
         if (cmp_res == 0) {
-            memcpy(out, at, data_size);
+            if (out) {
+                memcpy(out, at, data_size);
+            }
             return i;
         }
     }
