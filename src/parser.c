@@ -48,8 +48,8 @@ static vstr parse_error(parser* p);
 static int64_t parse_integer(parser* p);
 static uint64_t parse_len(parser* p);
 static uint8_t peek_byte(parser* p);
-static bool inline cur_byte_is(parser* p, uint8_t byte);
-static bool peek_byte_is(parser* p, uint8_t byte);
+static inline bool cur_byte_is(parser* p, uint8_t byte);
+static inline bool peek_byte_is(parser* p, uint8_t byte);
 static bool expect_peek_byte(parser* p, uint8_t byte);
 static bool expect_peek_byte_to_be_num(parser* p);
 static inline void parser_read_char(parser* p);
@@ -351,11 +351,11 @@ static uint64_t parse_len(parser* p) {
     return res;
 }
 
-static bool inline cur_byte_is(parser* p, uint8_t byte) {
+static inline bool cur_byte_is(parser* p, uint8_t byte) {
     return p->ch == byte;
 }
 
-static bool peek_byte_is(parser* p, uint8_t byte) {
+static inline bool peek_byte_is(parser* p, uint8_t byte) {
     return peek_byte(p) == byte;
 }
 
