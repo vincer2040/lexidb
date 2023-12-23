@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(lexidb VERSION 0.1)
+project(lexidb VERSION 0.0.1)
 
 include(CheckIncludeFile)
 
 check_include_file("sys/epoll.h" HAVE_EPOLL)
 
-configure_file(config.h.in config.h)
+configure_file(config.h.in "../src/config.h")
 
 enable_testing()
 
@@ -72,6 +72,11 @@ add_library(
     src/hilexi.c
 )
 
+add_library(
+    clap
+    src/clap.c
+)
+
 add_executable(
     lexidb
     src/server.c
@@ -109,6 +114,13 @@ target_link_libraries(
 )
 
 target_link_libraries(
+    clap
+    vstr
+    vec
+    ht
+)
+
+target_link_libraries(
     lexidb
     networking
     ht
@@ -118,6 +130,7 @@ target_link_libraries(
     vec
     builder
     parser
+    clap
 )
 
 target_link_libraries(
