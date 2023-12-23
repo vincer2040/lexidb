@@ -336,7 +336,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
         c->read_pos += read_amt;
     }
 
-    printf("received: %s\n", c->read_buf);
+    debug("received: %s\n", c->read_buf);
     execute_cmd(s, c);
 
     c->write_buf = (uint8_t*)builder_out(&(c->builder));
