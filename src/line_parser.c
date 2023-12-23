@@ -2,6 +2,7 @@
 #include "vstr.h"
 #include <memory.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef struct {
     const char* line;
@@ -17,8 +18,9 @@ typedef struct {
 } lookup;
 
 const lookup lookups[] = {
-    {"set", 3, Set}, {"SET", 3, Set}, {"get", 3, Get},   {"GET", 3, Get},
-    {"del", 3, Del}, {"DEL", 3, Del}, {"ping", 4, Ping}, {"PING", 4, Ping},
+    {"set", 3, Set},   {"SET", 3, Set},   {"get", 3, Get}, {"GET", 3, Get},
+    {"del", 3, Del},   {"DEL", 3, Del},   {"pop", 3, Pop}, {"ping", 4, Ping},
+    {"PING", 4, Ping}, {"push", 4, Push},
 };
 
 size_t lookups_len = sizeof lookups / sizeof lookups[0];
@@ -59,6 +61,9 @@ static cmd parse_cmd(line_parser* p) {
     case Ping:
         cmd.type = Ping;
         break;
+    case Pop:
+        cmd.type = Pop;
+        break;
     case Set: {
         object key = parse_object(p);
         object value = parse_object(p);
@@ -75,6 +80,11 @@ static cmd parse_cmd(line_parser* p) {
         object key = parse_object(p);
         cmd.data.del.key = key;
         cmd.type = Del;
+    } break;
+    case Push: {
+        object value = parse_object(p);
+        cmd.data.push.value = value;
+        cmd.type = Push;
     } break;
     default:
         cmd.type = Illegal;

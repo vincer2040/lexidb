@@ -69,6 +69,14 @@ int main(void) {
             object key = del.key;
             cmd_res = hilexi_del(&l, &key);
         } break;
+        case Push: {
+            push_cmd push = cmd.data.push;
+            object value = push.value;
+            cmd_res = hilexi_push(&l, &value);
+        } break;
+        case Pop:
+            cmd_res = hilexi_pop(&l);
+            break;
         default:
             cmd_res.type = Err;
             cmd_res.data.err = vstr_from("invalid command");

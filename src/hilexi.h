@@ -28,6 +28,8 @@ result(object) hilexi_ping(hilexi* l);
 result(object) hilexi_set(hilexi* l, object* key, object* value);
 result(object) hilexi_get(hilexi* l, object* key);
 result(object) hilexi_del(hilexi* l, object* key);
+result(object) hilexi_push(hilexi* l, object* value);
+result(object) hilexi_pop(hilexi* l);
 
 void hilexi_close(hilexi* l);
 

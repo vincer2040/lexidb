@@ -29,8 +29,8 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
-    {"OK", 2, Okc},  {"SET", 3, Set},   {"GET", 3, Get},
-    {"DEL", 3, Del}, {"PING", 4, Ping},
+    {"OK", 2, Okc},  {"SET", 3, Set},   {"GET", 3, Get},   {"DEL", 3, Del},
+    {"POP", 3, Pop}, {"PING", 4, Ping}, {"PUSH", 4, Push},
 };
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
@@ -41,6 +41,7 @@ static cmd parse_array_cmd(parser* p);
 static cmdt parse_cmd_type(parser* p);
 static cmdt lookup_cmd(vstr* s);
 static cmdt parse_simple_string_cmd(parser* p);
+static cmdt parse_bulk_string_cmd(parser* p);
 static object parse_object(parser* p);
 static vstr parse_string(parser* p, uint64_t len);
 static vstr parse_simple_string(parser* p);
@@ -80,6 +81,9 @@ static cmd parse_cmd(parser* p) {
         break;
     case '+':
         cmd.type = parse_simple_string_cmd(p);
+        break;
+    case '$':
+        cmd.type = parse_bulk_string_cmd(p);
         break;
     default:
         break;
@@ -162,6 +166,20 @@ static cmd parse_array_cmd(parser* p) {
         del.key = key;
         cmd.type = Del;
         cmd.data.del = del;
+    } break;
+    case Push: {
+        object value;
+        push_cmd push = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        push.value = value;
+        cmd.type = Push;
+        cmd.data.push = push;
     } break;
     default:
         break;
@@ -277,6 +295,8 @@ static vstr parse_string(parser* p, uint64_t len) {
 
     return s;
 }
+
+static cmdt parse_bulk_string_cmd(parser* p) { return parse_cmd_type(p); }
 
 static cmdt parse_simple_string_cmd(parser* p) {
     cmdt type = Illegal;

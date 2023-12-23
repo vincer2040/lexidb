@@ -12,6 +12,8 @@ typedef enum {
     Set,
     Get,
     Del,
+    Push,
+    Pop,
 } cmdt;
 
 typedef struct {
@@ -23,9 +25,14 @@ typedef struct {
     object key;
 } k_cmd;
 
+typedef struct {
+    object value;
+} v_cmd;
+
 typedef kv_cmd set_cmd;
 typedef k_cmd get_cmd;
 typedef k_cmd del_cmd;
+typedef v_cmd push_cmd;
 
 typedef struct {
     cmdt type;
@@ -33,6 +40,7 @@ typedef struct {
         set_cmd set;
         get_cmd get;
         del_cmd del;
+        push_cmd push;
     } data;
 } cmd;
 

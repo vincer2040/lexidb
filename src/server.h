@@ -12,12 +12,17 @@
 #include <time.h>
 
 typedef struct {
+    ht ht;
+    vec* vec;
+} lexidb;
+
+typedef struct {
     int sfd;
     uint16_t port;
     uint16_t flags;
     pid_t pid;
     vstr addr;
-    ht ht;
+    lexidb db;
     ev* ev;
     vec* clients;
 } server;

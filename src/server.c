@@ -12,6 +12,7 @@
 #include "result.h"
 #include "util.h"
 #include "vstr.h"
+#include <assert.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -26,9 +27,12 @@
 
 result_t(server, vstr);
 result_t(client_ptr, vstr);
+result_t(object, void*);
 
 static result(server) server_new(const char* addr, uint16_t port);
+static lexidb lexidb_new(void);
 static void server_free(server* s);
+static void lexidb_free(lexidb* db);
 
 static void server_accept(ev* ev, int fd, void* client_data, int mask);
 static void read_from_client(ev* ev, int fd, void* client_data, int mask);
@@ -41,6 +45,8 @@ static void execute_cmd(server* s, client* c);
 static int execute_set_command(server* s, set_cmd* set);
 static object* execute_get_command(server* s, get_cmd* get);
 static int execute_del_command(server* s, del_cmd* del);
+static int execute_push_command(server* s, push_cmd* push);
+static result(object) execute_pop_command(server* s);
 
 static int realloc_client_read_buf(client* c);
 
@@ -140,7 +146,6 @@ static result(server) server_new(const char* addr, uint16_t port) {
     server s = {0};
     int sfd = create_tcp_socket(1);
     ev* ev;
-    ht ht;
     vstr addr_str;
 
     if (sfd < 0) {
@@ -199,22 +204,33 @@ static result(server) server_new(const char* addr, uint16_t port) {
         return result;
     }
 
-    ht = ht_new(sizeof(object), ht_compare_objects);
-
     s.pid = getpid();
     s.sfd = sfd;
-    s.ht = ht;
+    s.db = lexidb_new();
     s.ev = ev;
     result.type = Ok;
     result.data.ok = s;
     return result;
 }
 
+static lexidb lexidb_new(void) {
+    lexidb res = {0};
+    res.ht = ht_new(sizeof(object), ht_compare_objects);
+    res.vec = vec_new(sizeof(object));
+    assert(res.vec != NULL);
+    return res;
+}
+
 static void server_free(server* s) {
     ev_free(s->ev);
-    ht_free(&(s->ht), ht_free_object, ht_free_object);
+    lexidb_free(&s->db);
     vec_free(s->clients, client_in_vec_free);
     close(s->sfd);
+}
+
+static void lexidb_free(lexidb* db) {
+    ht_free(&(db->ht), ht_free_object, ht_free_object);
+    vec_free(db->vec, ht_free_object);
 }
 
 static void server_accept(ev* ev, int fd, void* client_data, int mask) {
@@ -366,7 +382,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
 
     if (bytes_sent != c->write_size) {
         // todo
-        fprintf(stderr, "failed to write all bytes to %d\n", fd);
+        error("failed to write all bytes to %d\n", fd);
         return;
     }
 
@@ -436,7 +452,26 @@ static void execute_cmd(server* s, client* c) {
         }
         builder_add_ok(&(c->builder));
     } break;
-    case Illegal:
+    case Push: {
+        int push_res = execute_push_command(s, &(cmd.data.push));
+        if (push_res == -1) {
+            builder_add_err(&(c->builder), "unable to push", 14);
+            break;
+        }
+        builder_add_ok(&(c->builder));
+    } break;
+    case Pop: {
+        result(object) ro = execute_pop_command(s);
+        object obj;
+        if (ro.type == Err) {
+            builder_add_none(&(c->builder));
+            break;
+        }
+        obj = ro.data.ok;
+        builder_add_object(&(c->builder), &obj);
+        object_free(&obj);
+    } break;
+    default:
         builder_add_err(&(c->builder), "Invalid command", 15);
         break;
     }
@@ -445,24 +480,43 @@ static void execute_cmd(server* s, client* c) {
 static int execute_set_command(server* s, set_cmd* set) {
     object key = set->key;
     object value = set->value;
-    int res = ht_insert(&(s->ht), &key, sizeof(object), &value, ht_free_object,
-                        ht_free_object);
+    int res = ht_insert(&(s->db.ht), &key, sizeof(object), &value,
+                        ht_free_object, ht_free_object);
     return res;
 }
 
 static object* execute_get_command(server* s, get_cmd* get) {
     object key = get->key;
-    object* res = ht_get(&(s->ht), &key, sizeof(object));
+    object* res = ht_get(&(s->db.ht), &key, sizeof(object));
     object_free(&key);
     return res;
 }
 
 static int execute_del_command(server* s, del_cmd* del) {
     object key = del->key;
-    int res = ht_delete(&(s->ht), &key, sizeof(object), ht_free_object,
+    int res = ht_delete(&(s->db.ht), &key, sizeof(object), ht_free_object,
                         ht_free_object);
     object_free(&key);
     return res;
+}
+
+static int execute_push_command(server* s, push_cmd* push) {
+    object value = push->value;
+    int res = vec_push(&(s->db.vec), &value);
+    return res;
+}
+
+static result(object) execute_pop_command(server* s) {
+    result(object) ro = {0};
+    object out;
+    int pop_res = vec_pop(s->db.vec, &out);
+    if (pop_res == -1) {
+        ro.type = Err;
+        return ro;
+    }
+    ro.type = Ok;
+    ro.data.ok = out;
+    return ro;
 }
 
 static int realloc_client_read_buf(client* c) {
