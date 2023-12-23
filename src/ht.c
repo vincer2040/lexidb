@@ -27,8 +27,8 @@ ht ht_new(size_t data_size, cmp_fn* key_cmp) {
     return ht;
 }
 
-int ht_insert(ht* ht, void* key, size_t key_size, void* data,
-              free_fn* free_key, free_fn* free_data) {
+int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
+              free_fn* free_data) {
     uint64_t slot;
     ht_entry* cur;
     ht_entry* head;
@@ -91,6 +91,63 @@ int ht_insert(ht* ht, void* key, size_t key_size, void* data,
 
     ht->entries[slot] = new_entry;
 
+    ht->num_entries++;
+    return 0;
+}
+
+int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
+    uint64_t slot;
+    ht_entry* cur;
+    ht_entry* head;
+    ht_entry* new_entry;
+
+    if (ht->num_entries == ht->capacity) {
+        int resize = ht_resize(ht);
+        if (resize != 0) {
+            return resize;
+        }
+    }
+
+    slot = ht_hash(ht, key, key_size);
+    cur = ht->entries[slot];
+    if (cur == NULL) {
+        new_entry = ht_entry_new(key, key_size, data, ht->data_size);
+        if (new_entry == NULL) {
+            return -1;
+        }
+        ht->entries[slot] = new_entry;
+        ht->num_entries++;
+    }
+
+    head = cur;
+
+    while (cur) {
+        int cmp;
+        if (ht->key_cmp) {
+            cmp = ht->key_cmp(key, cur->data);
+        } else {
+            if (key_size != cur->key_size) {
+                cmp = 1;
+            } else {
+                cmp = memcmp(key, cur->data, key_size);
+            }
+        }
+
+        if (cmp == 0) {
+            return -1;
+        }
+
+        cur = cur->next;
+    }
+
+    new_entry = ht_entry_new(key, key_size, data, ht->data_size);
+    if (new_entry == NULL) {
+        return -1;
+    }
+
+    new_entry->next = head;
+
+    ht->entries[slot] = new_entry;
     ht->num_entries++;
     return 0;
 }

@@ -23,8 +23,9 @@ typedef struct {
 } ht;
 
 ht ht_new(size_t data_size, cmp_fn* key_cmp);
-int ht_insert(ht* ht, void* key, size_t key_size, void* data,
-              free_fn* free_key, free_fn* free_data);
+int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
+              free_fn* free_data);
+int ht_try_insert(ht* ht, void* key, size_t key_size, void* data);
 void* ht_get(ht* ht, void* key, size_t key_size);
 int ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
               free_fn* free_data);
