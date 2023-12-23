@@ -43,6 +43,11 @@ int main(void) {
         line_data = vstr_data(&line);
         line_len = vstr_len(&line);
 
+        if (line_len == 0) {
+            vstr_free(&line);
+            continue;
+        }
+
         if (line_len == 4 && memcmp(line_data, "exit", 4) == 0) {
             vstr_free(&line);
             break;
