@@ -353,7 +353,7 @@ static void execute_cmd(server* s, client* c) {
     case Okc:
         break;
     case Ping:
-        builder_add_ok(&(c->builder));
+        builder_add_pong(&(c->builder));
         break;
     case Set: {
         int set_res = execute_set_command(s, &(cmd.data.set));
