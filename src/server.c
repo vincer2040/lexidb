@@ -1,6 +1,8 @@
 #include "server.h"
 #include "builder.h"
+#include "clap.h"
 #include "cmd.h"
+#include "config.h"
 #include "ev.h"
 #include "ht.h"
 #include "log.h"
@@ -17,6 +19,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define DEFAULT_ADDRESS "127.0.0.1"
+#define DEFAULT_PORT 6969
 #define SERVER_BACKLOG 10
 #define CLIENT_READ_BUF_CAP 4096
 
@@ -47,9 +51,15 @@ static void client_free(client* client);
 static void ht_free_object(void* ptr);
 static void client_in_vec_free(void* ptr);
 
-int server_run(const char* addr, uint16_t port) {
+int server_run(int argc, char* argv[]) {
     result(server) rs;
     server s;
+    args args;
+    cla cla;
+    object* addr_obj;
+    object* port_obj;
+    const char* addr;
+    uint16_t port;
 
     if (create_sigint_handler() == -1) {
         error("failed to create sigint handler (errno: %d) %s\n", errno,
@@ -57,7 +67,54 @@ int server_run(const char* addr, uint16_t port) {
         return 1;
     }
 
+    args = args_new();
+    args_add(&args, "address", "-a", "--address",
+             "the address the server should listen on", String);
+    args_add(&args, "port", "-p", "--port",
+             "the port the server should listen on", Int);
+    args_add(&args, "loglevel", "-ll", "--loglevel",
+             "the amount to log (none, info, debug, verbose)", String);
+    cla = parse_cmd_line_args(args, argc, argv);
+
+    if (clap_has_error(&cla)) {
+        const char* err = clap_error(&cla);
+        printf("clap error: %s\n", err);
+        args_free(args);
+        clap_free(&cla);
+        return 0;
+    }
+
+    if (clap_version_requested(&cla)) {
+        printf("v%d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        args_free(args);
+        clap_free(&cla);
+        return 0;
+    }
+
+    if (clap_help_requested(&cla)) {
+        args_free(args);
+        clap_free(&cla);
+        return 0;
+    }
+
+    addr_obj = args_get(&cla, "address");
+    if (addr_obj != NULL) {
+        addr = vstr_data(&addr_obj->data.string);
+    } else {
+        addr = DEFAULT_ADDRESS;
+    }
+
+    port_obj = args_get(&cla, "port");
+    if (port_obj != NULL) {
+        port = port_obj->data.num;
+    } else {
+        port = DEFAULT_PORT;
+    }
+
     rs = server_new(addr, port);
+
+    args_free(args);
+    clap_free(&cla);
 
     if (rs.type == Err) {
         error("%s\n", vstr_data(&(rs.data.err)));
@@ -67,7 +124,7 @@ int server_run(const char* addr, uint16_t port) {
 
     s = rs.data.ok;
 
-    info("listening on %s:%u\n", addr, port);
+    info("listening on %s:%u\n", DEFAULT_ADDRESS, DEFAULT_PORT);
 
     ev_await(s.ev);
 

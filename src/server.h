@@ -38,6 +38,6 @@ typedef struct {
 
 typedef client* client_ptr;
 
-int server_run(const char* addr, uint16_t port);
+int server_run(int argc, char* argv[]);
 
 #endif /* __SERVER_H__ */
