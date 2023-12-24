@@ -427,6 +427,7 @@ static void execute_cmd(server* s, client* c) {
         break;
     case Ping:
         builder_add_pong(&(c->builder));
+        s->cmds_processed++;
         break;
     case Set: {
         int set_res = execute_set_command(s, &(cmd.data.set));
@@ -435,6 +436,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&(c->builder));
+        s->cmds_processed++;
     } break;
     case Get: {
         object* obj = execute_get_command(s, &(cmd.data.get));
@@ -443,6 +445,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_object(&(c->builder), obj);
+        s->cmds_processed++;
     } break;
     case Del: {
         int del_res = execute_del_command(s, &(cmd.data.del));
@@ -451,6 +454,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&(c->builder));
+        s->cmds_processed++;
     } break;
     case Push: {
         int push_res = execute_push_command(s, &(cmd.data.push));
@@ -459,6 +463,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&(c->builder));
+        s->cmds_processed++;
     } break;
     case Pop: {
         result(object) ro = execute_pop_command(s);
@@ -470,6 +475,7 @@ static void execute_cmd(server* s, client* c) {
         obj = ro.data.ok;
         builder_add_object(&(c->builder), &obj);
         object_free(&obj);
+        s->cmds_processed++;
     } break;
     default:
         builder_add_err(&(c->builder), "Invalid command", 15);

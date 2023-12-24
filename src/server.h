@@ -16,15 +16,24 @@ typedef struct {
     vec* vec;
 } lexidb;
 
+typedef enum {
+    None,
+    Info,
+    Debug,
+    Verbose,
+} log_level;
+
 typedef struct {
-    int sfd;
-    uint16_t port;
-    uint16_t flags;
     pid_t pid;
+    int sfd;
+    log_level log_level;
+    uint16_t flags;
+    uint16_t port;
     vstr addr;
     lexidb db;
     ev* ev;
     vec* clients;
+    uint64_t cmds_processed;
 } server;
 
 typedef struct {
