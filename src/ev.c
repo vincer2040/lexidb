@@ -18,6 +18,8 @@ ev* ev_new(int num_fds) {
         return NULL;
     }
 
+    ev->num_fds = num_fds;
+
     ev->fired = calloc(num_fds, sizeof(ev_fired_event));
     if (ev->fired == NULL) {
         free(ev);
@@ -42,7 +44,6 @@ ev* ev_new(int num_fds) {
         ev->events[i].mask = EV_NONE;
     }
 
-    ev->num_fds = num_fds;
     ev->max_fd = -1;
     return ev;
 }
