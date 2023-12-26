@@ -1,5 +1,6 @@
 #include "cmd.h"
 #include "vstr.h"
+#include <ctype.h>
 #include <memory.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -31,6 +32,7 @@ static cmdt parse_cmd_type(line_parser* p);
 static cmdt lookup_cmd(vstr* s);
 static object parse_object(line_parser* p);
 static vstr parse_string(line_parser* p);
+static int64_t parse_number(line_parser* p);
 static vstr parse_bulk_string(line_parser* p);
 static vstr parse_bulk_string(line_parser* p);
 static void line_parser_read_char(line_parser* p);
@@ -38,6 +40,7 @@ static void skip_whitespace(line_parser* p);
 static inline bool is_letter(char ch);
 static inline bool is_start_of_bulk(char ch);
 static inline bool is_negative_int(char ch);
+static bool is_start_of_number(line_parser* p);
 static char peek_char(line_parser* p);
 
 cmd parse_line(const char* line, size_t line_len) {
@@ -131,6 +134,9 @@ static object parse_object(line_parser* p) {
     } else if (is_start_of_bulk(p->ch)) {
         vstr s = parse_bulk_string(p);
         obj = object_new(String, &s);
+    } else if (is_start_of_number(p)) {
+        int64_t num = parse_number(p);
+        obj = object_new(Int, &num);
     } else {
         obj = object_new(Null, NULL);
     }
@@ -194,6 +200,23 @@ static void line_parser_read_char(line_parser* p) {
     p->pos++;
 }
 
+static int64_t parse_number(line_parser* p) {
+    int64_t num = 0;
+    bool is_negative = false;
+    if (is_negative_int(p->ch)) {
+        is_negative = true;
+        line_parser_read_char(p);
+    }
+    while (isdigit(p->ch)) {
+        num = (num * 10) + (p->ch - '0');
+        line_parser_read_char(p);
+    }
+    if (is_negative) {
+        num = -num;
+    }
+    return num;
+}
+
 static void skip_whitespace(line_parser* p) {
     while (p->ch == ' ' || p->ch == '\t') {
         line_parser_read_char(p);
@@ -206,7 +229,22 @@ static inline bool is_letter(char ch) {
 
 static inline bool is_start_of_bulk(char ch) { return ch == '"'; }
 
-static inline bool is_negative_int(char ch) { return ch == '-'; }
+static bool is_start_of_number(line_parser* p) {
+    if (isdigit(p->ch)) {
+        return true;
+    }
+
+    if (p->ch == '-') {
+        if (isdigit(peek_char(p))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static inline bool is_negative_int(char ch) {
+    return ch == '-';
+}
 
 static char peek_char(line_parser* p) {
     if (p->pos >= p->line_len) {
