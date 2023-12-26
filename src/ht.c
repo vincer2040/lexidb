@@ -117,6 +117,7 @@ int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
         }
         ht->entries[slot] = new_entry;
         ht->num_entries++;
+        return 0;
     }
 
     head = cur;
