@@ -151,8 +151,6 @@ static int parse_args(cla* cla, args args, int argc, char* argv[]) {
             name = vstr_data(&arg.name);
             name_len = vstr_len(&arg.name);
             insert_res = ht_try_insert(&cla->args, (void*)name, name_len, &obj);
-            insert_res =
-                ht_try_insert(&cla->args, arg_str, strlen(arg_str), &obj);
             if (insert_res == -1) {
                 cla->error =
                     vstr_format("failed to insert %s into args table", arg_str);
