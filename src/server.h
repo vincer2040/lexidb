@@ -50,8 +50,6 @@ typedef struct {
     struct timespec time_connected;
 } client;
 
-typedef client* client_ptr;
-
 int server_run(int argc, char* argv[]);
 
 #endif /* __SERVER_H__ */

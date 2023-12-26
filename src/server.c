@@ -25,11 +25,19 @@
 #define SERVER_BACKLOG 10
 #define CLIENT_READ_BUF_CAP 4096
 
+typedef client* client_ptr;
+
 result_t(server, vstr);
 result_t(client_ptr, vstr);
 result_t(object, void*);
+result_t(log_level, vstr);
 
-static result(server) server_new(const char* addr, uint16_t port);
+typedef struct {
+    const char* str;
+    log_level ll;
+} log_level_lookup;
+
+static result(server) server_new(const char* addr, uint16_t port, log_level ll);
 static lexidb lexidb_new(void);
 static void server_free(server* s);
 static void lexidb_free(lexidb* db);
@@ -48,6 +56,8 @@ static int execute_del_command(server* s, del_cmd* del);
 static int execute_push_command(server* s, push_cmd* push);
 static result(object) execute_pop_command(server* s);
 
+static result(log_level) determine_loglevel(vstr* loglevel_s);
+
 static int realloc_client_read_buf(client* c);
 
 static int ht_compare_objects(void* a, void* b);
@@ -57,6 +67,13 @@ static void client_free(client* client);
 static void ht_free_object(void* ptr);
 static void client_in_vec_free(void* ptr);
 
+const log_level_lookup log_level_lookups[] = {
+    {"none", None},
+    {"info", Info},
+    {"debug", Debug},
+    {"verbose", Verbose},
+};
+
 int server_run(int argc, char* argv[]) {
     result(server) rs;
     server s;
@@ -64,8 +81,10 @@ int server_run(int argc, char* argv[]) {
     cla cla;
     object* addr_obj;
     object* port_obj;
+    object* log_level_obj;
     const char* addr;
     uint16_t port;
+    log_level ll;
 
     if (create_sigint_handler() == -1) {
         error("failed to create sigint handler (errno: %d) %s\n", errno,
@@ -117,7 +136,23 @@ int server_run(int argc, char* argv[]) {
         port = DEFAULT_PORT;
     }
 
-    rs = server_new(addr, port);
+    log_level_obj = args_get(&cla, "loglevel");
+    if (log_level_obj != NULL) {
+        result(log_level) ll_res =
+            determine_loglevel(&(log_level_obj->data.string));
+        if (ll_res.type == Err) {
+            error("%s %s\n", vstr_data(&ll_res.data.err),
+                  vstr_data(&log_level_obj->data.string));
+            args_free(args);
+            clap_free(&cla);
+            return 1;
+        }
+        ll = ll_res.data.ok;
+    } else {
+        ll = Info;
+    }
+
+    rs = server_new(addr, port, ll);
 
     args_free(args);
     clap_free(&cla);
@@ -141,7 +176,8 @@ int server_run(int argc, char* argv[]) {
     return 0;
 }
 
-static result(server) server_new(const char* addr, uint16_t port) {
+static result(server)
+    server_new(const char* addr, uint16_t port, log_level ll) {
     result(server) result = {0};
     server s = {0};
     int sfd = create_tcp_socket(1);
@@ -523,6 +559,28 @@ static result(object) execute_pop_command(server* s) {
     ro.type = Ok;
     ro.data.ok = out;
     return ro;
+}
+
+static result(log_level) determine_loglevel(vstr* loglevel_s) {
+    result(log_level) res = {0};
+    size_t i, len = sizeof log_level_lookups / sizeof log_level_lookups[0];
+    const char* s = vstr_data(loglevel_s);
+    size_t s_len = vstr_len(loglevel_s);
+    for (i = 0; i < len; ++i) {
+        log_level_lookup lll = log_level_lookups[i];
+        size_t lookup_len = strlen(lll.str);
+        if (lookup_len != s_len) {
+            continue;
+        }
+        if (strncmp(s, lll.str, s_len) == 0) {
+            res.type = Ok;
+            res.data.ok = lll.ll;
+            return res;
+        }
+    }
+    res.type = Err;
+    res.data.err = vstr_from("invalid log level");
+    return res;
 }
 
 static int realloc_client_read_buf(client* c) {
