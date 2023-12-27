@@ -43,6 +43,11 @@ add_library(
 )
 
 add_library(
+    queue
+    src/queue.c
+)
+
+add_library(
     object
     src/object.c
 )
@@ -124,6 +129,7 @@ target_link_libraries(
     lexidb
     networking
     ht
+    queue
     vstr
     object
     ev
