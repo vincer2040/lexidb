@@ -19,9 +19,12 @@ typedef struct {
 } lookup;
 
 const lookup lookups[] = {
-    {"set", 3, Set},   {"SET", 3, Set},   {"get", 3, Get}, {"GET", 3, Get},
-    {"del", 3, Del},   {"DEL", 3, Del},   {"pop", 3, Pop}, {"ping", 4, Ping},
-    {"PING", 4, Ping}, {"push", 4, Push},
+    {"set", 3, Set},     {"SET", 3, Set},     {"get", 3, Get},
+    {"GET", 3, Get},     {"del", 3, Del},     {"DEL", 3, Del},
+    {"pop", 3, Pop},     {"POP", 3, Pop},     {"ping", 4, Ping},
+    {"PING", 4, Ping},   {"push", 4, Push},   {"PUSH", 4, Push},
+    {"enque", 5, Enque}, {"ENQUE", 5, Enque}, {"deque", 5, Deque},
+    {"DEQUE", 5, Deque},
 };
 
 size_t lookups_len = sizeof lookups / sizeof lookups[0];
@@ -89,6 +92,14 @@ static cmd parse_cmd(line_parser* p) {
         cmd.data.push.value = value;
         cmd.type = Push;
     } break;
+    case Enque: {
+        object value = parse_object(p);
+        cmd.data.enque.value = value;
+        cmd.type = Enque;
+    } break;
+    case Deque:
+        cmd.type = Deque;
+        break;
     default:
         cmd.type = Illegal;
         break;
@@ -242,9 +253,7 @@ static bool is_start_of_number(line_parser* p) {
     return false;
 }
 
-static inline bool is_negative_int(char ch) {
-    return ch == '-';
-}
+static inline bool is_negative_int(char ch) { return ch == '-'; }
 
 static char peek_char(line_parser* p) {
     if (p->pos >= p->line_len) {

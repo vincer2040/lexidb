@@ -82,6 +82,14 @@ int main(void) {
         case Pop:
             cmd_res = hilexi_pop(&l);
             break;
+        case Enque: {
+            enque_cmd enque = cmd.data.enque;
+            object value = enque.value;
+            cmd_res = hilexi_enque(&l, &value);
+        } break;
+        case Deque:
+            cmd_res = hilexi_deque(&l);
+            break;
         default:
             cmd_res.type = Err;
             cmd_res.data.err = vstr_from("invalid command");
