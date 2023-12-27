@@ -128,6 +128,14 @@ class Client:
         self.s.send(ProtocolBuilder().add_str("POP", 3).get())
         print(self.s.recv(9182).decode())
 
+    def enque(self, v):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("ENQUE", 5).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
+    def deque(self):
+        self.s.send(ProtocolBuilder().add_str("DEQUE", 5).get())
+        print(self.s.recv(9182).decode())
+
     def cl(self):
         self.s.close()
 
@@ -145,6 +153,12 @@ c.set_str("vince", "is cool")
 c.get("vince")
 
 c.delete("vince")
+
+c.enque("vince")
+c.enque("is cool")
+
+c.deque()
+c.deque()
 
 c.cl()
 
