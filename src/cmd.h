@@ -14,6 +14,8 @@ typedef enum {
     Del,
     Push,
     Pop,
+    Enque,
+    Deque,
 } cmdt;
 
 typedef struct {
@@ -33,6 +35,7 @@ typedef kv_cmd set_cmd;
 typedef k_cmd get_cmd;
 typedef k_cmd del_cmd;
 typedef v_cmd push_cmd;
+typedef v_cmd enque_cmd;
 
 typedef struct {
     cmdt type;
@@ -41,6 +44,7 @@ typedef struct {
         get_cmd get;
         del_cmd del;
         push_cmd push;
+        enque_cmd enque;
     } data;
 } cmd;
 

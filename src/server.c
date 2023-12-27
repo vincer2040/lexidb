@@ -55,6 +55,8 @@ static object* execute_get_command(server* s, get_cmd* get);
 static int execute_del_command(server* s, del_cmd* del);
 static int execute_push_command(server* s, push_cmd* push);
 static result(object) execute_pop_command(server* s);
+static int execute_enque_command(server* s, enque_cmd* enque);
+static result(object) execute_deque_command(server* s);
 
 static result(log_level) determine_loglevel(vstr* loglevel_s);
 
@@ -259,6 +261,7 @@ static lexidb lexidb_new(void) {
     res.ht = ht_new(sizeof(object), ht_compare_objects);
     res.vec = vec_new(sizeof(object));
     assert(res.vec != NULL);
+    res.queue = queue_new(sizeof(object));
     return res;
 }
 
@@ -272,6 +275,7 @@ static void server_free(server* s) {
 static void lexidb_free(lexidb* db) {
     ht_free(&(db->ht), ht_free_object, ht_free_object);
     vec_free(db->vec, ht_free_object);
+    queue_free(&(db->queue), ht_free_object);
 }
 
 static void server_accept(ev* ev, int fd, void* client_data, int mask) {
@@ -524,6 +528,27 @@ static void execute_cmd(server* s, client* c) {
         object_free(&obj);
         s->cmds_processed++;
     } break;
+    case Enque: {
+        int res = execute_enque_command(s, &cmd.data.enque);
+        if (res == -1) {
+            builder_add_err(&c->builder, "failed to enque data", 20);
+            break;
+        }
+        builder_add_ok(&c->builder);
+        s->cmds_processed++;
+    } break;
+    case Deque: {
+        result(object) ro = execute_deque_command(s);
+        object obj;
+        if (ro.type == Err) {
+            builder_add_none(&c->builder);
+            break;
+        }
+        obj = ro.data.ok;
+        builder_add_object(&c->builder, &obj);
+        object_free(&obj);
+        s->cmds_processed++;
+    } break;
     default:
         builder_add_err(&(c->builder), "Invalid command", 15);
         break;
@@ -569,6 +594,24 @@ static result(object) execute_pop_command(server* s) {
     }
     ro.type = Ok;
     ro.data.ok = out;
+    return ro;
+}
+
+static int execute_enque_command(server* s, enque_cmd* enque) {
+    object to_enque = enque->value;
+    return queue_enque(&s->db.queue, &to_enque);
+}
+
+static result(object) execute_deque_command(server* s) {
+    result(object) ro = {0};
+    object obj;
+    int deque_res = queue_deque(&s->db.queue, &obj);
+    if (deque_res == -1) {
+        ro.type = Err;
+        return ro;
+    }
+    ro.type = Ok;
+    ro.data.ok = obj;
     return ro;
 }
 

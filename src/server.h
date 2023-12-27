@@ -3,6 +3,7 @@
 #define __SERVER_H__
 
 #define _XOPEN_SOURCE 600
+#include "queue.h"
 #include "builder.h"
 #include "ev.h"
 #include "ht.h"
@@ -14,6 +15,7 @@
 typedef struct {
     ht ht;
     vec* vec;
+    queue queue;
 } lexidb;
 
 typedef enum {

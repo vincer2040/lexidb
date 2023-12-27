@@ -29,9 +29,9 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
-    {"OK", 2, Okc},  {"SET", 3, Set},   {"GET", 3, Get},   {"DEL", 3, Del},
-    {"POP", 3, Pop}, {"PING", 4, Ping}, {"PUSH", 4, Push},
-};
+    {"OK", 2, Okc},    {"SET", 3, Set},     {"GET", 3, Get},
+    {"DEL", 3, Del},   {"POP", 3, Pop},     {"PING", 4, Ping},
+    {"PUSH", 4, Push}, {"ENQUE", 5, Enque}, {"DEQUE", 5, Deque}};
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
 
@@ -180,6 +180,20 @@ static cmd parse_array_cmd(parser* p) {
         push.value = value;
         cmd.type = Push;
         cmd.data.push = push;
+    } break;
+    case Enque: {
+        object value;
+        enque_cmd enque = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        enque.value = value;
+        cmd.type = Enque;
+        cmd.data.enque = enque;
     } break;
     default:
         break;
