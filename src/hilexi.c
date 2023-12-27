@@ -267,7 +267,7 @@ result(object) hilexi_pop(hilexi* l) {
     int add = builder_add_string(&(l->builder), "POP", 3);
     if (add == -1) {
         res.type = Err;
-        res.data.err = vstr_from("failed to add array to builder");
+        res.data.err = vstr_from("failed to add pop to builder");
         return res;
     }
     if (hilexi_write(l) == -1) {
@@ -279,6 +279,72 @@ result(object) hilexi_pop(hilexi* l) {
     if (hilexi_read(l) == -1) {
         res.type = Err;
         res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_enque(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ENQUE", 5);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add enque to builder");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_deque(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_string(&l->builder, "DEQUE", 5);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add deque to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
                                    errno, strerror(errno));
         return res;
     }
