@@ -17,10 +17,10 @@ typedef struct {
 } lexidb;
 
 typedef enum {
-    None,
-    Info,
-    Debug,
-    Verbose,
+    None = 0,
+    Info = 1,
+    Debug = 2,
+    Verbose = 3,
 } log_level;
 
 typedef struct {
@@ -33,8 +33,15 @@ typedef struct {
     lexidb db;
     ev* ev;
     vec* clients;
+    vec* users;
     uint64_t cmds_processed;
 } server;
+
+typedef struct {
+    vstr name;
+    vec* passwords;
+    uint32_t flags;
+} user;
 
 typedef struct {
     int fd;
@@ -47,6 +54,7 @@ typedef struct {
     uint8_t* write_buf;
     size_t write_size;
     builder builder;
+    user* user;
     struct timespec time_connected;
 } client;
 

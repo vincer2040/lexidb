@@ -165,11 +165,15 @@ int server_run(int argc, char* argv[]) {
 
     s = rs.data.ok;
 
-    info("listening on %s:%u\n", DEFAULT_ADDRESS, DEFAULT_PORT);
+    if (s.log_level >= Info) {
+        info("listening on %s:%u\n", vstr_data(&s.addr), s.port);
+    }
 
     ev_await(s.ev);
 
-    info("server shutting down\n");
+    if (s.log_level >= Info) {
+        info("server shutting down\n");
+    }
 
     server_free(&s);
 
@@ -244,6 +248,7 @@ static result(server)
     s.sfd = sfd;
     s.db = lexidb_new();
     s.ev = ev;
+    s.log_level = ll;
     result.type = Ok;
     result.data.ok = s;
     return result;
@@ -318,7 +323,9 @@ static void server_accept(ev* ev, int fd, void* client_data, int mask) {
         return;
     }
 
-    info("new connection: %d\n", fd);
+    if (s->log_level >= Info) {
+        info("new connection: %d\n", fd);
+    }
 }
 
 static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
@@ -352,7 +359,9 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
             read(fd, c->read_buf + c->read_pos, c->read_cap - c->read_pos);
 
         if (read_amt == 0) {
-            info("closing %d\n", fd);
+            if (s->log_level >= Info) {
+                info("closing %d\n", fd);
+            }
             vec_remove_at(s->clients, found, NULL);
             ev_delete_event(ev, fd, mask);
             client_free(c);
@@ -372,7 +381,9 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
         c->read_pos += read_amt;
     }
 
-    debug("received: %s\n", c->read_buf);
+    if (s->log_level >= Debug) {
+        debug("received: %s\n", c->read_buf);
+    }
     execute_cmd(s, c);
 
     c->write_buf = (uint8_t*)builder_out(&(c->builder));
