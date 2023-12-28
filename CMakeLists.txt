@@ -33,6 +33,12 @@ add_library(
 )
 
 add_library(
+    set
+    src/set.c
+    src/siphash.c
+)
+
+add_library(
     vstr
     src/vstr.c
 )
@@ -101,6 +107,11 @@ target_link_libraries(
 )
 
 target_link_libraries(
+    set
+    util
+)
+
+target_link_libraries(
     object
     vstr
 )
@@ -129,6 +140,7 @@ target_link_libraries(
     lexidb
     networking
     ht
+    set
     queue
     vstr
     object
