@@ -138,6 +138,8 @@ void set_free(set* s, free_fn* fn) {
             cur = next;
         }
     }
+    s->num_entries = 0;
+    free(s->entries);
 }
 
 static uint64_t set_hash(set* s, void* data, size_t data_size) {
