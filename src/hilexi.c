@@ -354,6 +354,117 @@ result(object) hilexi_deque(hilexi* l) {
     return res;
 }
 
+result(object) hilexi_zset(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ZSET", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add zset to builer");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s", errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s", errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_zhas(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ZHAS", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add zhas to builer");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s", errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s", errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_zdel(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ZDEL", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add zdel to builer");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s", errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s", errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
 void hilexi_close(hilexi* l) {
     free(l->read_buf);
     close(l->sfd);

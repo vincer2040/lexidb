@@ -63,21 +63,26 @@ int main(void) {
             object key = set.key;
             object value = set.value;
             cmd_res = hilexi_set(&l, &key, &value);
+            object_free(&key);
+            object_free(&value);
         } break;
         case Get: {
             get_cmd get = cmd.data.get;
             object key = get.key;
             cmd_res = hilexi_get(&l, &key);
+            object_free(&key);
         } break;
         case Del: {
             del_cmd del = cmd.data.del;
             object key = del.key;
             cmd_res = hilexi_del(&l, &key);
+            object_free(&key);
         } break;
         case Push: {
             push_cmd push = cmd.data.push;
             object value = push.value;
             cmd_res = hilexi_push(&l, &value);
+            object_free(&value);
         } break;
         case Pop:
             cmd_res = hilexi_pop(&l);
@@ -86,10 +91,26 @@ int main(void) {
             enque_cmd enque = cmd.data.enque;
             object value = enque.value;
             cmd_res = hilexi_enque(&l, &value);
+            object_free(&value);
         } break;
         case Deque:
             cmd_res = hilexi_deque(&l);
             break;
+        case ZSet: {
+            object value = cmd.data.zset.value;
+            cmd_res = hilexi_zset(&l, &value);
+            object_free(&value);
+        } break;
+        case ZHas: {
+            object value = cmd.data.zhas.value;
+            cmd_res = hilexi_zhas(&l, &value);
+            object_free(&value);
+        } break;
+        case ZDel: {
+            object value = cmd.data.zdel.value;
+            cmd_res = hilexi_zdel(&l, &value);
+            object_free(&value);
+        } break;
         default:
             cmd_res.type = Err;
             cmd_res.data.err = vstr_from("invalid command");

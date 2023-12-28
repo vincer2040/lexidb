@@ -23,6 +23,8 @@ const lookup lookups[] = {
     {"GET", 3, Get},     {"del", 3, Del},     {"DEL", 3, Del},
     {"pop", 3, Pop},     {"POP", 3, Pop},     {"ping", 4, Ping},
     {"PING", 4, Ping},   {"push", 4, Push},   {"PUSH", 4, Push},
+    {"zset", 4, ZSet},   {"ZSET", 4, ZSet},   {"zhas", 4, ZHas},
+    {"ZHAS", 4, ZHas},   {"zdel", 4, ZDel},   {"ZDEL", 4, ZDel},
     {"enque", 5, Enque}, {"ENQUE", 5, Enque}, {"deque", 5, Deque},
     {"DEQUE", 5, Deque},
 };
@@ -100,6 +102,21 @@ static cmd parse_cmd(line_parser* p) {
     case Deque:
         cmd.type = Deque;
         break;
+    case ZSet: {
+        object value = parse_object(p);
+        cmd.data.zset.value = value;
+        cmd.type = ZSet;
+    } break;
+    case ZHas: {
+        object value = parse_object(p);
+        cmd.data.zhas.value = value;
+        cmd.type = ZHas;
+    } break;
+    case ZDel: {
+        object value = parse_object(p);
+        cmd.data.zdel.value = value;
+        cmd.type = ZDel;
+    } break;
     default:
         cmd.type = Illegal;
         break;
