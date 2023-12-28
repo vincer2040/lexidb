@@ -16,6 +16,9 @@ typedef enum {
     Pop,
     Enque,
     Deque,
+    ZSet,
+    ZHas,
+    ZDel,
 } cmdt;
 
 typedef struct {
@@ -36,6 +39,9 @@ typedef k_cmd get_cmd;
 typedef k_cmd del_cmd;
 typedef v_cmd push_cmd;
 typedef v_cmd enque_cmd;
+typedef v_cmd zset_cmd;
+typedef v_cmd zhas_cmd;
+typedef v_cmd zdel_cmd;
 
 typedef struct {
     cmdt type;
@@ -45,6 +51,9 @@ typedef struct {
         del_cmd del;
         push_cmd push;
         enque_cmd enque;
+        zset_cmd zset;
+        zhas_cmd zhas;
+        zdel_cmd zdel;
     } data;
 } cmd;
 

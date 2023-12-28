@@ -136,6 +136,18 @@ class Client:
         self.s.send(ProtocolBuilder().add_str("DEQUE", 5).get())
         print(self.s.recv(9182).decode())
 
+    def zset(self, v):
+        self.s.send(ProtocolBuilder().add_str("ZSET", 4).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
+    def zhas(self, v):
+        self.s.send(ProtocolBuilder().add_str("ZHAS", 4).add_str(v, len(v)).get())
+        print(self.s.recv(9182))
+
+    def zdel(self, v):
+        self.s.send(ProtocolBuilder().add_str("ZDEL", 4).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
     def cl(self):
         self.s.close()
 
@@ -159,6 +171,11 @@ c.enque("is cool")
 
 c.deque()
 c.deque()
+
+c.zset("vince")
+c.zhas("vince")
+c.zdel("vince")
+c.zhas("vince")
 
 c.cl()
 

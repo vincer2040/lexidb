@@ -10,6 +10,7 @@
 #include "object.h"
 #include "parser.h"
 #include "result.h"
+#include "set.h"
 #include "util.h"
 #include "vstr.h"
 #include <assert.h>
@@ -57,16 +58,19 @@ static int execute_push_command(server* s, push_cmd* push);
 static result(object) execute_pop_command(server* s);
 static int execute_enque_command(server* s, enque_cmd* enque);
 static result(object) execute_deque_command(server* s);
+static int execute_zset_command(server* s, zset_cmd* zset);
+static bool execute_zhas_command(server* s, zhas_cmd* zhas);
+static int execute_zdel_command(server* s, zdel_cmd* zdel);
 
 static result(log_level) determine_loglevel(vstr* loglevel_s);
 
 static int realloc_client_read_buf(client* c);
 
-static int ht_compare_objects(void* a, void* b);
+static int server_compare_objects(void* a, void* b);
 static int client_compare(void* fdp, void* clientp);
 
 static void client_free(client* client);
-static void ht_free_object(void* ptr);
+static void server_free_object(void* ptr);
 static void client_in_vec_free(void* ptr);
 
 const log_level_lookup log_level_lookups[] = {
@@ -258,10 +262,11 @@ static result(server)
 
 static lexidb lexidb_new(void) {
     lexidb res = {0};
-    res.dict = ht_new(sizeof(object), ht_compare_objects);
+    res.dict = ht_new(sizeof(object), server_compare_objects);
     res.vec = vec_new(sizeof(object));
     assert(res.vec != NULL);
     res.queue = queue_new(sizeof(object));
+    res.set = set_new(sizeof(object), server_compare_objects);
     return res;
 }
 
@@ -273,9 +278,10 @@ static void server_free(server* s) {
 }
 
 static void lexidb_free(lexidb* db) {
-    ht_free(&(db->dict), ht_free_object, ht_free_object);
-    vec_free(db->vec, ht_free_object);
-    queue_free(&(db->queue), ht_free_object);
+    ht_free(&(db->dict), server_free_object, server_free_object);
+    vec_free(db->vec, server_free_object);
+    queue_free(&(db->queue), server_free_object);
+    set_free(&(db->set), server_free_object);
 }
 
 static void server_accept(ev* ev, int fd, void* client_data, int mask) {
@@ -549,6 +555,30 @@ static void execute_cmd(server* s, client* c) {
         object_free(&obj);
         s->cmds_processed++;
     } break;
+    case ZSet: {
+        int res = execute_zset_command(s, &cmd.data.zset);
+        if (res == -1) {
+            builder_add_err(&c->builder, "failed to set", 13);
+            break;
+        }
+        builder_add_ok(&c->builder);
+    } break;
+    case ZHas: {
+        bool res = execute_zhas_command(s, &cmd.data.zhas);
+        if (res == false) {
+            builder_add_none(&c->builder);
+            break;
+        }
+        builder_add_int(&c->builder, 1);
+    } break;
+    case ZDel: {
+        int res = execute_zdel_command(s, &cmd.data.zdel);
+        if (res == -1) {
+            builder_add_err(&c->builder, "invalid key", 11);
+            break;
+        }
+        builder_add_ok(&c->builder);
+    } break;
     default:
         builder_add_err(&(c->builder), "Invalid command", 15);
         break;
@@ -559,7 +589,7 @@ static int execute_set_command(server* s, set_cmd* set) {
     object key = set->key;
     object value = set->value;
     int res = ht_insert(&(s->db.dict), &key, sizeof(object), &value,
-                        ht_free_object, ht_free_object);
+                        server_free_object, server_free_object);
     return res;
 }
 
@@ -572,8 +602,8 @@ static object* execute_get_command(server* s, get_cmd* get) {
 
 static int execute_del_command(server* s, del_cmd* del) {
     object key = del->key;
-    int res = ht_delete(&(s->db.dict), &key, sizeof(object), ht_free_object,
-                        ht_free_object);
+    int res = ht_delete(&(s->db.dict), &key, sizeof(object), server_free_object,
+                        server_free_object);
     object_free(&key);
     return res;
 }
@@ -615,6 +645,22 @@ static result(object) execute_deque_command(server* s) {
     return ro;
 }
 
+static int execute_zset_command(server* s, zset_cmd* zset) {
+    return set_insert(&s->db.set, &zset->value, server_free_object);
+}
+
+static bool execute_zhas_command(server* s, zhas_cmd* zhas) {
+    bool res = set_has(&s->db.set, &zhas->value);
+    object_free(&zhas->value);
+    return res;
+}
+
+static int execute_zdel_command(server* s, zdel_cmd* zdel) {
+    int res = set_delete(&s->db.set, &zdel->value, server_free_object);
+    object_free(&zdel->value);
+    return res;
+}
+
 static result(log_level) determine_loglevel(vstr* loglevel_s) {
     result(log_level) res = {0};
     size_t i, len = sizeof log_level_lookups / sizeof log_level_lookups[0];
@@ -650,7 +696,7 @@ static int realloc_client_read_buf(client* c) {
     return 0;
 }
 
-static int ht_compare_objects(void* a, void* b) {
+static int server_compare_objects(void* a, void* b) {
     object* ao = a;
     object* bo = b;
     return object_cmp(ao, bo);
@@ -662,7 +708,7 @@ static int client_compare(void* fdp, void* clientp) {
     return fd - c->fd;
 }
 
-static void ht_free_object(void* ptr) {
+static void server_free_object(void* ptr) {
     object* o = ptr;
     object_free(o);
 }

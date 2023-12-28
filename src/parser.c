@@ -31,7 +31,9 @@ typedef struct {
 const cmdt_lookup lookup[] = {
     {"OK", 2, Okc},    {"SET", 3, Set},     {"GET", 3, Get},
     {"DEL", 3, Del},   {"POP", 3, Pop},     {"PING", 4, Ping},
-    {"PUSH", 4, Push}, {"ENQUE", 5, Enque}, {"DEQUE", 5, Deque}};
+    {"PUSH", 4, Push}, {"ZSET", 4, ZSet},   {"ZHAS", 4, ZHas},
+    {"ZDEL", 4, ZDel}, {"ENQUE", 5, Enque}, {"DEQUE", 5, Deque},
+};
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
 
@@ -194,6 +196,48 @@ static cmd parse_array_cmd(parser* p) {
         enque.value = value;
         cmd.type = Enque;
         cmd.data.enque = enque;
+    } break;
+    case ZSet: {
+        object value;
+        zset_cmd zset = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        zset.value = value;
+        cmd.type = ZSet;
+        cmd.data.zset = zset;
+    } break;
+    case ZHas: {
+        object value;
+        zhas_cmd zhas = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        zhas.value = value;
+        cmd.type = ZHas;
+        cmd.data.zhas = zhas;
+    } break;
+    case ZDel: {
+        object value;
+        zdel_cmd zdel = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        zdel.value = value;
+        cmd.type = ZDel;
+        cmd.data.zdel = zdel;
     } break;
     default:
         break;

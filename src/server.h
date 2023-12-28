@@ -3,19 +3,21 @@
 #define __SERVER_H__
 
 #define _XOPEN_SOURCE 600
-#include "queue.h"
 #include "builder.h"
 #include "ev.h"
 #include "ht.h"
+#include "queue.h"
+#include "set.h"
 #include "vec.h"
 #include "vstr.h"
 #include <stdint.h>
 #include <time.h>
 
 typedef struct {
-    ht ht;
-    vec* vec;
+    ht dict;
+    set set;
     queue queue;
+    vec* vec;
 } lexidb;
 
 typedef enum {
