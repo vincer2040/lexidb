@@ -258,7 +258,7 @@ static result(server)
 
 static lexidb lexidb_new(void) {
     lexidb res = {0};
-    res.ht = ht_new(sizeof(object), ht_compare_objects);
+    res.dict = ht_new(sizeof(object), ht_compare_objects);
     res.vec = vec_new(sizeof(object));
     assert(res.vec != NULL);
     res.queue = queue_new(sizeof(object));
@@ -273,7 +273,7 @@ static void server_free(server* s) {
 }
 
 static void lexidb_free(lexidb* db) {
-    ht_free(&(db->ht), ht_free_object, ht_free_object);
+    ht_free(&(db->dict), ht_free_object, ht_free_object);
     vec_free(db->vec, ht_free_object);
     queue_free(&(db->queue), ht_free_object);
 }
@@ -558,21 +558,21 @@ static void execute_cmd(server* s, client* c) {
 static int execute_set_command(server* s, set_cmd* set) {
     object key = set->key;
     object value = set->value;
-    int res = ht_insert(&(s->db.ht), &key, sizeof(object), &value,
+    int res = ht_insert(&(s->db.dict), &key, sizeof(object), &value,
                         ht_free_object, ht_free_object);
     return res;
 }
 
 static object* execute_get_command(server* s, get_cmd* get) {
     object key = get->key;
-    object* res = ht_get(&(s->db.ht), &key, sizeof(object));
+    object* res = ht_get(&(s->db.dict), &key, sizeof(object));
     object_free(&key);
     return res;
 }
 
 static int execute_del_command(server* s, del_cmd* del) {
     object key = del->key;
-    int res = ht_delete(&(s->db.ht), &key, sizeof(object), ht_free_object,
+    int res = ht_delete(&(s->db.dict), &key, sizeof(object), ht_free_object,
                         ht_free_object);
     object_free(&key);
     return res;
