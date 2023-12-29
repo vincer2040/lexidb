@@ -3,12 +3,14 @@
 #define __OBJECT_H__
 
 #include "vstr.h"
+#include "vec.h"
 #include <stdint.h>
 
 typedef enum {
     Null,
     Int,
     String,
+    Array,
 } objectt;
 
 typedef struct {
@@ -16,6 +18,7 @@ typedef struct {
     union {
         int64_t num;
         vstr string;
+        vec* vec;
     } data;
 } object;
 

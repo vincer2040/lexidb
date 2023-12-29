@@ -138,6 +138,15 @@ int builder_add_object(builder* b, object* obj) {
     case String:
         return builder_add_string(b, vstr_data(&(obj->data.string)),
                                   vstr_len(&(obj->data.string)));
+    case Array: {
+        vec_iter iter = vec_iter_new(obj->data.vec);
+        while (iter.cur) {
+            object* cur = iter.cur;
+            builder_add_object(b, cur);
+            vec_iter_next(&iter);
+        }
+        return 0;
+    }
     }
     return -1;
 }

@@ -1,6 +1,8 @@
 #include "object.h"
 #include <stdio.h>
 
+static void free_object_in_vec(void* ptr);
+
 object object_new(objectt type, void* data) {
     object obj = {0};
     switch (type) {
@@ -14,6 +16,10 @@ object object_new(objectt type, void* data) {
     case String:
         obj.type = String;
         obj.data.string = *(vstr*)data;
+        break;
+    case Array:
+        obj.type = Array;
+        obj.data.vec = *(vec**)data;
         break;
     default:
         obj.type = Null;
@@ -39,6 +45,8 @@ int object_cmp(object* a, object* b) {
         vstr bs = b->data.string;
         return vstr_cmp(&as, &bs);
     }
+    default:
+        return 1;
     }
     return 0;
 }
@@ -54,6 +62,14 @@ void object_show(object* obj) {
     case String:
         printf("%s\n", vstr_data(&(obj->data.string)));
         break;
+    case Array:{
+        vec_iter iter = vec_iter_new(obj->data.vec);
+        while (iter.cur) {
+            object* obj = iter.cur;
+            object_show(obj);
+            vec_iter_next(&iter);
+        }
+    } break;
     }
 }
 
@@ -66,7 +82,15 @@ void object_free(object* obj) {
     case String:
         vstr_free(&(obj->data.string));
         break;
+    case Array:
+        vec_free(obj->data.vec, free_object_in_vec);
+        break;
     default:
         break;
     }
+}
+
+static void free_object_in_vec(void* ptr) {
+    object* obj = ptr;
+    object_free(obj);
 }

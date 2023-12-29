@@ -157,6 +157,8 @@ static int parse_args(cla* cla, args args, int argc, char* argv[]) {
                 return CLA_ERROR;
             }
         } break;
+        default:
+            return CLA_ERROR;
         }
     }
     return 0;
