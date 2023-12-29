@@ -228,6 +228,8 @@ static result(server)
         return result;
     }
 
+    s.os_name = get_os_name();
+
     addr_str = vstr_from(addr);
     s.addr = addr_str;
     s.port = port;

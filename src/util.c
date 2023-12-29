@@ -104,3 +104,17 @@ char* get_execuable_path(void) {
     memcpy(path, buf, res);
     return path;
 }
+
+const char* get_os_name(void) {
+#ifdef __linux__
+    return "Linux";
+#elif _WIN32 || _WIN64
+    return "Windows";
+#elif __APPLE__ || __MACH__
+    return "MacOs";
+#elif __unix__
+    return "Unix";
+#elif __FreeBSD__
+    return "FreeBSD";
+#endif
+}

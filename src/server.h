@@ -34,6 +34,7 @@ typedef struct {
     uint16_t flags;
     uint16_t port;
     char* executable_path;
+    const char* os_name;
     vstr addr;
     lexidb db;
     ev* ev;
