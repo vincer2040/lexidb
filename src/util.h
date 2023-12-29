@@ -15,5 +15,6 @@ void get_random_bytes(uint8_t* p, size_t len);
 struct timespec get_time(void);
 
 int create_sigint_handler(void);
+char* get_execuable_path(void);
 
 #endif /* __UTIL_H__ */

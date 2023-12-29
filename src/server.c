@@ -218,6 +218,16 @@ static result(server)
         return result;
     }
 
+    s.executable_path = get_execuable_path();
+    if (s.executable_path == NULL) {
+        result.type = Err;
+        result.data.err =
+            vstr_format("failed to get executable path (errno: %d) %s\n", errno,
+                        strerror(errno));
+        close(sfd);
+        return result;
+    }
+
     addr_str = vstr_from(addr);
     s.addr = addr_str;
     s.port = port;
@@ -226,6 +236,7 @@ static result(server)
     if (s.clients == NULL) {
         result.type = Err;
         result.data.err = vstr_format("failed to allocate for client vec");
+        free(s.executable_path);
         close(sfd);
         return result;
     }
@@ -235,6 +246,7 @@ static result(server)
         result.type = Err;
         result.data.err = vstr_format("failed to allocate memory for ev\n");
         vec_free(s.clients, client_in_vec_free);
+        free(s.executable_path);
         close(sfd);
         return result;
     }
@@ -246,6 +258,7 @@ static result(server)
             errno, strerror(errno));
         vec_free(s.clients, client_in_vec_free);
         ev_free(ev);
+        free(s.executable_path);
         close(sfd);
         return result;
     }
@@ -271,6 +284,7 @@ static lexidb lexidb_new(void) {
 }
 
 static void server_free(server* s) {
+    free(s->executable_path);
     ev_free(s->ev);
     lexidb_free(&s->db);
     vec_free(s->clients, client_in_vec_free);
@@ -562,6 +576,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&c->builder);
+        s->cmds_processed++;
     } break;
     case ZHas: {
         bool res = execute_zhas_command(s, &cmd.data.zhas);
@@ -570,6 +585,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_int(&c->builder, 1);
+        s->cmds_processed++;
     } break;
     case ZDel: {
         int res = execute_zdel_command(s, &cmd.data.zdel);
@@ -578,6 +594,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&c->builder);
+        s->cmds_processed++;
     } break;
     default:
         builder_add_err(&(c->builder), "Invalid command", 15);

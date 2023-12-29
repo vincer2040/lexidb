@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
@@ -86,4 +87,20 @@ int create_sigint_handler(void) {
         return -1;
     }
     return 0;
+}
+
+char* get_execuable_path(void) {
+    char* path;
+    char buf[1024];
+    ssize_t res = readlink("/proc/self/exe", buf, (sizeof buf) - 1);
+    if (res == -1) {
+        return NULL;
+    }
+    path = malloc(res + 1);
+    if (path == NULL) {
+        return NULL;
+    }
+    memset(path, 0, res + 1);
+    memcpy(path, buf, res);
+    return path;
 }

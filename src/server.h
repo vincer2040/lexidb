@@ -33,6 +33,7 @@ typedef struct {
     log_level log_level;
     uint16_t flags;
     uint16_t port;
+    char* executable_path;
     vstr addr;
     lexidb db;
     ev* ev;
