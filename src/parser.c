@@ -29,10 +29,11 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
-    {"OK", 2, Okc},    {"SET", 3, Set},     {"GET", 3, Get},
-    {"DEL", 3, Del},   {"POP", 3, Pop},     {"PING", 4, Ping},
-    {"PUSH", 4, Push}, {"ZSET", 4, ZSet},   {"ZHAS", 4, ZHas},
-    {"ZDEL", 4, ZDel}, {"ENQUE", 5, Enque}, {"DEQUE", 5, Deque},
+    {"OK", 2, Okc},      {"SET", 3, Set},   {"GET", 3, Get},
+    {"DEL", 3, Del},     {"POP", 3, Pop},   {"PING", 4, Ping},
+    {"INFO", 4, Infoc},   {"PUSH", 4, Push}, {"ZSET", 4, ZSet},
+    {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel}, {"ENQUE", 5, Enque},
+    {"DEQUE", 5, Deque},
 };
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
@@ -336,6 +337,35 @@ static object parse_object(parser* p) {
         vstr s = parse_error(p);
         obj = object_new(String, &s);
         parser_read_char(p);
+    } break;
+    case '*': {
+        uint64_t i, len;
+        vec* vec;
+        if (!expect_peek_byte_to_be_num(p)) {
+            return obj;
+        }
+
+        len = parse_len(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        parser_read_char(p);
+
+        vec = vec_new(sizeof(object));
+
+        for (i = 0; i < len; ++i) {
+            object cur = parse_object(p);
+            vec_push(&vec, &cur);
+        }
+
+        obj.type = Array;
+        obj.data.vec = vec;
     } break;
     default:
         break;

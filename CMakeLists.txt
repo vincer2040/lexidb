@@ -114,6 +114,7 @@ target_link_libraries(
 target_link_libraries(
     object
     vstr
+    vec
 )
 
 target_link_libraries(

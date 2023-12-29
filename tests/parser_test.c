@@ -243,6 +243,43 @@ START_TEST(test_parse_int_from_server) {
 }
 END_TEST
 
+START_TEST(test_parse_array) {
+    uint8_t* input = (uint8_t*)"*2\r\n*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n*2\r\n$"
+                               "3\r\nbaz\r\n$6\r\nfoobar\r\n";
+    size_t len = strlen((char*)input);
+    object parsed = parse_from_server(input, len);
+    vec *arr, *a0_vec, *a1_vec;
+    object *a0, *a1, *a01, *a02, *a11, *a12;
+    ck_assert(parsed.type == Array);
+    arr = parsed.data.vec;
+    ck_assert_uint_eq(arr->len, 2);
+
+    a0 = vec_get_at(arr, 0);
+    ck_assert(a0->type == Array);
+    a0_vec = a0->data.vec;
+    ck_assert_uint_eq(a0_vec->len, 2);
+    a01 = vec_get_at(a0_vec, 0);
+    ck_assert(a01->type == String);
+    ck_assert_str_eq(vstr_data(&a01->data.string), "foo");
+    a02 = vec_get_at(a0_vec, 1);
+    ck_assert(a02->type == String);
+    ck_assert_str_eq(vstr_data(&a02->data.string), "bar");
+
+    a1 = vec_get_at(arr, 1);
+    ck_assert(a1->type == Array);
+    a1_vec = a1->data.vec;
+    ck_assert_uint_eq(a1_vec->len, 2);
+    a11 = vec_get_at(a1_vec, 0);
+    ck_assert(a11->type == String);
+    ck_assert_str_eq(vstr_data(&a11->data.string), "baz");
+    a12 = vec_get_at(a1_vec, 1);
+    ck_assert(a12->type == String);
+    ck_assert_str_eq(vstr_data(&a12->data.string), "foobar");
+
+    object_free(&parsed);
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -252,6 +289,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_simple_string_cmd);
     tcase_add_test(tc_core, test_parse_string_from_server);
     tcase_add_test(tc_core, test_parse_int_from_server);
+    tcase_add_test(tc_core, test_parse_array);
     suite_add_tcase(s, tc_core);
     return s;
 }

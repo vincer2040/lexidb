@@ -502,6 +502,30 @@ static void execute_cmd(server* s, client* c) {
         builder_add_pong(&(c->builder));
         s->cmds_processed++;
         break;
+    case Infoc:
+        builder_add_array(&c->builder, 5);
+
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "executable", 10);
+        builder_add_string(&c->builder, s->executable_path, strlen(s->executable_path));
+
+        builder_add_array(&c->builder, 2);
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "host", 4);
+
+        builder_add_string(&c->builder, vstr_data(&s->addr), vstr_len(&s->addr));
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "port", 4);
+
+        builder_add_int(&c->builder, s->port);
+        builder_add_string(&c->builder, "commands processes", 18);
+        builder_add_int(&c->builder, s->cmds_processed);
+
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "num connections", 15);
+        builder_add_int(&c->builder, s->clients->len);
+        s->cmds_processed++;
+        break;
     case Set: {
         int set_res = execute_set_command(s, &(cmd.data.set));
         if (set_res == -1) {
