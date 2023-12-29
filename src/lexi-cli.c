@@ -58,6 +58,9 @@ int main(void) {
         case Ping:
             cmd_res = hilexi_ping(&l);
             break;
+        case Infoc:
+            cmd_res = hilexi_info(&l);
+            break;
         case Set: {
             set_cmd set = cmd.data.set;
             object key = set.key;

@@ -22,11 +22,11 @@ const lookup lookups[] = {
     {"set", 3, Set},     {"SET", 3, Set},     {"get", 3, Get},
     {"GET", 3, Get},     {"del", 3, Del},     {"DEL", 3, Del},
     {"pop", 3, Pop},     {"POP", 3, Pop},     {"ping", 4, Ping},
-    {"PING", 4, Ping},   {"push", 4, Push},   {"PUSH", 4, Push},
-    {"zset", 4, ZSet},   {"ZSET", 4, ZSet},   {"zhas", 4, ZHas},
-    {"ZHAS", 4, ZHas},   {"zdel", 4, ZDel},   {"ZDEL", 4, ZDel},
-    {"enque", 5, Enque}, {"ENQUE", 5, Enque}, {"deque", 5, Deque},
-    {"DEQUE", 5, Deque},
+    {"PING", 4, Ping},   {"info", 4, Infoc},  {"INFO", 4, Infoc},
+    {"push", 4, Push},   {"PUSH", 4, Push},   {"zset", 4, ZSet},
+    {"ZSET", 4, ZSet},   {"zhas", 4, ZHas},   {"ZHAS", 4, ZHas},
+    {"zdel", 4, ZDel},   {"ZDEL", 4, ZDel},   {"enque", 5, Enque},
+    {"ENQUE", 5, Enque}, {"deque", 5, Deque}, {"DEQUE", 5, Deque},
 };
 
 size_t lookups_len = sizeof lookups / sizeof lookups[0];
@@ -68,6 +68,9 @@ static cmd parse_cmd(line_parser* p) {
     switch (type) {
     case Ping:
         cmd.type = Ping;
+        break;
+    case Infoc:
+        cmd.type = Infoc;
         break;
     case Pop:
         cmd.type = Pop;
