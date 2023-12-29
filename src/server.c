@@ -500,11 +500,10 @@ static void execute_cmd(server* s, client* c) {
         break;
     case Ping:
         builder_add_pong(&(c->builder));
-        s->cmds_processed++;
+        s->cmd_executed++;
         break;
     case Infoc:
         builder_add_array(&c->builder, 5);
-
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "executable", 10);
         builder_add_string(&c->builder, s->executable_path, strlen(s->executable_path));
@@ -519,12 +518,12 @@ static void execute_cmd(server* s, client* c) {
 
         builder_add_int(&c->builder, s->port);
         builder_add_string(&c->builder, "commands processes", 18);
-        builder_add_int(&c->builder, s->cmds_processed);
+        builder_add_int(&c->builder, s->cmd_executed);
 
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "num connections", 15);
         builder_add_int(&c->builder, s->clients->len);
-        s->cmds_processed++;
+        s->cmd_executed++;
         break;
     case Set: {
         int set_res = execute_set_command(s, &(cmd.data.set));
@@ -533,7 +532,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&(c->builder));
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case Get: {
         object* obj = execute_get_command(s, &(cmd.data.get));
@@ -542,7 +541,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_object(&(c->builder), obj);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case Del: {
         int del_res = execute_del_command(s, &(cmd.data.del));
@@ -551,7 +550,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&(c->builder));
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case Push: {
         int push_res = execute_push_command(s, &(cmd.data.push));
@@ -560,7 +559,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&(c->builder));
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case Pop: {
         result(object) ro = execute_pop_command(s);
@@ -572,7 +571,7 @@ static void execute_cmd(server* s, client* c) {
         obj = ro.data.ok;
         builder_add_object(&(c->builder), &obj);
         object_free(&obj);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case Enque: {
         int res = execute_enque_command(s, &cmd.data.enque);
@@ -581,7 +580,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&c->builder);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case Deque: {
         result(object) ro = execute_deque_command(s);
@@ -593,7 +592,7 @@ static void execute_cmd(server* s, client* c) {
         obj = ro.data.ok;
         builder_add_object(&c->builder, &obj);
         object_free(&obj);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case ZSet: {
         int res = execute_zset_command(s, &cmd.data.zset);
@@ -602,7 +601,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&c->builder);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case ZHas: {
         bool res = execute_zhas_command(s, &cmd.data.zhas);
@@ -611,7 +610,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_int(&c->builder, 1);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     case ZDel: {
         int res = execute_zdel_command(s, &cmd.data.zdel);
@@ -620,7 +619,7 @@ static void execute_cmd(server* s, client* c) {
             break;
         }
         builder_add_ok(&c->builder);
-        s->cmds_processed++;
+        s->cmd_executed++;
     } break;
     default:
         builder_add_err(&(c->builder), "Invalid command", 15);
