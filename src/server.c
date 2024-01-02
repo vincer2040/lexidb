@@ -506,13 +506,15 @@ static void execute_cmd(server* s, client* c) {
         builder_add_array(&c->builder, 5);
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "executable", 10);
-        builder_add_string(&c->builder, s->executable_path, strlen(s->executable_path));
+        builder_add_string(&c->builder, s->executable_path,
+                           strlen(s->executable_path));
 
         builder_add_array(&c->builder, 2);
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "host", 4);
 
-        builder_add_string(&c->builder, vstr_data(&s->addr), vstr_len(&s->addr));
+        builder_add_string(&c->builder, vstr_data(&s->addr),
+                           vstr_len(&s->addr));
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "port", 4);
 
