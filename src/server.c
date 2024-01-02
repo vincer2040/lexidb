@@ -350,7 +350,7 @@ static void server_accept(ev* ev, int fd, void* client_data, int mask) {
     }
 
     if (s->log_level >= Info) {
-        info("new connection: %d\n", fd);
+        info("new connection: %d\n", cfd);
     }
 }
 
