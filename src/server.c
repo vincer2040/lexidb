@@ -503,7 +503,12 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
         break;
     case Infoc:
-        builder_add_array(&c->builder, 5);
+        builder_add_array(&c->builder, 6);
+
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "process id", 10);
+        builder_add_int(&c->builder, s->pid);
+
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "executable", 10);
         builder_add_string(&c->builder, s->executable_path,
