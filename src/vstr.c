@@ -205,6 +205,8 @@ void vstr_free(vstr* s) {
     if (s->is_large) {
         free(s->str_data.lg.data);
     }
+    s->is_large = 0;
+    s->small_avail = VSTR_MAX_SMALL_SIZE;
 }
 
 static vstr_lg vstr_make_lg(const char* data) {
