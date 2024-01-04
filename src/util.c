@@ -1,5 +1,9 @@
 #define _XOPEN_SOURCE 600
+#include "util.h"
+#include "result.h"
 #include "sha256.h"
+#include "vstr.h"
+#include <errno.h>
 #include <memory.h>
 #include <signal.h>
 #include <stdint.h>
@@ -117,4 +121,31 @@ const char* get_os_name(void) {
 #elif __FreeBSD__
     return "FreeBSD";
 #endif
+}
+
+result(vstr) read_file(const char* path) {
+    result(vstr) res = {0};
+    vstr s = vstr_new();
+    char ch;
+    FILE* f = fopen(path, "r");
+    if (f == NULL) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to open path %s (errno: %d) %s",
+                                   path, errno, strerror(errno));
+        return res;
+    }
+    while ((ch = fgetc(f)) != EOF) {
+        int push_res = vstr_push_char(&s, ch);
+        if (push_res == -1) {
+            vstr_free(&s);
+            res.type = Err;
+            res.data.err = vstr_from("failed to read full file");
+            fclose(f);
+            return res;
+        }
+    }
+    fclose(f);
+    res.type = Ok;
+    res.data.ok = s;
+    return res;
 }
