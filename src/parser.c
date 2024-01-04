@@ -31,7 +31,7 @@ typedef struct {
 const cmdt_lookup lookup[] = {
     {"OK", 2, Okc},      {"SET", 3, Set},   {"GET", 3, Get},
     {"DEL", 3, Del},     {"POP", 3, Pop},   {"PING", 4, Ping},
-    {"INFO", 4, Infoc},   {"PUSH", 4, Push}, {"ZSET", 4, ZSet},
+    {"INFO", 4, Infoc},  {"PUSH", 4, Push}, {"ZSET", 4, ZSet},
     {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel}, {"ENQUE", 5, Enque},
     {"DEQUE", 5, Deque},
 };
@@ -399,7 +399,7 @@ static cmdt parse_simple_string_cmd(parser* p) {
 static vstr parse_simple_string(parser* p) {
     vstr s = vstr_new_len(5);
     parser_read_char(p);
-    while (p->ch != '\r') {
+    while (p->ch != '\r' && p->ch != 0) {
         vstr_push_char(&s, p->ch);
         parser_read_char(p);
     }
@@ -417,7 +417,7 @@ static vstr parse_simple_string(parser* p) {
 static vstr parse_error(parser* p) {
     vstr s = vstr_new();
     parser_read_char(p);
-    while (p->ch != '\r') {
+    while (p->ch != '\r' && p->ch != 0) {
         vstr_push_char(&s, p->ch);
         parser_read_char(p);
     }
