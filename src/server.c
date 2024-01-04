@@ -38,7 +38,8 @@ typedef struct {
     log_level ll;
 } log_level_lookup;
 
-static result(server) server_new(const char* addr, uint16_t port, log_level ll);
+static result(server) server_new(const char* addr, uint16_t port, log_level ll,
+                                 vstr* conf_file_path);
 static lexidb lexidb_new(void);
 static void server_free(server* s);
 static void lexidb_free(lexidb* db);
@@ -88,9 +89,11 @@ int server_run(int argc, char* argv[]) {
     object* addr_obj;
     object* port_obj;
     object* log_level_obj;
+    object* conf_file_path_obj;
     const char* addr;
     uint16_t port;
     log_level ll;
+    vstr conf_file_path;
 
     if (create_sigint_handler() == -1) {
         error("failed to create sigint handler (errno: %d) %s\n", errno,
@@ -99,6 +102,8 @@ int server_run(int argc, char* argv[]) {
     }
 
     args = args_new();
+    args_add(&args, "config file path", "-c", "--config",
+             "the path to the configuration file to configure lexidb", String);
     args_add(&args, "address", "-a", "--address",
              "the address the server should listen on", String);
     args_add(&args, "port", "-p", "--port",
@@ -126,6 +131,23 @@ int server_run(int argc, char* argv[]) {
         args_free(args);
         clap_free(&cla);
         return 0;
+    }
+
+    conf_file_path_obj = args_get(&cla, "config file path");
+    if (conf_file_path_obj != NULL) {
+        const char* path = vstr_data(&conf_file_path_obj->data.string);
+        char* real_path = realpath(path, NULL);
+        size_t real_path_len;
+        assert(real_path != NULL);
+        real_path_len = strlen(real_path);
+        conf_file_path = vstr_from_len(real_path, real_path_len);
+        free(real_path);
+    } else {
+        char* real_path = realpath("../lexi.conf", NULL);
+        size_t real_path_len = strlen(real_path);
+        assert(real_path != NULL);
+        conf_file_path = vstr_from_len(real_path, real_path_len);
+        free(real_path);
     }
 
     addr_obj = args_get(&cla, "address");
@@ -158,7 +180,7 @@ int server_run(int argc, char* argv[]) {
         ll = Info;
     }
 
-    rs = server_new(addr, port, ll);
+    rs = server_new(addr, port, ll, &conf_file_path);
 
     args_free(args);
     clap_free(&cla);
@@ -186,8 +208,8 @@ int server_run(int argc, char* argv[]) {
     return 0;
 }
 
-static result(server)
-    server_new(const char* addr, uint16_t port, log_level ll) {
+static result(server) server_new(const char* addr, uint16_t port, log_level ll,
+                                 vstr* conf_file_path) {
     result(server) result = {0};
     server s = {0};
     int sfd = create_tcp_socket(1);
@@ -218,12 +240,15 @@ static result(server)
         return result;
     }
 
+    s.conf_file_path = *conf_file_path;
+
     s.executable_path = get_execuable_path();
     if (s.executable_path == NULL) {
         result.type = Err;
         result.data.err =
             vstr_format("failed to get executable path (errno: %d) %s\n", errno,
                         strerror(errno));
+        vstr_free(&s.conf_file_path);
         close(sfd);
         return result;
     }
@@ -238,6 +263,7 @@ static result(server)
     if (s.clients == NULL) {
         result.type = Err;
         result.data.err = vstr_format("failed to allocate for client vec");
+        vstr_free(&s.conf_file_path);
         free(s.executable_path);
         close(sfd);
         return result;
@@ -249,6 +275,7 @@ static result(server)
         result.data.err = vstr_format("failed to allocate memory for ev\n");
         vec_free(s.clients, client_in_vec_free);
         free(s.executable_path);
+        vstr_free(&s.conf_file_path);
         close(sfd);
         return result;
     }
@@ -258,6 +285,7 @@ static result(server)
         result.data.err = vstr_format(
             "failed to add server accept as event_fn to ev (errno: %d) %s\n",
             errno, strerror(errno));
+        vstr_free(&s.conf_file_path);
         vec_free(s.clients, client_in_vec_free);
         ev_free(ev);
         free(s.executable_path);
@@ -290,6 +318,8 @@ static void server_free(server* s) {
     ev_free(s->ev);
     lexidb_free(&s->db);
     vec_free(s->clients, client_in_vec_free);
+    vstr_free(&s->addr);
+    vstr_free(&s->conf_file_path);
     close(s->sfd);
 }
 
@@ -513,6 +543,11 @@ static void execute_cmd(server* s, client* c) {
         builder_add_string(&c->builder, "executable", 10);
         builder_add_string(&c->builder, s->executable_path,
                            strlen(s->executable_path));
+
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "config file", 11);
+        builder_add_string(&c->builder, vstr_data(&s->conf_file_path),
+                           vstr_len(&s->conf_file_path));
 
         builder_add_array(&c->builder, 2);
         builder_add_array(&c->builder, 2);
