@@ -90,8 +90,8 @@ add_library(
 
 add_executable(
     lexidb
-    src/server.c
     src/db.c
+    src/server.c
 )
 
 add_executable(
@@ -99,6 +99,11 @@ add_executable(
     src/lexi-cli.c
     src/read_line.c
     src/line_parser.c
+)
+
+target_link_libraries(
+    util
+    vstr
 )
 
 target_link_libraries(

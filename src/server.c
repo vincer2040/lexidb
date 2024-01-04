@@ -227,6 +227,7 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     int sfd = create_tcp_socket(1);
     ev* ev;
     vstr addr_str;
+    result(vstr) config_file_contents_res;
 
     if (sfd < 0) {
         result.type = Err;
@@ -253,6 +254,16 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     }
 
     s.conf_file_path = *conf_file_path;
+
+    config_file_contents_res = read_file(vstr_data(&s.conf_file_path));
+    if (config_file_contents_res.type == Err) {
+        result.type = Err;
+        result.data.err = config_file_contents_res.data.err;
+        close(sfd);
+        return result;
+    }
+
+    printf("%s\n", vstr_data(&config_file_contents_res.data.ok));
 
     s.executable_path = get_execuable_path();
     if (s.executable_path == NULL) {
