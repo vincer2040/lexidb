@@ -138,14 +138,26 @@ int server_run(int argc, char* argv[]) {
         const char* path = vstr_data(&conf_file_path_obj->data.string);
         char* real_path = realpath(path, NULL);
         size_t real_path_len;
-        assert(real_path != NULL);
+        if (real_path == NULL) {
+            error("configuration file path (%s) is invalid (errno: %d) %s\n",
+                  path, errno, strerror(errno));
+            args_free(args);
+            clap_free(&cla);
+            return 1;
+        }
         real_path_len = strlen(real_path);
         conf_file_path = vstr_from_len(real_path, real_path_len);
         free(real_path);
     } else {
         char* real_path = realpath("../lexi.conf", NULL);
         size_t real_path_len = strlen(real_path);
-        assert(real_path != NULL);
+        if (real_path == NULL) {
+            error("configuration file (%s) path is invalid (errno: %d) %s\n",
+                  "../lexi.conf", errno, strerror(errno));
+            args_free(args);
+            clap_free(&cla);
+            return 1;
+        }
         conf_file_path = vstr_from_len(real_path, real_path_len);
         free(real_path);
     }
