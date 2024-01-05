@@ -1,9 +1,9 @@
 #define _XOPEN_SOURCE 600
-#include <assert.h>
 #include "util.h"
 #include "result.h"
 #include "sha256.h"
 #include "vstr.h"
+#include <assert.h>
 #include <errno.h>
 #include <memory.h>
 #include <signal.h>
