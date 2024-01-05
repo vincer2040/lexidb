@@ -1,9 +1,9 @@
 #define _XOPEN_SOURCE 600
+#include <assert.h>
 #include "util.h"
 #include "result.h"
 #include "sha256.h"
 #include "vstr.h"
-#include <assert.h>
 #include <errno.h>
 #include <memory.h>
 #include <signal.h>
@@ -112,16 +112,10 @@ char* get_execuable_path(void) {
 }
 
 vstr get_os_name(void) {
-    FILE* f;
-    vstr s;
-    char buf[50] = {0};
-    size_t len;
-    f = popen("/usr/bin/lsb_release -ds", "r");
-    fgets(buf, 49, f);
-    pclose(f);
-    len = strlen(buf);
-    assert(len > 0);
-    s = vstr_from_len(&buf[1], len - 3);
+    struct utsname n = {0};
+    int r = uname(&n);
+    assert(r >= 0);
+    vstr s = vstr_format("%s %s %s", n.sysname, n.release, n.machine);
     return s;
 }
 
