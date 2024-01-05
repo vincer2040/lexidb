@@ -3,6 +3,7 @@
 #include "result.h"
 #include "sha256.h"
 #include "vstr.h"
+#include <assert.h>
 #include <errno.h>
 #include <memory.h>
 #include <signal.h>
@@ -11,6 +12,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -109,18 +111,18 @@ char* get_execuable_path(void) {
     return path;
 }
 
-const char* get_os_name(void) {
-#ifdef __linux__
-    return "Linux";
-#elif _WIN32 || _WIN64
-    return "Windows";
-#elif __APPLE__ || __MACH__
-    return "MacOs";
-#elif __unix__
-    return "Unix";
-#elif __FreeBSD__
-    return "FreeBSD";
-#endif
+vstr get_os_name(void) {
+    FILE* f;
+    vstr s;
+    char buf[50] = {0};
+    size_t len;
+    f = popen("/usr/bin/lsb_release -ds", "r");
+    fgets(buf, 49, f);
+    pclose(f);
+    len = strlen(buf);
+    assert(len > 0);
+    s = vstr_from_len(&buf[1], len - 3);
+    return s;
 }
 
 result(vstr) read_file(const char* path) {

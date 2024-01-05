@@ -343,6 +343,7 @@ static void server_free(server* s) {
     vec_free(s->clients, client_in_vec_free);
     vstr_free(&s->addr);
     vstr_free(&s->conf_file_path);
+    vstr_free(&s->os_name);
     close(s->sfd);
 }
 
@@ -556,7 +557,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
         break;
     case Infoc:
-        builder_add_array(&c->builder, 6);
+        builder_add_array(&c->builder, 9);
 
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "process id", 10);
@@ -573,15 +574,23 @@ static void execute_cmd(server* s, client* c) {
                            vstr_len(&s->conf_file_path));
 
         builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "OS", 2);
+        builder_add_string(&c->builder, vstr_data(&s->os_name), vstr_len(&s->os_name));
+
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "multiplexing api", 16);
+        builder_add_string(&c->builder, ev_api_name(), strlen(ev_api_name()));
+
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "host", 4);
-
         builder_add_string(&c->builder, vstr_data(&s->addr),
                            vstr_len(&s->addr));
+
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "port", 4);
-
         builder_add_int(&c->builder, s->port);
+
+        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "commands processes", 18);
         builder_add_int(&c->builder, s->cmd_executed);
 

@@ -21,7 +21,7 @@ struct timespec get_time(void);
 int create_sigint_handler(void);
 
 char* get_execuable_path(void);
-const char* get_os_name(void);
+vstr get_os_name(void);
 
 result(vstr) read_file(const char* path);
 

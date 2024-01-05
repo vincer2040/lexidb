@@ -88,6 +88,11 @@ add_library(
     src/clap.c
 )
 
+add_library(
+    config_parser
+    src/config_parser.c
+)
+
 add_executable(
     lexidb
     src/db.c
@@ -143,6 +148,14 @@ target_link_libraries(
 )
 
 target_link_libraries(
+    config_parser
+    ht
+    vec
+    vstr
+    object
+)
+
+target_link_libraries(
     lexidb
     networking
     ht
@@ -155,6 +168,7 @@ target_link_libraries(
     builder
     parser
     clap
+    config_parser
 )
 
 target_link_libraries(

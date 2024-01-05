@@ -34,7 +34,7 @@ typedef struct {
     uint16_t flags;        /* no use as of now */
     uint16_t port;         /* the port the server is listening on*/
     char* executable_path; /* the path of the executable */
-    const char* os_name;   /* name of the host's operating system */
+    vstr os_name;   /* name of the host's operating system */
     vstr addr;             /* the host address as a vstr */
     vstr conf_file_path;   /* the path of the configuration file */
     lexidb db;             /* the database */
