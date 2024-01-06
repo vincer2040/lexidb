@@ -3,6 +3,7 @@
 #include "clap.h"
 #include "cmd.h"
 #include "config.h"
+#include "config_parser.h"
 #include "ev.h"
 #include "ht.h"
 #include "log.h"
@@ -12,6 +13,7 @@
 #include "result.h"
 #include "set.h"
 #include "util.h"
+#include "vec.h"
 #include "vstr.h"
 #include <assert.h>
 #include <errno.h>
@@ -40,6 +42,7 @@ typedef struct {
 
 static result(server) server_new(const char* addr, uint16_t port, log_level ll,
                                  vstr* conf_file_path);
+static int add_users(vec** users_vec, vec* users_from_config);
 static lexidb lexidb_new(void);
 static void server_free(server* s);
 static void lexidb_free(lexidb* db);
@@ -69,10 +72,12 @@ static int realloc_client_read_buf(client* c);
 
 static int server_compare_objects(void* a, void* b);
 static int client_compare(void* fdp, void* clientp);
+static int user_compare(void* a, void* b);
 
 static void client_free(client* client);
 static void server_free_object(void* ptr);
 static void client_in_vec_free(void* ptr);
+static void user_in_vec_free(void* ptr);
 
 const log_level_lookup log_level_lookups[] = {
     {"none", None},
@@ -199,6 +204,7 @@ int server_run(int argc, char* argv[]) {
 
     if (rs.type == Err) {
         error("%s\n", vstr_data(&(rs.data.err)));
+        vstr_free(&conf_file_path);
         vstr_free(&(rs.data.err));
         return 1;
     }
@@ -228,6 +234,10 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     ev* ev;
     vstr addr_str;
     result(vstr) config_file_contents_res;
+    result(ht) config_from_file_res;
+    object* users_from_config;
+    line_data_type user_type = User;
+    int add_users_res;
 
     if (sfd < 0) {
         result.type = Err;
@@ -263,7 +273,44 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
         return result;
     }
 
-    printf("%s\n", vstr_data(&config_file_contents_res.data.ok));
+    config_from_file_res =
+        parse_config(vstr_data(&config_file_contents_res.data.ok),
+                     vstr_len(&config_file_contents_res.data.ok));
+    if (config_from_file_res.type == Err) {
+        close(sfd);
+        result.type = Err;
+        result.data.err = config_from_file_res.data.err;
+        vstr_free(&config_file_contents_res.data.ok);
+        return result;
+    }
+
+    vstr_free(&config_file_contents_res.data.ok);
+
+    s.users = vec_new(sizeof(user));
+    if (s.users == NULL) {
+        result.type = Err;
+        result.data.err =
+            vstr_from("failed to allocate memory for users vector");
+        close(sfd);
+        return result;
+    }
+
+    users_from_config =
+        ht_get(&config_from_file_res.data.ok, &user_type, sizeof user_type);
+    assert(users_from_config != NULL);
+    assert(users_from_config->type == Array);
+
+    add_users_res = add_users(&s.users, users_from_config->data.vec);
+    if (add_users_res == -1) {
+        config_free(&config_from_file_res.data.ok);
+        vec_free(s.users, user_in_vec_free);
+        close(sfd);
+        result.type = Err;
+        result.data.err = vstr_from("failed to add users to user array");
+        return result;
+    }
+
+    config_free(&config_from_file_res.data.ok);
 
     s.executable_path = get_execuable_path();
     if (s.executable_path == NULL) {
@@ -272,6 +319,7 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
             vstr_format("failed to get executable path (errno: %d) %s\n", errno,
                         strerror(errno));
         vstr_free(&s.conf_file_path);
+        vec_free(s.users, user_in_vec_free);
         close(sfd);
         return result;
     }
@@ -285,9 +333,10 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     s.clients = vec_new(sizeof(client*));
     if (s.clients == NULL) {
         result.type = Err;
-        result.data.err = vstr_format("failed to allocate for client vec");
+        result.data.err = vstr_from("failed to allocate for client vec");
         vstr_free(&s.conf_file_path);
         free(s.executable_path);
+        vec_free(s.users, user_in_vec_free);
         close(sfd);
         return result;
     }
@@ -295,10 +344,11 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     ev = ev_new(SERVER_BACKLOG);
     if (ev == NULL) {
         result.type = Err;
-        result.data.err = vstr_format("failed to allocate memory for ev\n");
+        result.data.err = vstr_from("failed to allocate memory for ev");
         vec_free(s.clients, client_in_vec_free);
         free(s.executable_path);
         vstr_free(&s.conf_file_path);
+        vec_free(s.users, user_in_vec_free);
         close(sfd);
         return result;
     }
@@ -306,16 +356,18 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     if (ev_add_event(ev, sfd, EV_READ, server_accept, &s) == -1) {
         result.type = Err;
         result.data.err = vstr_format(
-            "failed to add server accept as event_fn to ev (errno: %d) %s\n",
+            "failed to add server accept as event_fn to ev (errno: %d) %s",
             errno, strerror(errno));
         vstr_free(&s.conf_file_path);
         vec_free(s.clients, client_in_vec_free);
         ev_free(ev);
+        vec_free(s.users, user_in_vec_free);
         free(s.executable_path);
         close(sfd);
         return result;
     }
 
+    s.start_time = get_time();
     s.pid = getpid();
     s.sfd = sfd;
     s.db = lexidb_new();
@@ -336,6 +388,49 @@ static lexidb lexidb_new(void) {
     return res;
 }
 
+static int add_users(vec** users_vec, vec* users_from_config) {
+    vec_iter iter = vec_iter_new(users_from_config);
+    while (iter.cur) {
+        object* cur = iter.cur;
+        object* name_obj;
+        object* password_obj;
+        vstr name;
+        vstr password;
+        user user = {0};
+        int push_res;
+
+        assert(cur->type == Array);
+
+        name_obj = vec_get_at(cur->data.vec, 0);
+        password_obj = vec_get_at(cur->data.vec, 1);
+
+        assert(name_obj->type == String);
+        assert(password_obj->type == String);
+
+        name = name_obj->data.string;
+        password = password_obj->data.string;
+
+        user.name = vstr_from(vstr_data(&name));
+        user.password = vstr_from(vstr_data(&password));
+
+        if (vec_find(*users_vec, &user, NULL, user_compare) != -1) {
+            vstr_free(&user.name);
+            vstr_free(&user.password);
+            return -1;
+        }
+
+        push_res = vec_push(users_vec, &user);
+        if (push_res == -1) {
+            vstr_free(&user.name);
+            vstr_free(&user.password);
+            return -1;
+        }
+
+        vec_iter_next(&iter);
+    }
+    return 0;
+}
+
 static void server_free(server* s) {
     free(s->executable_path);
     ev_free(s->ev);
@@ -344,6 +439,7 @@ static void server_free(server* s) {
     vstr_free(&s->addr);
     vstr_free(&s->conf_file_path);
     vstr_free(&s->os_name);
+    vec_free(s->users, user_in_vec_free);
     close(s->sfd);
 }
 
@@ -556,8 +652,11 @@ static void execute_cmd(server* s, client* c) {
         builder_add_pong(&(c->builder));
         s->cmd_executed++;
         break;
-    case Infoc:
-        builder_add_array(&c->builder, 9);
+    case Infoc: {
+        vstr time_secs;
+        struct timespec cur_time;
+        uint64_t uptime_secs;
+        builder_add_array(&c->builder, 10);
 
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "process id", 10);
@@ -575,7 +674,8 @@ static void execute_cmd(server* s, client* c) {
 
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "OS", 2);
-        builder_add_string(&c->builder, vstr_data(&s->os_name), vstr_len(&s->os_name));
+        builder_add_string(&c->builder, vstr_data(&s->os_name),
+                           vstr_len(&s->os_name));
 
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "multiplexing api", 16);
@@ -597,8 +697,18 @@ static void execute_cmd(server* s, client* c) {
         builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "num connections", 15);
         builder_add_int(&c->builder, s->clients->len);
+
+        cur_time = get_time();
+        uptime_secs = cur_time.tv_sec - s->start_time.tv_sec;
+        time_secs = vstr_format("%lu secs", uptime_secs);
+        builder_add_array(&c->builder, 2);
+        builder_add_string(&c->builder, "uptime", 6);
+        builder_add_string(&c->builder, vstr_data(&time_secs),
+                           vstr_len(&time_secs));
+        vstr_free(&time_secs);
+
         s->cmd_executed++;
-        break;
+    } break;
     case Set: {
         int set_res = execute_set_command(s, &(cmd.data.set));
         if (set_res == -1) {
@@ -824,6 +934,12 @@ static int client_compare(void* fdp, void* clientp) {
     return fd - c->fd;
 }
 
+static int user_compare(void* a, void* b) {
+    user* ua = a;
+    user* ub = b;
+    return vstr_cmp(&ua->name, &ub->name);
+}
+
 static void server_free_object(void* ptr) {
     object* o = ptr;
     object_free(o);
@@ -839,4 +955,10 @@ static void client_free(client* client) {
 static void client_in_vec_free(void* ptr) {
     client* c = *((client**)ptr);
     client_free(c);
+}
+
+static void user_in_vec_free(void* ptr) {
+    user* u = ptr;
+    vstr_free(&u->name);
+    vstr_free(&u->password);
 }

@@ -34,7 +34,7 @@ typedef struct {
     uint16_t flags;        /* no use as of now */
     uint16_t port;         /* the port the server is listening on*/
     char* executable_path; /* the path of the executable */
-    vstr os_name;   /* name of the host's operating system */
+    vstr os_name;          /* name of the host's operating system */
     vstr addr;             /* the host address as a vstr */
     vstr conf_file_path;   /* the path of the configuration file */
     lexidb db;             /* the database */
@@ -42,11 +42,12 @@ typedef struct {
     vec* clients;          /* vector of clients connected to the server */
     vec* users;            /* vector of users */
     uint64_t cmd_executed; /* the number of commands the server has processed */
+    struct timespec start_time; /* the time the server started */
 } server;
 
 typedef struct {
     vstr name;
-    vec* passwords;
+    vstr password;
     uint32_t flags;
 } user;
 
