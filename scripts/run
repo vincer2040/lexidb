@@ -48,6 +48,10 @@ class Client:
         self.s.connect((self.addr, self.port))
         return self
 
+    def auth(self):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("AUTH", 4).add_str("root", 4).add_str("root", 4).get())
+        print(self.s.recv(4096).decode())
+
     def send(self, buf):
         self.s.send(buf)
         print(self.s.recv(8192).decode())
@@ -157,6 +161,8 @@ def rand_str(N):
 
 
 c = Client("127.0.0.1", 6969).conn()
+
+c.auth()
 
 c.ping()
 
