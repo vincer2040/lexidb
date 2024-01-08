@@ -29,11 +29,11 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
-    {"OK", 2, Okc},      {"SET", 3, Set},   {"GET", 3, Get},
-    {"DEL", 3, Del},     {"POP", 3, Pop},   {"PING", 4, Ping},
-    {"INFO", 4, Infoc},  {"PUSH", 4, Push}, {"ZSET", 4, ZSet},
-    {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel}, {"ENQUE", 5, Enque},
-    {"DEQUE", 5, Deque},
+    {"OK", 2, Okc},      {"SET", 3, Set},     {"GET", 3, Get},
+    {"DEL", 3, Del},     {"POP", 3, Pop},     {"AUTH", 4, Auth},
+    {"PING", 4, Ping},   {"INFO", 4, Infoc},  {"PUSH", 4, Push},
+    {"ZSET", 4, ZSet},   {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel},
+    {"ENQUE", 5, Enque}, {"DEQUE", 5, Deque},
 };
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
@@ -125,6 +125,27 @@ static cmd parse_array_cmd(parser* p) {
     }
 
     switch (type) {
+    case Auth: {
+        object username;
+        object password;
+        auth_cmd auth = {0};
+        if (len != 3) {
+            return cmd;
+        }
+        username = parse_object(p);
+        if (username.type == Null) {
+            return cmd;
+        }
+        password = parse_object(p);
+        if (password.type == Null) {
+            object_free(&username);
+            return cmd;
+        }
+        auth.username = username;
+        auth.password = password;
+        cmd.data.auth = auth;
+        cmd.type = Auth;
+    } break;
     case Set: {
         object key;
         object value;

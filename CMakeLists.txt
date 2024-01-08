@@ -97,6 +97,7 @@ add_executable(
     lexidb
     src/db.c
     src/server.c
+    src/auth.c
 )
 
 add_executable(

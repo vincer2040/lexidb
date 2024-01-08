@@ -72,6 +72,40 @@ int hilexi_connect(hilexi* l) {
     return res;
 }
 
+int hilexi_authenticate(hilexi* l, const char* username, const char* password) {
+    int add = builder_add_array(&l->builder, 3);
+    object obj;
+    int res;
+    add = builder_add_string(&l->builder, "AUTH", 4);
+    if (add == -1) {
+        return -1;
+    }
+    add = builder_add_string(&l->builder, username, strlen(username));
+    if (add == -1) {
+        return -1;
+    }
+    add = builder_add_string(&l->builder, password, strlen(password));
+    if (add == -1) {
+        return -1;
+    }
+    if (hilexi_write(l) == -1) {
+        return -1;
+    }
+    if (hilexi_read(l) == -1) {
+        return -1;
+    }
+    obj = hilexi_parse(l);
+    if (obj.type == String) {
+        vstr s = obj.data.string;
+        vstr ok = vstr_from("OK");
+        res = vstr_cmp(&s, &ok);
+    } else {
+        res = -1;
+    }
+    object_free(&obj);
+    return res;
+}
+
 result(object) hilexi_ping(hilexi* l) {
     result(object) res = {0};
     object obj;
@@ -404,12 +438,14 @@ result(object) hilexi_zset(hilexi* l, object* value) {
     }
     if (hilexi_write(l) == -1) {
         res.type = Err;
-        res.data.err = vstr_format("failed to write to server (errno %d) %s", errno, strerror(errno));
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
         return res;
     }
     if (hilexi_read(l) == -1) {
         res.type = Err;
-        res.data.err = vstr_format("failed to read from server (errno %d) %s", errno, strerror(errno));
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
         return res;
     }
     obj = hilexi_parse(l);
@@ -441,12 +477,14 @@ result(object) hilexi_zhas(hilexi* l, object* value) {
     }
     if (hilexi_write(l) == -1) {
         res.type = Err;
-        res.data.err = vstr_format("failed to write to server (errno %d) %s", errno, strerror(errno));
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
         return res;
     }
     if (hilexi_read(l) == -1) {
         res.type = Err;
-        res.data.err = vstr_format("failed to read from server (errno %d) %s", errno, strerror(errno));
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
         return res;
     }
     obj = hilexi_parse(l);
@@ -478,12 +516,14 @@ result(object) hilexi_zdel(hilexi* l, object* value) {
     }
     if (hilexi_write(l) == -1) {
         res.type = Err;
-        res.data.err = vstr_format("failed to write to server (errno %d) %s", errno, strerror(errno));
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
         return res;
     }
     if (hilexi_read(l) == -1) {
         res.type = Err;
-        res.data.err = vstr_format("failed to read from server (errno %d) %s", errno, strerror(errno));
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
         return res;
     }
     obj = hilexi_parse(l);

@@ -8,6 +8,7 @@
 typedef enum {
     Illegal,
     Okc,
+    Auth,
     Ping,
     Infoc,
     Set,
@@ -35,6 +36,11 @@ typedef struct {
     object value;
 } v_cmd;
 
+typedef struct {
+    object username;
+    object password;
+} auth_cmd;
+
 typedef kv_cmd set_cmd;
 typedef k_cmd get_cmd;
 typedef k_cmd del_cmd;
@@ -47,6 +53,7 @@ typedef v_cmd zdel_cmd;
 typedef struct {
     cmdt type;
     union {
+        auth_cmd auth;
         set_cmd set;
         get_cmd get;
         del_cmd del;

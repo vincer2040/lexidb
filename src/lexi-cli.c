@@ -16,7 +16,7 @@
 int main(void) {
     result(hilexi) rl = hilexi_new("127.0.0.1", 6969);
     hilexi l;
-    int connect_res;
+    int connect_res, auth_res;
     if (rl.type == Err) {
         error("%s", vstr_data(&(rl.data.err)));
         return 1;
@@ -25,6 +25,12 @@ int main(void) {
     connect_res = hilexi_connect(&l);
     if (connect_res == -1) {
         error("failed to connect (errno: %d) %s\n", errno, strerror(errno));
+        hilexi_close(&l);
+        return 1;
+    }
+    auth_res = hilexi_authenticate(&l, "root", "root");
+    if (auth_res == -1) {
+        error("failed to authenticate\n");
         hilexi_close(&l);
         return 1;
     }

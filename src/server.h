@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include <time.h>
 
+#define AUTHENTICATED (1<<1)
+
 typedef struct {
     ht dict;
     set set;
@@ -62,10 +64,12 @@ typedef struct {
     uint8_t* write_buf;
     size_t write_size;
     builder builder;
-    user* user;
+    user user;
     struct timespec time_connected;
 } client;
 
 int server_run(int argc, char* argv[]);
+int time_safe_compare(const char* a, const char* b, size_t len);
+vstr hash_password(const char* p, size_t len);
 
 #endif /* __SERVER_H__ */

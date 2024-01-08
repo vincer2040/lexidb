@@ -55,6 +55,7 @@ static result(client_ptr)
     create_client(int fd, uint32_t addr, uint16_t port, uint16_t flags);
 
 static void execute_cmd(server* s, client* c);
+static int execute_auth_command(server* s, client* client, auth_cmd* auth);
 static int execute_set_command(server* s, set_cmd* set);
 static object* execute_get_command(server* s, get_cmd* get);
 static int execute_del_command(server* s, del_cmd* del);
@@ -73,7 +74,9 @@ static int realloc_client_read_buf(client* c);
 static int server_compare_objects(void* a, void* b);
 static int client_compare(void* fdp, void* clientp);
 static int user_compare(void* a, void* b);
+static int user_compare_by_username(void* a, void* b);
 
+static void cmd_free(cmd* cmd);
 static void client_free(client* client);
 static void server_free_object(void* ptr);
 static void client_in_vec_free(void* ptr);
@@ -398,6 +401,7 @@ static int add_users(vec** users_vec, vec* users_from_config) {
         vstr password;
         user user = {0};
         int push_res;
+        vstr hash;
 
         assert(cur->type == Array);
 
@@ -410,8 +414,10 @@ static int add_users(vec** users_vec, vec* users_from_config) {
         name = name_obj->data.string;
         password = password_obj->data.string;
 
+        hash = hash_password(vstr_data(&password), vstr_len(&password));
+
         user.name = vstr_from(vstr_data(&name));
-        user.password = vstr_from(vstr_data(&password));
+        user.password = hash;
 
         if (vec_find(*users_vec, &user, NULL, user_compare) != -1) {
             vstr_free(&user.name);
@@ -560,6 +566,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
     if (s->log_level >= Debug) {
         debug("received: %s\n", c->read_buf);
     }
+
     execute_cmd(s, c);
 
     c->write_buf = (uint8_t*)builder_out(&(c->builder));
@@ -645,6 +652,11 @@ static result(client_ptr)
 
 static void execute_cmd(server* s, client* c) {
     cmd cmd = parse(c->read_buf, c->read_pos);
+    if (!(c->flags & AUTHENTICATED) && cmd.type != Auth) {
+        cmd_free(&cmd);
+        builder_add_err(&c->builder, "not authenticated", 17);
+        return;
+    }
     switch (cmd.type) {
     case Okc:
         break;
@@ -652,6 +664,15 @@ static void execute_cmd(server* s, client* c) {
         builder_add_pong(&(c->builder));
         s->cmd_executed++;
         break;
+    case Auth: {
+        auth_cmd auth = cmd.data.auth;
+        int auth_res = execute_auth_command(s, c, &auth);
+        if (auth_res != 0) {
+            builder_add_err(&c->builder, "failed to authenticate", 22);
+            break;
+        }
+        builder_add_ok(&c->builder);
+    } break;
     case Infoc: {
         vstr time_secs;
         struct timespec cur_time;
@@ -811,6 +832,52 @@ static void execute_cmd(server* s, client* c) {
     }
 }
 
+static int execute_auth_command(server* s, client* client, auth_cmd* auth) {
+    user user = {0};
+    vstr username;
+    vstr password;
+    vstr hashed_password;
+    ssize_t found;
+    int cmp;
+    object username_obj = auth->username;
+    object password_obj = auth->password;
+    if (username_obj.type != String) {
+        object_free(&auth->username);
+        object_free(&auth->password);
+        return -1;
+    }
+    if (password_obj.type != String) {
+        object_free(&auth->username);
+        object_free(&auth->password);
+        return -1;
+    }
+
+    username = username_obj.data.string;
+    password = password_obj.data.string;
+    found = vec_find(s->users, &username, &user, user_compare_by_username);
+    if (found == -1) {
+        vstr_free(&username);
+        vstr_free(&password);
+        return -1;
+    }
+
+    hashed_password = hash_password(vstr_data(&password), vstr_len(&password));
+
+    cmp = time_safe_compare(vstr_data(&hashed_password),
+                            vstr_data(&user.password),
+                            vstr_len(&hashed_password));
+
+    if (cmp == 0) {
+        client->user = user;
+        client->flags |= AUTHENTICATED;
+    }
+
+    vstr_free(&hashed_password);
+    vstr_free(&username);
+    vstr_free(&password);
+    return cmp;
+}
+
 static int execute_set_command(server* s, set_cmd* set) {
     object key = set->key;
     object value = set->value;
@@ -922,6 +989,52 @@ static int realloc_client_read_buf(client* c) {
     return 0;
 }
 
+static void cmd_free(cmd* cmd) {
+    switch (cmd->type) {
+    case Illegal:
+        break;
+    case Okc:
+        break;
+    case Auth:
+        object_free(&cmd->data.auth.username);
+        object_free(&cmd->data.auth.password);
+        break;
+    case Ping:
+        break;
+    case Infoc:
+        break;
+    case Set:
+        object_free(&cmd->data.set.key);
+        object_free(&cmd->data.set.value);
+        break;
+    case Get:
+        object_free(&cmd->data.get.key);
+        break;
+    case Del:
+        object_free(&cmd->data.del.key);
+        break;
+    case Push:
+        object_free(&cmd->data.push.value);
+        break;
+    case Pop:
+        break;
+    case Enque:
+        object_free(&cmd->data.enque.value);
+        break;
+    case Deque:
+        break;
+    case ZSet:
+        object_free(&cmd->data.zset.value);
+        break;
+    case ZHas:
+        object_free(&cmd->data.zhas.value);
+        break;
+    case ZDel:
+        object_free(&cmd->data.zdel.value);
+        break;
+    }
+}
+
 static int server_compare_objects(void* a, void* b) {
     object* ao = a;
     object* bo = b;
@@ -938,6 +1051,12 @@ static int user_compare(void* a, void* b) {
     user* ua = a;
     user* ub = b;
     return vstr_cmp(&ua->name, &ub->name);
+}
+
+static int user_compare_by_username(void* a, void* b) {
+    vstr* username = a;
+    user* user = b;
+    return vstr_cmp(username, &user->name);
 }
 
 static void server_free_object(void* ptr) {

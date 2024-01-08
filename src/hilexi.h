@@ -22,6 +22,7 @@ result_t(hilexi, vstr);
 result_t(object, vstr);
 
 result(hilexi) hilexi_new(const char* addr, uint16_t port);
+int hilexi_authenticate(hilexi *l, const char* username, const char* password);
 int hilexi_connect(hilexi* l);
 
 result(object) hilexi_ping(hilexi* l);
