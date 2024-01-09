@@ -2,20 +2,16 @@
 
 An in-memory data structure database
 
-Note: This project is for currently for educational purposes only. If you are looking 
-to use something similar in a production environment, you should use [redis](https://github.com/redis/redis). 
+Note: This project is for currently for educational purposes only. If you are looking
+to use something similar in a production environment, you should use [redis](https://github.com/redis/redis).
 
 ## Getting started
 
 ### Requirements
 
-1. a 64 bit machine running a linux distrobution that supports `epoll`
+1. cmake >= 3.10
 
-2. cmake >= 3.10
-
-3. gcc
-
-4. For testing, [libcheck](https://github.com/libcheck/check) is required
+2. gcc
 
 #### building
 
@@ -24,13 +20,12 @@ git clone git@github.com:vincer2040/lexidb.git
 cd lexidb
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
-make lexidb && make lexi-cli
+make
 ```
 
-from withing the build durectory, optionally run tests: 
+from withing the build durectory, optionally run tests:
 
 ```bash
-make
 make test
 ```
 
@@ -58,25 +53,17 @@ lexi> get foo
 "bar"
 lexi> keys
 "foo"
-lexi> set baz :500
+lexi> set baz 500
 ok
 lexi> get baz
-(int) 500
+500
 lexi> set foo "bar baz"
 ok
 lexi> get foo
 "bar baz"
-lexi> push bar
-ok
-lexi> push foo
-ok
-lexi> pop
-"foo"
-lexi> pop
-"bar"
 ```
 
-### Client libraries 
+### Client libraries
 
 currently, there are client implentations in:
 
@@ -88,40 +75,43 @@ currently, there are client implentations in:
 
 4. [rust](https://github.com/vincer2040/lexi-rs)
 
-See those repos for for more information 
+See those repos for for more information
 
-### Configuring the server 
+### Configuring the server
 
-change the default port: 
+change the default address
+
+```bash
+./lexidb --address <address>
+```
+
+change the default port:
 
 ```bash
 ./lexidb --port <port>
 ```
 
-change the loglevel 
+change the loglevel
 
 ```bash
-./lexidb --loglevel info | cmd | debug | verbose 
+./lexidb --loglevel info | debug | verbose
 ```
 
-info - only logs when the server starts, connections are established, and connections are closed 
+change the path of lexi.conf configuration file
 
-cmd - logs info and all commands sent to the server 
+```bash
+./lexidb --config <path to config>
+```
+
+info - only logs when the server starts, connections are established, and connections are closed
 
 debug - logs info, commands, and other debugging information
 
 verbose - logs everything
 
-make it a replica of another lexidb 
+### users
 
-```bash
-./lexidb --replcaof <port of master lexidb>
-```
+add users for the database by editing the lexi.conf file
 
-For a full list of commands, run `help` into the lexi-cli, like so 
-
-```bash
-./lexi-cli
-lexi> help
-```
+see lexi.conf for more details
 
