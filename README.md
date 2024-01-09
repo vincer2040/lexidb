@@ -97,17 +97,17 @@ change the loglevel
 ./lexidb --loglevel info | debug | verbose
 ```
 
-change the path of lexi.conf configuration file
-
-```bash
-./lexidb --config <path to config>
-```
-
 info - only logs when the server starts, connections are established, and connections are closed
 
 debug - logs info, commands, and other debugging information
 
 verbose - logs everything
+
+change the path of lexi.conf configuration file
+
+```bash
+./lexidb --config <path to config>
+```
 
 ### users
 
