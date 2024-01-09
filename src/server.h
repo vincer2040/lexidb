@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define AUTHENTICATED (1<<1)
+#define AUTHENTICATED (1 << 1)
 
 typedef struct {
     ht dict;
@@ -48,24 +48,24 @@ typedef struct {
 } server;
 
 typedef struct {
-    vstr name;
-    vstr password;
-    uint32_t flags;
+    vstr name; /* username */
+    vstr password; /* password - hashed */
+    uint32_t flags; /* flags for the user */
 } user;
 
 typedef struct {
-    int fd;
-    uint32_t addr;
-    uint16_t port;
-    uint16_t flags;
-    uint8_t* read_buf;
-    size_t read_pos;
-    size_t read_cap;
-    uint8_t* write_buf;
-    size_t write_size;
-    builder builder;
-    user user;
-    struct timespec time_connected;
+    int fd;             /* file descriptor */
+    uint32_t addr;      /* address */
+    uint16_t port;      /* port */
+    uint16_t flags;     /* flags */
+    uint8_t* read_buf;  /* the buffer used in read() */
+    size_t read_pos;    /* the position in the buffer to read to */
+    size_t read_cap;    /* the allocation size of read_buf */
+    uint8_t* write_buf; /* pointer to buffer to write to client */
+    size_t write_size;  /* the amount to write */
+    builder builder;    /* builder struct for constructing replies */
+    user user;          /* the user associated with this connection */
+    struct timespec time_connected; /* time this user connected */
 } client;
 
 int server_run(int argc, char* argv[]);
