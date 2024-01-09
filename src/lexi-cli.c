@@ -10,7 +10,7 @@
 #include <memory.h>
 #include <stdio.h>
 
-#define PROMPT "> "
+#define PROMPT "lexi> "
 
 int main(void) {
     result(hilexi) rl = hilexi_new("127.0.0.1", 6969);
