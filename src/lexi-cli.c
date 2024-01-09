@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <memory.h>
 #include <stdio.h>
-#include <time.h>
 
 #define PROMPT "> "
 
@@ -62,6 +61,8 @@ int main(void) {
             vstr_free(&line);
             break;
         }
+
+        // TODO: add some sort of help command
 
         cmd = parse_line(line_data, line_len);
         switch (cmd.type) {
