@@ -52,7 +52,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask);
 static void write_to_client(ev* ev, int fd, void* client_data, int mask);
 
 static result(client_ptr)
-    create_client(int fd, uint32_t addr, uint16_t port, uint16_t flags);
+    create_client(int fd, uint32_t addr, uint16_t port);
 
 static void execute_cmd(server* s, client* c);
 static int execute_auth_command(server* s, client* client, auth_cmd* auth);
@@ -481,7 +481,7 @@ static void server_accept(ev* ev, int fd, void* client_data, int mask) {
         return;
     }
 
-    r_client = create_client(cfd, addr.sin_addr.s_addr, addr.sin_port, 0);
+    r_client = create_client(cfd, addr.sin_addr.s_addr, addr.sin_port);
     if (r_client.type == Err) {
         error("%s\n", vstr_data(&(r_client.data.err)));
         vstr_free(&(r_client.data.err));
@@ -621,7 +621,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
 }
 
 static result(client_ptr)
-    create_client(int fd, uint32_t addr, uint16_t port, uint16_t flags) {
+    create_client(int fd, uint32_t addr, uint16_t port) {
     result(client_ptr) res = {0};
     client* c;
     c = calloc(1, sizeof *c);
