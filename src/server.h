@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define AUTHENTICATED (1 << 1)
+#define AUTHENTICATED (1 << 0)
 
 typedef struct {
     ht dict;
@@ -48,8 +48,8 @@ typedef struct {
 } server;
 
 typedef struct {
-    vstr name; /* username */
-    vstr password; /* password - hashed */
+    vstr name;      /* username */
+    vstr password;  /* password - hashed */
     uint32_t flags; /* flags for the user */
 } user;
 
