@@ -9,6 +9,7 @@
 typedef enum {
     Null,
     Int,
+    Double,
     String,
     Array,
 } objectt;
@@ -17,6 +18,7 @@ typedef struct {
     objectt type;
     union {
         int64_t num;
+        double dbl;
         vstr string;
         vec* vec;
     } data;

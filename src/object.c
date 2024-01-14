@@ -13,6 +13,10 @@ object object_new(objectt type, void* data) {
         obj.type = Int;
         obj.data.num = *(int64_t*)data;
         break;
+    case Double:
+        obj.type = Double;
+        obj.data.dbl = *(double*)data;
+        break;
     case String:
         obj.type = String;
         obj.data.string = *(vstr*)data;
@@ -58,6 +62,9 @@ void object_show(object* obj) {
         break;
     case Int:
         printf("%ld\n", obj->data.num);
+        break;
+    case Double:
+        printf("%f\n", obj->data.dbl);
         break;
     case String:
         printf("%s\n", vstr_data(&(obj->data.string)));
