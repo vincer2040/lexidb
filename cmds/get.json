@@ -1,0 +1,12 @@
+{
+    "name": "get",
+    "summary": "Get the value associated with a key. If the key does not exist, NONE is returned.",
+    "complexity": "O(1)",
+    "arguments": [
+        {
+            "name": "key",
+            "type": ["string"],
+            "optional": false
+        }
+    ]
+}

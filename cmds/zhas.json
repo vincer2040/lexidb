@@ -1,0 +1,12 @@
+{
+    "name": "zhas",
+    "summary": "Check if value exists in set. If it does, integer 1 is returned, else NONE is returned.",
+    "complexity": "O(1)",
+    "arguments": [
+        {
+            "name": "key",
+            "type": ["string", "integer", "array"],
+            "optional": false
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "name": "zset",
+    "summary": "Add the key to the set. If the key already exits, error \"failed to set\" is returned.",
+    "complexity": "O(1)",
+    "arguments": [
+        {
+            "name": "key",
+            "type": ["string", "integer", "array"],
+            "optional": false
+        }
+    ]
+}

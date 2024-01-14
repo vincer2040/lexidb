@@ -1,0 +1,17 @@
+{
+    "name": "set",
+    "summary": "Sets the key with the value. If the key does not exist, it is created",
+    "complexity": "O(1)",
+    "arguments": [
+        {
+            "name": "key",
+            "type": ["string"],
+            "optional": false
+        },
+        {
+            "name": "value",
+            "type": ["string", "integer", "array"],
+            "optional": false
+        }
+    ]
+}

@@ -1,0 +1,6 @@
+{
+    "name": "deque",
+    "summary": "Deque an item from the queue.",
+    "complexity": "O(1)",
+    "arguments": []
+}

@@ -1,0 +1,12 @@
+{
+    "name": "enque",
+    "summary": "Enque an item to the queue.",
+    "complexity": "O(1)",
+    "arguments": [
+        {
+            "name": "value",
+            "type": ["string", "integer", "array"],
+            "optional": false
+        }
+    ]
+}

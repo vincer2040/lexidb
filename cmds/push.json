@@ -1,0 +1,12 @@
+{
+    "name": "push",
+    "summary": "Push a value into the stack.",
+    "complexity": "O(1)",
+    "arguments": [
+        {
+            "name": "value",
+            "type": ["string", "integer", "array"],
+            "optional": false
+        }
+    ]
+}
