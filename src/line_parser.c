@@ -23,10 +23,11 @@ const lookup lookups[] = {
     {"GET", 3, Get},     {"del", 3, Del},     {"DEL", 3, Del},
     {"pop", 3, Pop},     {"POP", 3, Pop},     {"ping", 4, Ping},
     {"PING", 4, Ping},   {"info", 4, Infoc},  {"INFO", 4, Infoc},
-    {"push", 4, Push},   {"PUSH", 4, Push},   {"zset", 4, ZSet},
-    {"ZSET", 4, ZSet},   {"zhas", 4, ZHas},   {"ZHAS", 4, ZHas},
-    {"zdel", 4, ZDel},   {"ZDEL", 4, ZDel},   {"enque", 5, Enque},
-    {"ENQUE", 5, Enque}, {"deque", 5, Deque}, {"DEQUE", 5, Deque},
+    {"HELP", 4, Help},   {"help", 4, Help},   {"push", 4, Push},
+    {"PUSH", 4, Push},   {"zset", 4, ZSet},   {"ZSET", 4, ZSet},
+    {"zhas", 4, ZHas},   {"ZHAS", 4, ZHas},   {"zdel", 4, ZDel},
+    {"ZDEL", 4, ZDel},   {"enque", 5, Enque}, {"ENQUE", 5, Enque},
+    {"deque", 5, Deque}, {"DEQUE", 5, Deque},
 };
 
 size_t lookups_len = sizeof lookups / sizeof lookups[0];
@@ -72,8 +73,8 @@ static cmd parse_cmd(line_parser* p) {
     case Infoc:
         cmd.type = Infoc;
         break;
-    case Pop:
-        cmd.type = Pop;
+    case Help:
+        cmd.type = Help;
         break;
     case Set: {
         object key = parse_object(p);
@@ -97,6 +98,9 @@ static cmd parse_cmd(line_parser* p) {
         cmd.data.push.value = value;
         cmd.type = Push;
     } break;
+    case Pop:
+        cmd.type = Pop;
+        break;
     case Enque: {
         object value = parse_object(p);
         cmd.data.enque.value = value;

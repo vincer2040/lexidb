@@ -652,6 +652,10 @@ static result(client_ptr)
 
 static void execute_cmd(server* s, client* c) {
     cmd cmd = parse(c->read_buf, c->read_pos);
+    if (cmd.type == Illegal) {
+        builder_add_err(&(c->builder), "Invalid command", 15);
+        return;
+    }
     if (!(c->flags & AUTHENTICATED) && cmd.type != Auth) {
         cmd_free(&cmd);
         builder_add_err(&c->builder, "not authenticated", 17);
@@ -994,6 +998,8 @@ static void cmd_free(cmd* cmd) {
     case Illegal:
         break;
     case Okc:
+        break;
+    case Help:
         break;
     case Auth:
         object_free(&cmd->data.auth.username);
