@@ -26,6 +26,12 @@ typedef struct {
     const char* exp_string;
 } string_from_server_test;
 
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    double exp;
+} double_test;
+
 #define test_object_eq(exp, got)                                               \
     do {                                                                       \
         int cmp = object_cmp(&exp, &got);                                      \
@@ -280,6 +286,29 @@ START_TEST(test_parse_array) {
 }
 END_TEST
 
+START_TEST(test_parse_double) {
+    double_test tests[] = {
+        {
+            (const uint8_t*)",123.123\r\n",
+            strlen(",123.123\r\n"),
+            123.123,
+        },
+        {
+            (const uint8_t*)",123e10\r\n",
+            strlen(",123e10\r\n"),
+            1230000000000,
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        double_test t = tests[i];
+        object parsed = parse_from_server(t.input, t.input_len);
+        ck_assert_uint_eq(parsed.type, Double);
+        ck_assert_double_eq(parsed.data.dbl, t.exp);
+    }
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -290,6 +319,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_parse_string_from_server);
     tcase_add_test(tc_core, test_parse_int_from_server);
     tcase_add_test(tc_core, test_parse_array);
+    tcase_add_test(tc_core, test_parse_double);
     suite_add_tcase(s, tc_core);
     return s;
 }

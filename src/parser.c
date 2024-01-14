@@ -1,10 +1,12 @@
 #include "parser.h"
 #include "cmd.h"
 #include "object.h"
+#include "vstr.h"
 #include <ctype.h>
 #include <memory.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 const int parser_debug = 1;
 
@@ -50,6 +52,7 @@ static vstr parse_string(parser* p, uint64_t len);
 static vstr parse_simple_string(parser* p);
 static vstr parse_error(parser* p);
 static int64_t parse_integer(parser* p);
+static double parse_double(parser* p);
 static uint64_t parse_len(parser* p);
 static uint8_t peek_byte(parser* p);
 static inline bool cur_byte_is(parser* p, uint8_t byte);
@@ -349,6 +352,19 @@ static object parse_object(parser* p) {
         obj = object_new(Int, &val);
         parser_read_char(p);
     } break;
+    case ',': {
+        double val = parse_double(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        obj = object_new(Double, &val);
+        parser_read_char(p);
+    } break;
     case '+': {
         vstr s = parse_simple_string(p);
         obj = object_new(String, &s);
@@ -468,6 +484,21 @@ static int64_t parse_integer(parser* p) {
     } else {
         res = -1 - (int64_t)(0xffffffffffffffffu - tmp);
     }
+    return res;
+}
+
+static double parse_double(parser* p) {
+    double res = 0;
+    vstr number_string = vstr_new();
+    char* end_ptr = NULL;
+    const char* num_str;
+    parser_read_char(p);
+    while (p->ch != '\r') {
+        vstr_push_char(&number_string, p->ch);
+        parser_read_char(p);
+    }
+    num_str = vstr_data(&number_string);
+    res = strtod(num_str, &end_ptr);
     return res;
 }
 
