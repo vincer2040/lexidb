@@ -10,7 +10,7 @@
         },
         {
             "name": "value",
-            "type": ["string", "integer", "array"],
+            "type": ["string", "integer", "double", "array"],
             "optional": false
         }
     ]
