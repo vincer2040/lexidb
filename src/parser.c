@@ -128,6 +128,15 @@ static cmd parse_array_cmd(parser* p) {
     }
 
     switch (type) {
+    case Help:{
+        cmdt help_cmd = parse_bulk_string_cmd(p);
+        if (help_cmd == Illegal) {
+            return cmd;
+        }
+        cmd.type = Help;
+        cmd.data.help.wants_cmd_help = 1;
+        cmd.data.help.cmd_to_help = help_cmd;
+    } break;
     case Auth: {
         object username;
         object password;

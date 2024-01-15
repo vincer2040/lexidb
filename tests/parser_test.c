@@ -32,6 +32,12 @@ typedef struct {
     double exp;
 } double_test;
 
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    cmd exp;
+} help_cmd_test;
+
 #define test_object_eq(exp, got)                                               \
     do {                                                                       \
         int cmp = object_cmp(&exp, &got);                                      \
@@ -309,6 +315,39 @@ START_TEST(test_parse_double) {
 }
 END_TEST
 
+START_TEST(test_parse_help_cmd) {
+    help_cmd_test tests[] = {
+        {(const uint8_t*)"*2\r\n$4\r\nHELP\r\n$3\r\nSET\r\n",
+         strlen("*2\r\n$4\r\nHELP\r\n$3\r\nSET\r\n"),
+         {
+             Help,
+             {
+                 1,
+                 Set,
+             },
+         }},
+        {(const uint8_t*)"$4\r\nHELP\r\n",
+         strlen("$4\r\nHELP\r\n"),
+         {
+             Help,
+             {0},
+         }},
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        help_cmd_test t = tests[i];
+        cmd parsed = parse(t.input, t.input_len);
+        cmd exp = t.exp;
+        ck_assert_int_eq(parsed.type, exp.type);
+        ck_assert_int_eq(parsed.data.help.wants_cmd_help,
+                         exp.data.help.wants_cmd_help);
+        if (exp.data.help.wants_cmd_help) {
+            ck_assert_int_eq(parsed.data.help.wants_cmd_help,
+                             exp.data.help.wants_cmd_help);
+        }
+    }
+}
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -320,6 +359,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_parse_int_from_server);
     tcase_add_test(tc_core, test_parse_array);
     tcase_add_test(tc_core, test_parse_double);
+    tcase_add_test(tc_core, test_parse_help_cmd);
     suite_add_tcase(s, tc_core);
     return s;
 }
