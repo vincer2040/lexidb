@@ -146,6 +146,23 @@ int builder_add_double(builder* b, double val) {
     return res;
 }
 
+int builder_add_ht(builder* b, size_t len) {
+    int add_res;
+    add_res = vstr_push_char(b, '%');
+    vstr len_str = vstr_format("%lu", len);
+    const char* len_str_s = vstr_data(&len_str);
+    size_t len_str_len = vstr_len(&len_str);
+    add_res = vstr_push_char(b, '%');
+    if (add_res == -1) {
+        return -1;
+    }
+    add_res = vstr_push_string_len(b, len_str_s, len_str_len);
+    if (add_res == -1) {
+        return -1;
+    }
+    return builder_add_end(b);
+}
+
 int builder_add_object(builder* b, object* obj) {
     switch (obj->type) {
     case Null:
@@ -159,9 +176,13 @@ int builder_add_object(builder* b, object* obj) {
                                   vstr_len(&(obj->data.string)));
     case Array: {
         vec_iter iter = vec_iter_new(obj->data.vec);
+        int add_res = builder_add_array(b, obj->data.vec->len);
+        if (add_res == -1) {
+            return -1;
+        }
         while (iter.cur) {
             object* cur = iter.cur;
-            int add_res = builder_add_object(b, cur);
+            add_res = builder_add_object(b, cur);
             if (add_res == -1) {
                 return -1;
             }
@@ -171,11 +192,15 @@ int builder_add_object(builder* b, object* obj) {
     }
     case Ht: {
         ht_iter iter = ht_iter_new(&obj->data.ht);
+        int add_res = builder_add_ht(b, obj->data.ht.num_entries);
+        if (add_res == -1) {
+            return -1;
+        }
         while (iter.cur) {
             ht_entry* cur = iter.cur;
             object* key = (object*)ht_entry_get_key(cur);
             object* value = (object*)ht_entry_get_value(cur);
-            int add_res = builder_add_object(b, key);
+            add_res = builder_add_object(b, key);
             if (add_res == -1) {
                 return -1;
             }
