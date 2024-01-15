@@ -79,7 +79,7 @@ def init_global_all_cmd_help_fn():
 
 file.write(init_global_all_cmd_help_fn())
 
-get_global_all_cmd_helps_len = "size_t get_global_all_cmd_helps_len(void) {\n\
+get_global_all_cmd_helps_len = "size_t get_all_cmd_helps_len(void) {\n\
     return all_helps_len;\n\
 }\n\n"
 

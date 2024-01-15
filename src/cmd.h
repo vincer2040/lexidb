@@ -82,8 +82,7 @@ typedef struct {
 } cmd;
 
 struct cmd_help cmd_help_get(cmdt cmd_type);
-void init_global_all_cmd_helps(void);
-struct cmd_help* get_global_all_cmd_helps(void);
-size_t get_global_all_cmd_helps_len(void);
+struct cmd_help* init_all_cmd_helps(void);
+size_t get_all_cmd_helps_len(void);
 
 #endif /* __CMD_H__ */
