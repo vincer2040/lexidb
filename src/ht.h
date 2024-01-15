@@ -26,7 +26,8 @@ typedef struct {
     ht_entry* cur;
     ht_entry* next;
     ht* ht;
-    size_t cur_slot;
+    size_t next_slot;
+    size_t end_slot;
 } ht_iter;
 
 ht ht_new(size_t data_size, cmp_fn* key_cmp);

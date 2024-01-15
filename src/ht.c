@@ -323,31 +323,46 @@ static void ht_entry_free(ht_entry* e, free_fn* free_key, free_fn* free_data) {
 ht_iter ht_iter_new(ht* ht) {
     ht_iter iter = {0};
     iter.ht = ht;
+    iter.end_slot = ht->capacity;
+    ht_iter_next(&iter);
+    ht_iter_next(&iter);
     return iter;
 }
 
 void ht_iter_next(ht_iter* iter) {
-    ht_entry* new_cur = iter->next;
-    ht_entry* new_next;
-    size_t ht_len = iter->ht->capacity;
-    size_t i;
-    iter->cur = new_cur;
-    if (new_cur->next) {
-        iter->next = new_cur->next;
+    size_t i, len = iter->end_slot;
+    iter->cur = iter->next;
+    if (iter->next_slot == iter->end_slot) {
+        iter->next = NULL;
+        return;
+    }
+    if (iter->next_slot == 0 && iter->next == NULL) {
+        for (i = 0; i < len; ++i) {
+            ht_entry* cur = iter->ht->entries[i];
+            if (!cur) {
+                continue;
+            }
+            iter->next = cur;
+            iter->next_slot = i;
+            return;
+        }
+        iter->next = NULL;
+        iter->next_slot = len;
+    }
+    if (iter->next->next) {
+        iter->next = iter->next->next;
         return;
     }
 
-    for (i = iter->cur_slot + 1; i < ht_len; ++i) {
-        new_next = iter->ht->entries[i];
-        if (!new_next) {
+    for (i = iter->next_slot + 1; i < len; ++i) {
+        ht_entry* cur = iter->ht->entries[i];
+        if (!cur) {
             continue;
         }
-        iter->next = new_next;
-        iter->cur_slot = i;
+        iter->next = cur;
+        iter->next_slot = i;
         return;
     }
-
     iter->next = NULL;
-
-    return;
+    iter->next_slot = iter->end_slot;
 }
