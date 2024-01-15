@@ -684,52 +684,42 @@ static void execute_cmd(server* s, client* c) {
         vstr time_secs;
         struct timespec cur_time;
         uint64_t uptime_secs;
-        builder_add_array(&c->builder, 10);
+        builder_add_ht(&c->builder, 10);
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "process id", 10);
         builder_add_int(&c->builder, s->pid);
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "executable", 10);
         builder_add_string(&c->builder, s->executable_path,
                            strlen(s->executable_path));
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "config file", 11);
         builder_add_string(&c->builder, vstr_data(&s->conf_file_path),
                            vstr_len(&s->conf_file_path));
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "OS", 2);
         builder_add_string(&c->builder, vstr_data(&s->os_name),
                            vstr_len(&s->os_name));
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "multiplexing api", 16);
         builder_add_string(&c->builder, ev_api_name(), strlen(ev_api_name()));
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "host", 4);
         builder_add_string(&c->builder, vstr_data(&s->addr),
                            vstr_len(&s->addr));
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "port", 4);
         builder_add_int(&c->builder, s->port);
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "commands processes", 18);
         builder_add_int(&c->builder, s->cmd_executed);
 
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "num connections", 15);
         builder_add_int(&c->builder, s->clients->len);
 
         cur_time = get_time();
         uptime_secs = cur_time.tv_sec - s->start_time.tv_sec;
         time_secs = vstr_format("%lu secs", uptime_secs);
-        builder_add_array(&c->builder, 2);
         builder_add_string(&c->builder, "uptime", 6);
         builder_add_string(&c->builder, vstr_data(&time_secs),
                            vstr_len(&time_secs));
