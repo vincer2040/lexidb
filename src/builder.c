@@ -161,8 +161,28 @@ int builder_add_object(builder* b, object* obj) {
         vec_iter iter = vec_iter_new(obj->data.vec);
         while (iter.cur) {
             object* cur = iter.cur;
-            builder_add_object(b, cur);
+            int add_res = builder_add_object(b, cur);
+            if (add_res == -1) {
+                return -1;
+            }
             vec_iter_next(&iter);
+        }
+        return 0;
+    }
+    case Ht: {
+        ht_iter iter = ht_iter_new(&obj->data.ht);
+        while (iter.cur) {
+            ht_entry* cur = iter.cur;
+            object* key = (object*)ht_entry_get_key(cur);
+            object* value = (object*)ht_entry_get_value(cur);
+            int add_res = builder_add_object(b, key);
+            if (add_res == -1) {
+                return -1;
+            }
+            add_res = builder_add_object(b, value);
+            if (add_res == -1) {
+                return -1;
+            }
         }
         return 0;
     }
