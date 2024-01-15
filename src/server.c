@@ -2,6 +2,7 @@
 #include "builder.h"
 #include "clap.h"
 #include "cmd.h"
+#include "cmd_help.c"
 #include "config.h"
 #include "config_parser.h"
 #include "ev.h"
@@ -51,8 +52,7 @@ static void server_accept(ev* ev, int fd, void* client_data, int mask);
 static void read_from_client(ev* ev, int fd, void* client_data, int mask);
 static void write_to_client(ev* ev, int fd, void* client_data, int mask);
 
-static result(client_ptr)
-    create_client(int fd, uint32_t addr, uint16_t port);
+static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port);
 
 static void execute_cmd(server* s, client* c);
 static int execute_auth_command(server* s, client* client, auth_cmd* auth);
@@ -370,6 +370,9 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
         return result;
     }
 
+    s.help_cmds = init_all_cmd_helps();
+    s.help_cmds_len = get_all_cmd_helps_len();
+
     s.start_time = get_time();
     s.pid = getpid();
     s.sfd = sfd;
@@ -446,6 +449,7 @@ static void server_free(server* s) {
     vstr_free(&s->conf_file_path);
     vstr_free(&s->os_name);
     vec_free(s->users, user_in_vec_free);
+    free(s->help_cmds);
     close(s->sfd);
 }
 
@@ -620,8 +624,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
     builder_reset(&(c->builder));
 }
 
-static result(client_ptr)
-    create_client(int fd, uint32_t addr, uint16_t port) {
+static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port) {
     result(client_ptr) res = {0};
     client* c;
     c = calloc(1, sizeof *c);

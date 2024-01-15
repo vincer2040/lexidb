@@ -103,7 +103,6 @@ add_executable(
     src/db.c
     src/server.c
     src/auth.c
-    src/cmd_help.c
 )
 
 add_executable(
@@ -132,6 +131,7 @@ target_link_libraries(
     object
     vstr
     vec
+    ht
 )
 
 target_link_libraries(
