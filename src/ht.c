@@ -220,6 +220,13 @@ int ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
     return -1;
 }
 
+const void* ht_entry_get_key(ht_entry* e) { return e->data; }
+
+const void* ht_entry_get_value(ht_entry* e) {
+    size_t offset = e->key_size + ht_padding(e->key_size);
+    return e->data + offset;
+}
+
 void ht_free(ht* ht, free_fn* free_key, free_fn* free_data) {
     size_t i, len = ht->capacity;
     for (i = 0; i < len; ++i) {
@@ -311,4 +318,36 @@ static void ht_entry_free(ht_entry* e, free_fn* free_key, free_fn* free_data) {
         free_key(e->data);
     }
     free(e);
+}
+
+ht_iter ht_iter_new(ht* ht) {
+    ht_iter iter = {0};
+    iter.ht = ht;
+    return iter;
+}
+
+void ht_iter_next(ht_iter* iter) {
+    ht_entry* new_cur = iter->next;
+    ht_entry* new_next;
+    size_t ht_len = iter->ht->capacity;
+    size_t i;
+    iter->cur = new_cur;
+    if (new_cur->next) {
+        iter->next = new_cur->next;
+        return;
+    }
+
+    for (i = iter->cur_slot + 1; i < ht_len; ++i) {
+        new_next = iter->ht->entries[i];
+        if (!new_next) {
+            continue;
+        }
+        iter->next = new_next;
+        iter->cur_slot = i;
+        return;
+    }
+
+    iter->next = NULL;
+
+    return;
 }

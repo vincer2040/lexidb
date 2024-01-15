@@ -22,6 +22,13 @@ typedef struct {
     ht_entry** entries;
 } ht;
 
+typedef struct {
+    ht_entry* cur;
+    ht_entry* next;
+    ht* ht;
+    size_t cur_slot;
+} ht_iter;
+
 ht ht_new(size_t data_size, cmp_fn* key_cmp);
 int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
               free_fn* free_data);
@@ -29,6 +36,11 @@ int ht_try_insert(ht* ht, void* key, size_t key_size, void* data);
 void* ht_get(ht* ht, void* key, size_t key_size);
 int ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
               free_fn* free_data);
+const void* ht_entry_get_key(ht_entry* e);
+const void* ht_entry_get_value(ht_entry* e);
 void ht_free(ht* ht, free_fn* free_key, free_fn* free_data);
+
+ht_iter ht_iter_new(ht* ht);
+void ht_iter_next(ht_iter* iter);
 
 #endif /* __HT_H__ */
