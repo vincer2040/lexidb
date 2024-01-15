@@ -152,7 +152,6 @@ int builder_add_ht(builder* b, size_t len) {
     vstr len_str = vstr_format("%lu", len);
     const char* len_str_s = vstr_data(&len_str);
     size_t len_str_len = vstr_len(&len_str);
-    add_res = vstr_push_char(b, '%');
     if (add_res == -1) {
         return -1;
     }
