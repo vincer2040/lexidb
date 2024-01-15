@@ -5,6 +5,15 @@
 #include "object.h"
 #include <stddef.h>
 
+struct cmd_help;
+
+typedef struct {
+    const char* name;
+    size_t types_len;
+    const char* const type[4];
+    int optional;
+} cmd_help_argument;
+
 typedef enum {
     Illegal,
     Okc,
@@ -65,5 +74,7 @@ typedef struct {
         zdel_cmd zdel;
     } data;
 } cmd;
+
+struct cmd_help cmd_help_get(cmdt cmd_type);
 
 #endif /* __CMD_H__ */

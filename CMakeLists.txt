@@ -12,6 +12,11 @@ enable_testing()
 
 add_subdirectory(tests)
 
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/generate_commands_help
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 set(CMAKE_C_COMPILER "gcc")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -std=c99 -Wall -Werror -pedantic -fstack-clash-protection \
@@ -98,6 +103,7 @@ add_executable(
     src/db.c
     src/server.c
     src/auth.c
+    src/cmd_help.c
 )
 
 add_executable(
