@@ -4,6 +4,7 @@
 
 #define _XOPEN_SOURCE 600
 #include "builder.h"
+#include "cmd.h"
 #include "ev.h"
 #include "ht.h"
 #include "queue.h"
@@ -30,19 +31,21 @@ typedef enum {
 } log_level;
 
 typedef struct {
-    pid_t pid;             /* the pid of the process */
-    int sfd;               /* the socket file descriptor */
-    log_level log_level;   /* the amount to log */
-    uint16_t flags;        /* no use as of now */
-    uint16_t port;         /* the port the server is listening on*/
-    char* executable_path; /* the path of the executable */
-    vstr os_name;          /* name of the host's operating system */
-    vstr addr;             /* the host address as a vstr */
-    vstr conf_file_path;   /* the path of the configuration file */
-    lexidb db;             /* the database */
-    ev* ev;                /* multiplexing api */
-    vec* clients;          /* vector of clients connected to the server */
-    vec* users;            /* vector of users */
+    pid_t pid;                  /* the pid of the process */
+    int sfd;                    /* the socket file descriptor */
+    log_level log_level;        /* the amount to log */
+    uint16_t flags;             /* no use as of now */
+    uint16_t port;              /* the port the server is listening on*/
+    char* executable_path;      /* the path of the executable */
+    vstr os_name;               /* name of the host's operating system */
+    vstr addr;                  /* the host address as a vstr */
+    vstr conf_file_path;        /* the path of the configuration file */
+    lexidb db;                  /* the database */
+    ev* ev;                     /* multiplexing api */
+    vec* clients;               /* vector of clients connected to the server */
+    vec* users;                 /* vector of users */
+    struct cmd_help* help_cmds; /* array to all help comand structs */
+    size_t help_cmds_len;       /* number of help cmds structs */
     uint64_t cmd_executed; /* the number of commands the server has processed */
     struct timespec start_time; /* the time the server started */
 } server;

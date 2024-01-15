@@ -348,6 +348,53 @@ START_TEST(test_parse_help_cmd) {
     }
 }
 
+START_TEST(test_parse_ht) {
+    const uint8_t* input = (const uint8_t*)"\
+%3\r\n\
+$3\r\nfoo\r\n$3\r\nbar\r\n\
+$3\r\nbar\r\n$3\r\nfoo\r\n\
+$6\r\nfoobar\r\n$6\r\nbarbaz\r\n\
+";
+    size_t input_len = 64;
+    object parsed = parse_from_server(input, input_len);
+    object k1, k2, k3, v1exp, v2exp, v3exp;
+    vstr k1s, k2s, k3s, v1sexp, v2sexp, v3sexp;
+    object *v1, *v2, *v3;
+    ht ht;
+    ck_assert_int_eq(parsed.type, Ht);
+
+    ht = parsed.data.ht;
+
+    ck_assert_uint_eq(ht.num_entries, 3);
+    k1s = vstr_from("foo");
+    k1 = object_new(String, &k1s);
+    k2s = vstr_from("bar");
+    k2 = object_new(String, &k2s);
+    k3s = vstr_from("foobar");
+    k3 = object_new(String, &k3s);
+
+    v1sexp = vstr_from("bar");
+    v1exp = object_new(String, &v1sexp);
+    v2sexp = vstr_from("foo");
+    v2exp = object_new(String, &v2sexp);
+    v3sexp = vstr_from("barbaz");
+    v3exp = object_new(String, &v3sexp);
+
+    v1 = ht_get(&ht, &k1, sizeof(object));
+    ck_assert_ptr_nonnull(v1);
+    ck_assert_int_eq(object_cmp(&v1exp, v1), 0);
+
+    v2 = ht_get(&ht, &k2, sizeof(object));
+    ck_assert_ptr_nonnull(v2);
+    ck_assert_int_eq(object_cmp(&v2exp, v2), 0);
+
+    v3 = ht_get(&ht, &k3, sizeof(object));
+    ck_assert_ptr_nonnull(v3);
+    ck_assert_int_eq(object_cmp(&v3exp, v3), 0);
+
+    object_free(&parsed);
+}
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;

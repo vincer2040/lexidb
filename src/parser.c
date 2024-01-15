@@ -60,6 +60,8 @@ static inline bool peek_byte_is(parser* p, uint8_t byte);
 static bool expect_peek_byte(parser* p, uint8_t byte);
 static bool expect_peek_byte_to_be_num(parser* p);
 static inline void parser_read_char(parser* p);
+static int parser_object_cmp(void* a, void* b);
+static void parser_free_object(void* ptr);
 
 cmd parse(const uint8_t* input, size_t input_len) {
     parser p = parser_new(input, input_len);
@@ -128,7 +130,7 @@ static cmd parse_array_cmd(parser* p) {
     }
 
     switch (type) {
-    case Help:{
+    case Help: {
         cmdt help_cmd = parse_bulk_string_cmd(p);
         if (help_cmd == Illegal) {
             return cmd;
@@ -413,6 +415,33 @@ static object parse_object(parser* p) {
         obj.type = Array;
         obj.data.vec = vec;
     } break;
+    case '%': {
+        uint64_t i, len;
+        ht ht;
+        if (!expect_peek_byte_to_be_num(p)) {
+            return obj;
+        }
+        len = parse_len(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        parser_read_char(p);
+
+        ht = ht_new(sizeof(object), parser_object_cmp);
+
+        for (i = 0; i < len; ++i) {
+            object key = parse_object(p);
+            object value = parse_object(p);
+            ht_insert(&ht, &key, sizeof(object), &value, parser_free_object,
+                      parser_free_object);
+        }
+    } break;
     default:
         break;
     }
@@ -560,3 +589,7 @@ static uint8_t peek_byte(parser* p) {
     }
     return p->input[p->pos];
 }
+
+static int parser_object_cmp(void* a, void* b) { return object_cmp(a, b); }
+
+static void parser_free_object(void* ptr) { object_free(ptr); }
