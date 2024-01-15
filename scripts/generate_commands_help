@@ -4,7 +4,7 @@ import json
 
 print("generating cmd_help.c")
 
-files = [
+paths = [
         "../cmds/auth.json",
         "../cmds/del.json",
         "../cmds/deque.json",
@@ -23,7 +23,7 @@ files = [
 cmds = []
 max_args = 0
 
-for path in files:
+for path in paths:
     file = open(path, "r")
     contents = file.read()
     parsed = json.loads(contents)
@@ -42,9 +42,12 @@ typedef struct cmd_help {{\n\
 
 file = open("../src/cmd_help.c", "w")
 
-file.write("#include \"cmd.h\"\n#include <assert.h>\n\n")
+file.write("#include \"cmd.h\"\n#include <assert.h>\n#include <stdlib.h>\n\n")
 
 file.write(struct + "\n\n")
+
+global_all_cmds_help = "cmd_help* all_helps;\nsize_t all_helps_len = {};".format(len(cmds))
+file.write(global_all_cmds_help + "\n\n")
 
 for cmd in cmds:
     name = cmd["name"]
@@ -75,6 +78,31 @@ for cmd in cmds:
         struct_value = struct_value + "\n\t}\n};"
         struct_value = "cmd_help " + name + "_help" + " = " + struct_value
         file.write(struct_value + "\n\n")
+
+def init_global_all_cmd_help_fn():
+    res = "void init_global_all_cmd_helps(void) {\n\tall_helps = calloc(all_helps_len, sizeof(cmd_help));\n\tassert(all_helps != NULL);\n"
+    i = 0
+    for cmd in cmds:
+        name = cmd["name"] + "_help"
+        s = "\tall_helps[{}] = {};\n".format(i, name)
+        res = res + s
+        i += 1
+    res = res + "}\n\n"
+    return res
+
+file.write(init_global_all_cmd_help_fn())
+
+get_global_all_cmd_helps = "cmd_help* get_global_all_cmd_helps(void) {\n\
+    return all_helps;\n\
+}\n\n"
+
+file.write(get_global_all_cmd_helps)
+
+get_global_all_cmd_helps_len = "size_t get_global_all_cmd_helps_len(void) {\n\
+    return all_helps_len;\n\
+}\n\n"
+
+file.write(get_global_all_cmd_helps_len)
 
 fn = "cmd_help cmd_help_get(cmdt cmd_type) {\n\
     switch(cmd_type) {\n\

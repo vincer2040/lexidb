@@ -51,6 +51,11 @@ typedef struct {
     object password;
 } auth_cmd;
 
+typedef struct {
+    int wants_cmd_help;
+    cmdt cmd_to_help;
+} help_cmd;
+
 typedef kv_cmd set_cmd;
 typedef k_cmd get_cmd;
 typedef k_cmd del_cmd;
@@ -72,9 +77,13 @@ typedef struct {
         zset_cmd zset;
         zhas_cmd zhas;
         zdel_cmd zdel;
+        help_cmd help;
     } data;
 } cmd;
 
 struct cmd_help cmd_help_get(cmdt cmd_type);
+void init_global_all_cmd_helps(void);
+struct cmd_help* get_global_all_cmd_helps(void);
+size_t get_global_all_cmd_helps_len(void);
 
 #endif /* __CMD_H__ */
