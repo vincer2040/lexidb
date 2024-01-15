@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
 
 import json
+import glob
 
 print("generating cmd_help.c")
 
-paths = [
-        "../cmds/auth.json",
-        "../cmds/del.json",
-        "../cmds/deque.json",
-        "../cmds/enque.json",
-        "../cmds/get.json",
-        "../cmds/help.json",
-        "../cmds/info.json",
-        "../cmds/pop.json",
-        "../cmds/push.json",
-        "../cmds/set.json",
-        "../cmds/zdel.json",
-        "../cmds/zhas.json",
-        "../cmds/zset.json",
-        ]
+paths = glob.glob("../cmds/*.json")
 
 cmds = []
 max_args = 0
