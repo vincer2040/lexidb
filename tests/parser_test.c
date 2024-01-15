@@ -407,6 +407,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_parse_array);
     tcase_add_test(tc_core, test_parse_double);
     tcase_add_test(tc_core, test_parse_help_cmd);
+    tcase_add_test(tc_core, test_parse_ht);
     suite_add_tcase(s, tc_core);
     return s;
 }

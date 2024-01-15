@@ -421,6 +421,7 @@ static object parse_object(parser* p) {
         if (!expect_peek_byte_to_be_num(p)) {
             return obj;
         }
+
         len = parse_len(p);
 
         if (!cur_byte_is(p, '\r')) {
@@ -441,6 +442,8 @@ static object parse_object(parser* p) {
             ht_insert(&ht, &key, sizeof(object), &value, parser_free_object,
                       parser_free_object);
         }
+        obj.type = Ht;
+        obj.data.ht = ht;
     } break;
     default:
         break;
