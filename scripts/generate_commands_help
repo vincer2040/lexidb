@@ -78,6 +78,8 @@ for cmd in cmds:
 
 fn = "cmd_help cmd_help_get(cmdt cmd_type) {\n\
     switch(cmd_type) {\n\
+    case Help:\n\
+        return help_help;\n\
     case Auth:\n\
         return auth_help;\n\
     case Infoc:\n\
