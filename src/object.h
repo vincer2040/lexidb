@@ -2,6 +2,7 @@
 
 #define __OBJECT_H__
 
+#include "ht.h"
 #include "vstr.h"
 #include "vec.h"
 #include <stdint.h>
@@ -12,6 +13,7 @@ typedef enum {
     Double,
     String,
     Array,
+    Ht,
 } objectt;
 
 typedef struct {
@@ -21,6 +23,7 @@ typedef struct {
         double dbl;
         vstr string;
         vec* vec;
+        ht ht;
     } data;
 } object;
 

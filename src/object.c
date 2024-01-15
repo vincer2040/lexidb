@@ -1,7 +1,10 @@
 #include "object.h"
+#include "ht.h"
+#include <assert.h>
 #include <stdio.h>
 
-static void free_object_in_vec(void* ptr);
+static void free_object_in_structure(void* ptr);
+static void object_show_no_newline(object* obj);
 
 object object_new(objectt type, void* data) {
     object obj = {0};
@@ -69,12 +72,24 @@ void object_show(object* obj) {
     case String:
         printf("%s\n", vstr_data(&(obj->data.string)));
         break;
-    case Array:{
+    case Array: {
         vec_iter iter = vec_iter_new(obj->data.vec);
         while (iter.cur) {
             object* obj = iter.cur;
             object_show(obj);
             vec_iter_next(&iter);
+        }
+    } break;
+    case Ht: {
+        ht_iter iter = ht_iter_new(&obj->data.ht);
+        while (iter.cur) {
+            ht_entry* cur = iter.cur;
+            object* key = (object*)ht_entry_get_key(cur);
+            object* value = (object*)ht_entry_get_value(cur);
+            object_show_no_newline(key);
+            printf(": ");
+            object_show(value);
+            ht_iter_next(&iter);
         }
     } break;
     }
@@ -90,14 +105,69 @@ void object_free(object* obj) {
         vstr_free(&(obj->data.string));
         break;
     case Array:
-        vec_free(obj->data.vec, free_object_in_vec);
+        vec_free(obj->data.vec, free_object_in_structure);
+        break;
+    case Ht:
+        ht_free(&obj->data.ht, free_object_in_structure,
+                free_object_in_structure);
         break;
     default:
         break;
     }
 }
 
-static void free_object_in_vec(void* ptr) {
+static void object_show_no_newline(object* obj) {
+    switch (obj->type) {
+    case Null:
+        printf("null");
+        break;
+    case Int:
+        printf("%ld", obj->data.num);
+        break;
+    case Double:
+        printf("%f", obj->data.dbl);
+        break;
+    case String:
+        printf("%s", vstr_data(&(obj->data.string)));
+        break;
+    case Array: {
+        vec_iter iter = vec_iter_new(obj->data.vec);
+        size_t i = 0;
+        size_t len = obj->data.vec->len;
+        while (iter.cur) {
+            object* obj = iter.cur;
+            object_show_no_newline(obj);
+            if (i != len - 1) {
+                printf(", ");
+            }
+            vec_iter_next(&iter);
+            i++;
+        }
+    } break;
+    case Ht: {
+        ht_iter iter = ht_iter_new(&obj->data.ht);
+        size_t i = 0;
+        size_t len = obj->data.ht.num_entries;
+        printf("{");
+        while (iter.cur) {
+            ht_entry* cur = iter.cur;
+            object* key = (object*)ht_entry_get_key(cur);
+            object* value = (object*)ht_entry_get_value(cur);
+            object_show_no_newline(key);
+            printf(": ");
+            object_show_no_newline(value);
+            if (i != len - 1) {
+                printf(", ");
+            }
+            ht_iter_next(&iter);
+            i++;
+        }
+        printf("}");
+    } break;
+    }
+}
+
+static void free_object_in_structure(void* ptr) {
     object* obj = ptr;
     object_free(obj);
 }
