@@ -46,7 +46,7 @@ file.write("#include \"cmd.h\"\n#include <assert.h>\n#include <stdlib.h>\n\n")
 
 file.write(struct + "\n\n")
 
-global_all_cmds_help = "cmd_help* all_helps;\nsize_t all_helps_len = {};".format(len(cmds))
+global_all_cmds_help = "size_t all_helps_len = {};".format(len(cmds))
 file.write(global_all_cmds_help + "\n\n")
 
 for cmd in cmds:
@@ -80,23 +80,17 @@ for cmd in cmds:
         file.write(struct_value + "\n\n")
 
 def init_global_all_cmd_help_fn():
-    res = "void init_global_all_cmd_helps(void) {\n\tall_helps = calloc(all_helps_len, sizeof(cmd_help));\n\tassert(all_helps != NULL);\n"
+    res = "cmd_help* init_all_cmd_helps(void) {\n\tcmd_help* all_helps = calloc(all_helps_len, sizeof(cmd_help));\n\tassert(all_helps != NULL);\n"
     i = 0
     for cmd in cmds:
         name = cmd["name"] + "_help"
         s = "\tall_helps[{}] = {};\n".format(i, name)
         res = res + s
         i += 1
-    res = res + "}\n\n"
+    res = res + "\treturn all_helps;\n}\n\n"
     return res
 
 file.write(init_global_all_cmd_help_fn())
-
-get_global_all_cmd_helps = "cmd_help* get_global_all_cmd_helps(void) {\n\
-    return all_helps;\n\
-}\n\n"
-
-file.write(get_global_all_cmd_helps)
 
 get_global_all_cmd_helps_len = "size_t get_global_all_cmd_helps_len(void) {\n\
     return all_helps_len;\n\

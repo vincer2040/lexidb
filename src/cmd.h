@@ -10,7 +10,7 @@ struct cmd_help;
 typedef struct {
     const char* name;
     size_t types_len;
-    const char* const type[4];
+    const char* type[4];
     int optional;
 } cmd_help_argument;
 
