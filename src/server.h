@@ -8,6 +8,7 @@
 #include "ev.h"
 #include "ht.h"
 #include "queue.h"
+#include "reply.h"
 #include "set.h"
 #include "vec.h"
 #include "vstr.h"

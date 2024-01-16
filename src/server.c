@@ -656,12 +656,12 @@ static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port) {
 static void execute_cmd(server* s, client* c) {
     cmd cmd = parse(c->read_buf, c->read_pos);
     if (cmd.type == Illegal) {
-        builder_add_err(&(c->builder), "Invalid command", 15);
+        builder_add_err(&(c->builder), err_invalid_command.str, err_invalid_command.str_len);
         return;
     }
     if (!(c->flags & AUTHENTICATED) && cmd.type != Auth) {
         cmd_free(&cmd);
-        builder_add_err(&c->builder, "not authenticated", 17);
+        builder_add_err(&c->builder, err_unauthed.str, err_unauthed.str_len);
         return;
     }
     switch (cmd.type) {
@@ -748,7 +748,7 @@ static void execute_cmd(server* s, client* c) {
     case Del: {
         int del_res = execute_del_command(s, &(cmd.data.del));
         if (del_res == -1) {
-            builder_add_err(&(c->builder), "invalid key", 11);
+            builder_add_err(&(c->builder), err_invalid_key.str, err_invalid_key.str_len);
             break;
         }
         builder_add_ok(&(c->builder));
@@ -817,14 +817,14 @@ static void execute_cmd(server* s, client* c) {
     case ZDel: {
         int res = execute_zdel_command(s, &cmd.data.zdel);
         if (res == -1) {
-            builder_add_err(&c->builder, "invalid key", 11);
+            builder_add_err(&c->builder, err_invalid_key.str, err_invalid_key.str_len);
             break;
         }
         builder_add_ok(&c->builder);
         s->cmd_executed++;
     } break;
     default:
-        builder_add_err(&(c->builder), "Invalid command", 15);
+        builder_add_err(&(c->builder), err_invalid_command.str, err_invalid_command.str_len);
         break;
     }
 }

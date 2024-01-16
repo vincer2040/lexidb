@@ -103,6 +103,7 @@ add_executable(
     src/db.c
     src/server.c
     src/auth.c
+    src/reply.c
 )
 
 add_executable(
