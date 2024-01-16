@@ -39,6 +39,8 @@ int builder_add_array(builder* b, size_t arr_len) {
     len_str_len = vstr_len(&len_vstr);
     len_str = vstr_data(&len_vstr);
 
+    vstr_free(&len_vstr);
+
     if (len_str == 0) {
         return -1;
     }
@@ -91,6 +93,7 @@ int builder_add_string(builder* b, const char* str, size_t str_len) {
     len_str = vstr_data(&len_vstr);
     len_str_len = vstr_len(&len_vstr);
     res = vstr_push_string_len(b, len_str, len_str_len);
+    vstr_free(&len_vstr);
     if (res == -1) {
         return -1;
     }
@@ -109,21 +112,20 @@ int builder_add_string(builder* b, const char* str, size_t str_len) {
 }
 
 int builder_add_int(builder* b, int64_t val) {
-    size_t i, len = 8;
     int res = 0;
-    uint64_t uval = val;
-    uint8_t shift = 56;
+    vstr int_str = vstr_format("%ld\n", val);
+    const char* int_str_s = vstr_data(&int_str);
+    size_t int_str_len = vstr_len(&int_str);
     res = vstr_push_char(b, ':');
     if (res == -1) {
+        vstr_free(&int_str);
         return -1;
     }
 
-    for (i = 0; i < len; ++i, shift -= 8) {
-        uint8_t byte = uval >> shift;
-        res = vstr_push_char(b, byte);
-        if (res == -1) {
-            return -1;
-        }
+    res = vstr_push_string_len(b, int_str_s, int_str_len);
+    vstr_free(&int_str);
+    if (res == -1) {
+        return -1;
     }
 
     res = builder_add_end(b);
@@ -136,29 +138,35 @@ int builder_add_double(builder* b, double val) {
     size_t tmp_len = vstr_len(&tmp);
     int res = vstr_push_char(b, ',');
     if (res == -1) {
+        vstr_free(&tmp);
         return -1;
     }
     res = vstr_push_string_len(b, tmp_data, tmp_len);
     if (res == -1) {
+        vstr_free(&tmp);
         return -1;
     }
+    vstr_free(&tmp);
     res = builder_add_end(b);
     return res;
 }
 
 int builder_add_ht(builder* b, size_t len) {
     int add_res;
-    add_res = vstr_push_char(b, '%');
     vstr len_str = vstr_format("%lu", len);
     const char* len_str_s = vstr_data(&len_str);
     size_t len_str_len = vstr_len(&len_str);
+    add_res = vstr_push_char(b, '%');
     if (add_res == -1) {
+        vstr_free(&len_str);
         return -1;
     }
     add_res = vstr_push_string_len(b, len_str_s, len_str_len);
     if (add_res == -1) {
+        vstr_free(&len_str);
         return -1;
     }
+    vstr_free(&len_str);
     return builder_add_end(b);
 }
 

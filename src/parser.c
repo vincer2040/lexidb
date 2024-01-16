@@ -512,19 +512,17 @@ static vstr parse_error(parser* p) {
 
 static int64_t parse_integer(parser* p) {
     int64_t res;
-    uint64_t tmp = 0;
-    uint8_t shift = 56;
-    uint8_t i;
+    vstr int_str = vstr_new();
+    char* end_ptr = NULL;
+    const char* int_str_s;
     parser_read_char(p);
-    for (i = 0; i < 8; ++i, shift -= 8) {
-        tmp |= ((uint64_t)(p->ch)) << shift;
+    while (p->ch != '\r' && p->ch != 0) {
+        vstr_push_char(&int_str, p->ch);
         parser_read_char(p);
     }
-    if (tmp <= 0x7fffffffffffffffu) {
-        res = tmp;
-    } else {
-        res = -1 - (int64_t)(0xffffffffffffffffu - tmp);
-    }
+    int_str_s = vstr_data(&int_str);
+    res = strtold(int_str_s, &end_ptr);
+    vstr_free(&int_str);
     return res;
 }
 
