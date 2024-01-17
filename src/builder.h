@@ -20,7 +20,7 @@ int builder_add_err(builder* b, const char* str, size_t len);
 int builder_add_string(builder* b, const char* str, size_t str_len);
 int builder_add_int(builder* b, int64_t val);
 int builder_add_double(builder* b, double val);
-int builder_add_object(builder* b, object* obj);
+int builder_add_object(builder* b, const object* obj);
 void builder_reset(builder* b);
 void builder_free(builder* builder);
 

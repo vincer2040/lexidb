@@ -170,7 +170,7 @@ int builder_add_ht(builder* b, size_t len) {
     return builder_add_end(b);
 }
 
-int builder_add_object(builder* b, object* obj) {
+int builder_add_object(builder* b, const object* obj) {
     switch (obj->type) {
     case Null:
         return builder_add_none(b);
@@ -179,8 +179,8 @@ int builder_add_object(builder* b, object* obj) {
     case Double:
         return builder_add_double(b, obj->data.dbl);
     case String:
-        return builder_add_string(b, vstr_data(&(obj->data.string)),
-                                  vstr_len(&(obj->data.string)));
+        return builder_add_string(b, vstr_data((vstr*)&(obj->data.string)),
+                                  vstr_len((vstr*)&(obj->data.string)));
     case Array: {
         vec_iter iter = vec_iter_new(obj->data.vec);
         int add_res = builder_add_array(b, obj->data.vec->len);
@@ -198,7 +198,7 @@ int builder_add_object(builder* b, object* obj) {
         return 0;
     }
     case Ht: {
-        ht_iter iter = ht_iter_new(&obj->data.ht);
+        ht_iter iter = ht_iter_new((ht*)&obj->data.ht);
         int add_res = builder_add_ht(b, obj->data.ht.num_entries);
         if (add_res == -1) {
             return -1;
