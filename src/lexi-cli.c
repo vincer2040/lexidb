@@ -97,6 +97,9 @@ static result(object) execute_cmd(hilexi* l, cmd* cmd) {
         cmd_res.type = Ok;
         cmd_res.data.ok = object_new(String, &h);
     } break;
+    case Keys:
+        cmd_res = hilexi_keys(l);
+        break;
     case Set: {
         set_cmd set = cmd->data.set;
         object key = set.key;

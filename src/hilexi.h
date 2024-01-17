@@ -27,6 +27,7 @@ int hilexi_connect(hilexi* l);
 
 result(object) hilexi_ping(hilexi* l);
 result(object) hilexi_info(hilexi* l);
+result(object) hilexi_keys(hilexi* l);
 result(object) hilexi_set(hilexi* l, object* key, object* value);
 result(object) hilexi_get(hilexi* l, object* key);
 result(object) hilexi_del(hilexi* l, object* key);

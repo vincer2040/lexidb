@@ -729,6 +729,18 @@ static void execute_cmd(server* s, client* c) {
 
         s->cmd_executed++;
     } break;
+    case Keys: {
+        size_t len = s->db->dict.num_entries;
+        ht_iter iter = ht_iter_new(&s->db->dict);
+        builder_add_array(&c->builder, len);
+        while (iter.cur) {
+            ht_entry* cur = iter.cur;
+            const object* key = ht_entry_get_key(cur);
+            builder_add_object(&c->builder, key);
+            ht_iter_next(&iter);
+        }
+        s->cmd_executed++;
+    } break;
     case Set: {
         ht_result set_res = execute_set_command(s, &(cmd.data.set));
         if (set_res != HT_OK) {
