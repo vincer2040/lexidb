@@ -44,7 +44,7 @@ typedef struct {
 static result(server) server_new(const char* addr, uint16_t port, log_level ll,
                                  vstr* conf_file_path);
 static int add_users(vec** users_vec, vec* users_from_config);
-static lexidb lexidb_new(void);
+static lexidb* lexidb_new(void);
 static void server_free(server* s);
 static void lexidb_free(lexidb* db);
 
@@ -384,13 +384,14 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     return result;
 }
 
-static lexidb lexidb_new(void) {
-    lexidb res = {0};
-    res.dict = ht_new(sizeof(object), server_compare_objects);
-    res.vec = vec_new(sizeof(object));
-    assert(res.vec != NULL);
-    res.queue = queue_new(sizeof(object));
-    res.set = set_new(sizeof(object), server_compare_objects);
+static lexidb* lexidb_new(void) {
+    lexidb* res = calloc(1, sizeof *res);
+    assert(res != NULL);
+    res->dict = ht_new(sizeof(object), server_compare_objects);
+    res->vec = vec_new(sizeof(object));
+    assert(res->vec != NULL);
+    res->queue = queue_new(sizeof(object));
+    res->set = set_new(sizeof(object), server_compare_objects);
     return res;
 }
 
@@ -443,7 +444,7 @@ static int add_users(vec** users_vec, vec* users_from_config) {
 static void server_free(server* s) {
     free(s->executable_path);
     ev_free(s->ev);
-    lexidb_free(&s->db);
+    lexidb_free(s->db);
     vec_free(s->clients, client_in_vec_free);
     vstr_free(&s->addr);
     vstr_free(&s->conf_file_path);
@@ -458,6 +459,7 @@ static void lexidb_free(lexidb* db) {
     vec_free(db->vec, server_free_object);
     queue_free(&(db->queue), server_free_object);
     set_free(&(db->set), server_free_object);
+    free(db);
 }
 
 static void server_accept(ev* ev, int fd, void* client_data, int mask) {
@@ -884,21 +886,21 @@ static int execute_auth_command(server* s, client* client, auth_cmd* auth) {
 static ht_result execute_set_command(server* s, set_cmd* set) {
     object key = set->key;
     object value = set->value;
-    ht_result res = ht_insert(&(s->db.dict), &key, sizeof(object), &value,
+    ht_result res = ht_insert(&(s->db->dict), &key, sizeof(object), &value,
                               server_free_object, server_free_object);
     return res;
 }
 
 static object* execute_get_command(server* s, get_cmd* get) {
     object key = get->key;
-    object* res = ht_get(&(s->db.dict), &key, sizeof(object));
+    object* res = ht_get(&(s->db->dict), &key, sizeof(object));
     object_free(&key);
     return res;
 }
 
 static ht_result execute_del_command(server* s, del_cmd* del) {
     object key = del->key;
-    ht_result res = ht_delete(&(s->db.dict), &key, sizeof(object),
+    ht_result res = ht_delete(&(s->db->dict), &key, sizeof(object),
                               server_free_object, server_free_object);
     object_free(&key);
     return res;
@@ -906,14 +908,14 @@ static ht_result execute_del_command(server* s, del_cmd* del) {
 
 static int execute_push_command(server* s, push_cmd* push) {
     object value = push->value;
-    int res = vec_push(&(s->db.vec), &value);
+    int res = vec_push(&(s->db->vec), &value);
     return res;
 }
 
 static result(object) execute_pop_command(server* s) {
     result(object) ro = {0};
     object out;
-    int pop_res = vec_pop(s->db.vec, &out);
+    int pop_res = vec_pop(s->db->vec, &out);
     if (pop_res == -1) {
         ro.type = Err;
         return ro;
@@ -925,13 +927,13 @@ static result(object) execute_pop_command(server* s) {
 
 static int execute_enque_command(server* s, enque_cmd* enque) {
     object to_enque = enque->value;
-    return queue_enque(&s->db.queue, &to_enque);
+    return queue_enque(&s->db->queue, &to_enque);
 }
 
 static result(object) execute_deque_command(server* s) {
     result(object) ro = {0};
     object obj;
-    int deque_res = queue_deque(&s->db.queue, &obj);
+    int deque_res = queue_deque(&s->db->queue, &obj);
     if (deque_res == -1) {
         ro.type = Err;
         return ro;
@@ -942,17 +944,17 @@ static result(object) execute_deque_command(server* s) {
 }
 
 static set_result execute_zset_command(server* s, zset_cmd* zset) {
-    return set_insert(&s->db.set, &zset->value, server_free_object);
+    return set_insert(&s->db->set, &zset->value, server_free_object);
 }
 
 static bool execute_zhas_command(server* s, zhas_cmd* zhas) {
-    bool res = set_has(&s->db.set, &zhas->value);
+    bool res = set_has(&s->db->set, &zhas->value);
     object_free(&zhas->value);
     return res;
 }
 
 static set_result execute_zdel_command(server* s, zdel_cmd* zdel) {
-    set_result res = set_delete(&s->db.set, &zdel->value, server_free_object);
+    set_result res = set_delete(&s->db->set, &zdel->value, server_free_object);
     object_free(&zdel->value);
     return res;
 }

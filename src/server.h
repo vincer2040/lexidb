@@ -41,7 +41,7 @@ typedef struct {
     vstr os_name;               /* name of the host's operating system */
     vstr addr;                  /* the host address as a vstr */
     vstr conf_file_path;        /* the path of the configuration file */
-    lexidb db;                  /* the database */
+    lexidb* db;                 /* the database */
     ev* ev;                     /* multiplexing api */
     vec* clients;               /* vector of clients connected to the server */
     vec* users;                 /* vector of users */
