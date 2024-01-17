@@ -14,7 +14,7 @@ static uint64_t ht_hash(ht* ht, void* key, size_t key_size);
 static ht_entry* ht_entry_new(void* key, size_t key_size, void* data,
                               size_t data_size);
 static void ht_entry_free(ht_entry* e, free_fn* free_key, free_fn* free_data);
-static int ht_resize(ht* ht);
+static ht_result ht_resize(ht* ht);
 
 ht ht_new(size_t data_size, cmp_fn* key_cmp) {
     ht ht = {0};
@@ -27,7 +27,7 @@ ht ht_new(size_t data_size, cmp_fn* key_cmp) {
     return ht;
 }
 
-int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
+ht_result ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
               free_fn* free_data) {
     uint64_t slot;
     ht_entry* cur;
@@ -35,8 +35,8 @@ int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
     ht_entry* new_entry;
 
     if (ht->num_entries == ht->capacity) {
-        int resize = ht_resize(ht);
-        if (resize != 0) {
+        ht_result resize = ht_resize(ht);
+        if (resize != HT_OK) {
             return resize;
         }
     }
@@ -47,11 +47,11 @@ int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
     if (cur == NULL) {
         cur = ht_entry_new(key, key_size, data, ht->data_size);
         if (cur == NULL) {
-            return -1;
+            return HT_OOM;
         }
         ht->entries[slot] = cur;
         ht->num_entries++;
-        return 0;
+        return HT_OK;
     }
 
     head = cur;
@@ -77,14 +77,14 @@ int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
                 free_key(key);
             }
             memcpy(cur->data + offset, data, ht->data_size);
-            return 0;
+            return HT_OK;
         }
         cur = cur->next;
     }
 
     new_entry = ht_entry_new(key, key_size, data, ht->data_size);
     if (new_entry == NULL) {
-        return -1;
+        return HT_OOM;
     }
 
     new_entry->next = head;
@@ -92,10 +92,10 @@ int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
     ht->entries[slot] = new_entry;
 
     ht->num_entries++;
-    return 0;
+    return HT_OK;
 }
 
-int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
+ht_result ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
     uint64_t slot;
     ht_entry* cur;
     ht_entry* head;
@@ -103,7 +103,7 @@ int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
 
     if (ht->num_entries == ht->capacity) {
         int resize = ht_resize(ht);
-        if (resize != 0) {
+        if (resize != HT_OK) {
             return resize;
         }
     }
@@ -113,7 +113,7 @@ int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
     if (cur == NULL) {
         new_entry = ht_entry_new(key, key_size, data, ht->data_size);
         if (new_entry == NULL) {
-            return -1;
+            return HT_OOM;
         }
         ht->entries[slot] = new_entry;
         ht->num_entries++;
@@ -135,7 +135,7 @@ int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
         }
 
         if (cmp == 0) {
-            return -1;
+            return HT_INV_KEY;
         }
 
         cur = cur->next;
@@ -143,14 +143,14 @@ int ht_try_insert(ht* ht, void* key, size_t key_size, void* data) {
 
     new_entry = ht_entry_new(key, key_size, data, ht->data_size);
     if (new_entry == NULL) {
-        return -1;
+        return HT_OOM;
     }
 
     new_entry->next = head;
 
     ht->entries[slot] = new_entry;
     ht->num_entries++;
-    return 0;
+    return HT_OK;
 }
 
 void* ht_get(ht* ht, void* key, size_t key_size) {
@@ -181,13 +181,13 @@ void* ht_get(ht* ht, void* key, size_t key_size) {
     return NULL;
 }
 
-int ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
+ht_result ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
               free_fn* free_data) {
     uint64_t slot = ht_hash(ht, key, key_size);
     ht_entry* cur = ht->entries[slot];
     ht_entry* prev = NULL;
     if (!cur) {
-        return -1;
+        return HT_INV_KEY;
     }
 
     while (cur) {
@@ -211,13 +211,13 @@ int ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
 
             ht_entry_free(cur, free_key, free_data);
             ht->num_entries--;
-            return 0;
+            return HT_OK;
         }
 
         prev = cur;
         cur = cur->next;
     }
-    return -1;
+    return HT_INV_KEY;
 }
 
 const void* ht_entry_get_key(ht_entry* e) { return e->data; }
@@ -248,12 +248,12 @@ static uint64_t ht_hash(ht* ht, void* key, size_t key_size) {
     return siphash(key, key_size, ht->seed) % ht->capacity;
 }
 
-static int ht_resize(ht* ht) {
+static ht_result ht_resize(ht* ht) {
     size_t i, len = ht->capacity;
     size_t new_cap = ht->capacity << 1;
     ht_entry** new_enries = calloc(new_cap, sizeof(ht_entry*));
     if (new_enries == NULL) {
-        return -1;
+        return HT_OOM;
     }
     ht->capacity = new_cap;
     for (i = 0; i < len; ++i) {
@@ -281,7 +281,7 @@ static int ht_resize(ht* ht) {
 
     free(ht->entries);
     ht->entries = new_enries;
-    return 0;
+    return HT_OK;
 }
 
 static ht_entry* ht_entry_new(void* key, size_t key_size, void* data,

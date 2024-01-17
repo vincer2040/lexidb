@@ -56,9 +56,9 @@ static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port);
 
 static void execute_cmd(server* s, client* c);
 static int execute_auth_command(server* s, client* client, auth_cmd* auth);
-static int execute_set_command(server* s, set_cmd* set);
+static ht_result execute_set_command(server* s, set_cmd* set);
 static object* execute_get_command(server* s, get_cmd* get);
-static int execute_del_command(server* s, del_cmd* del);
+static ht_result execute_del_command(server* s, del_cmd* del);
 static int execute_push_command(server* s, push_cmd* push);
 static result(object) execute_pop_command(server* s);
 static int execute_enque_command(server* s, enque_cmd* enque);
@@ -656,7 +656,8 @@ static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port) {
 static void execute_cmd(server* s, client* c) {
     cmd cmd = parse(c->read_buf, c->read_pos);
     if (cmd.type == Illegal) {
-        builder_add_err(&(c->builder), err_invalid_command.str, err_invalid_command.str_len);
+        builder_add_err(&(c->builder), err_invalid_command.str,
+                        err_invalid_command.str_len);
         return;
     }
     if (!(c->flags & AUTHENTICATED) && cmd.type != Auth) {
@@ -728,8 +729,8 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Set: {
-        int set_res = execute_set_command(s, &(cmd.data.set));
-        if (set_res == -1) {
+        ht_result set_res = execute_set_command(s, &(cmd.data.set));
+        if (set_res != HT_OK) {
             builder_add_err(&(c->builder), "failed to set", 13);
             break;
         }
@@ -747,8 +748,9 @@ static void execute_cmd(server* s, client* c) {
     } break;
     case Del: {
         int del_res = execute_del_command(s, &(cmd.data.del));
-        if (del_res == -1) {
-            builder_add_err(&(c->builder), err_invalid_key.str, err_invalid_key.str_len);
+        if (del_res != HT_OK) {
+            builder_add_err(&(c->builder), err_invalid_key.str,
+                            err_invalid_key.str_len);
             break;
         }
         builder_add_ok(&(c->builder));
@@ -817,14 +819,16 @@ static void execute_cmd(server* s, client* c) {
     case ZDel: {
         int res = execute_zdel_command(s, &cmd.data.zdel);
         if (res == -1) {
-            builder_add_err(&c->builder, err_invalid_key.str, err_invalid_key.str_len);
+            builder_add_err(&c->builder, err_invalid_key.str,
+                            err_invalid_key.str_len);
             break;
         }
         builder_add_ok(&c->builder);
         s->cmd_executed++;
     } break;
     default:
-        builder_add_err(&(c->builder), err_invalid_command.str, err_invalid_command.str_len);
+        builder_add_err(&(c->builder), err_invalid_command.str,
+                        err_invalid_command.str_len);
         break;
     }
 }
@@ -875,11 +879,11 @@ static int execute_auth_command(server* s, client* client, auth_cmd* auth) {
     return cmp;
 }
 
-static int execute_set_command(server* s, set_cmd* set) {
+static ht_result execute_set_command(server* s, set_cmd* set) {
     object key = set->key;
     object value = set->value;
-    int res = ht_insert(&(s->db.dict), &key, sizeof(object), &value,
-                        server_free_object, server_free_object);
+    ht_result res = ht_insert(&(s->db.dict), &key, sizeof(object), &value,
+                              server_free_object, server_free_object);
     return res;
 }
 
@@ -890,10 +894,10 @@ static object* execute_get_command(server* s, get_cmd* get) {
     return res;
 }
 
-static int execute_del_command(server* s, del_cmd* del) {
+static ht_result execute_del_command(server* s, del_cmd* del) {
     object key = del->key;
-    int res = ht_delete(&(s->db.dict), &key, sizeof(object), server_free_object,
-                        server_free_object);
+    ht_result res = ht_delete(&(s->db.dict), &key, sizeof(object),
+                              server_free_object, server_free_object);
     object_free(&key);
     return res;
 }

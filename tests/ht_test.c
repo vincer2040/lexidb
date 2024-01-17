@@ -10,12 +10,12 @@ START_TEST(test_it_works) {
     int a0 = 0, a1 = 1, a2 = 2, a3 = 3, a4 = 4, a5 = 5;
 
     int* get;
-    ck_assert_int_eq(ht_insert(&ht, "a0", 2, &a0, NULL, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a1", 2, &a1, NULL, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a2", 2, &a2, NULL, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a3", 2, &a3, NULL, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a4", 2, &a4, NULL, NULL), 0);
-    ck_assert_int_eq(ht_insert(&ht, "a5", 2, &a5, NULL, NULL), 0);
+    ck_assert_int_eq(ht_insert(&ht, "a0", 2, &a0, NULL, NULL), HT_OK);
+    ck_assert_int_eq(ht_insert(&ht, "a1", 2, &a1, NULL, NULL), HT_OK);
+    ck_assert_int_eq(ht_insert(&ht, "a2", 2, &a2, NULL, NULL), HT_OK);
+    ck_assert_int_eq(ht_insert(&ht, "a3", 2, &a3, NULL, NULL), HT_OK);
+    ck_assert_int_eq(ht_insert(&ht, "a4", 2, &a4, NULL, NULL), HT_OK);
+    ck_assert_int_eq(ht_insert(&ht, "a5", 2, &a5, NULL, NULL), HT_OK);
 
     ck_assert_uint_eq(ht.num_entries, 6);
 
@@ -46,9 +46,9 @@ START_TEST(test_it_works) {
     get = ht_get(&ht, "a6", 2);
     ck_assert_ptr_null(get);
 
-    ck_assert_int_eq(ht_delete(&ht, "a0", 2, NULL, NULL), 0);
+    ck_assert_int_eq(ht_delete(&ht, "a0", 2, NULL, NULL), HT_OK);
     ck_assert_uint_ge(ht.num_entries, 5);
-    ck_assert_int_eq(ht_delete(&ht, "a6", 2, NULL, NULL), -1);
+    ck_assert_int_eq(ht_delete(&ht, "a6", 2, NULL, NULL), HT_INV_KEY);
 
     get = ht_get(&ht, "a0", 2);
     ck_assert_ptr_null(get);

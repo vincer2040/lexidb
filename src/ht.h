@@ -7,6 +7,12 @@
 
 #define HT_SEED_SIZE 16
 
+typedef enum {
+    HT_OK,
+    HT_INV_KEY,
+    HT_OOM,
+} ht_result;
+
 typedef struct ht_entry {
     size_t key_size;
     struct ht_entry* next;
@@ -31,11 +37,11 @@ typedef struct {
 } ht_iter;
 
 ht ht_new(size_t data_size, cmp_fn* key_cmp);
-int ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
+ht_result ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
               free_fn* free_data);
-int ht_try_insert(ht* ht, void* key, size_t key_size, void* data);
+ht_result ht_try_insert(ht* ht, void* key, size_t key_size, void* data);
 void* ht_get(ht* ht, void* key, size_t key_size);
-int ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
+ht_result ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
               free_fn* free_data);
 const void* ht_entry_get_key(ht_entry* e);
 const void* ht_entry_get_value(ht_entry* e);
