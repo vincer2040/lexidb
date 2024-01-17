@@ -731,7 +731,7 @@ static void execute_cmd(server* s, client* c) {
     case Set: {
         ht_result set_res = execute_set_command(s, &(cmd.data.set));
         if (set_res != HT_OK) {
-            builder_add_err(&(c->builder), "failed to set", 13);
+            builder_add_err(&(c->builder), err_oom.str, err_oom.str_len);
             break;
         }
         builder_add_ok(&(c->builder));

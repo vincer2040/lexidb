@@ -27,4 +27,7 @@ err_reply_def(bad_auth);
 err_reply_t(invalid_key);
 err_reply_def(invalid_key);
 
+err_reply_t(oom);
+err_reply_def(oom);
+
 #endif /* __REPLY_H__ */
