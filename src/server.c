@@ -614,7 +614,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
                 return;
             } else {
                 error("failed to write to client (errno: %d) %s\n", errno,
-                        strerror(errno));
+                      strerror(errno));
                 return;
             }
         }
