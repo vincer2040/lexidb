@@ -122,7 +122,7 @@ int server_run(int argc, char* argv[]) {
 
     if (clap_has_error(&cla)) {
         const char* err = clap_error(&cla);
-        printf("clap error: %s\n", err);
+        error("clap error: %s\n", err);
         args_free(args);
         clap_free(&cla);
         return 0;
@@ -580,7 +580,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
 
     add = ev_add_event(ev, fd, EV_WRITE, write_to_client, s);
     if (add == -1) {
-        fprintf(stderr, "failed to add write event for %d\n", fd);
+        error("failed to add write event for %d\n", fd);
         return;
     }
 
@@ -597,7 +597,7 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
     ssize_t found = vec_find(s->clients, &fd, &c, client_compare);
 
     if (found == -1) {
-        fprintf(stderr, "failed to find client %d\n", fd);
+        error("failed to find client %d\n", fd);
         ev_delete_event(ev, fd, mask);
         close(fd);
         return;
@@ -607,11 +607,11 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
 
     if (bytes_sent == -1) {
         if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
-            fprintf(stderr, "write blocked\n");
+            error("write blocked\n");
             return;
         } else {
-            fprintf(stderr, "failed to write to client (errno: %d) %s\n", errno,
-                    strerror(errno));
+            error("failed to write to client (errno: %d) %s\n", errno,
+                  strerror(errno));
             return;
         }
     }
