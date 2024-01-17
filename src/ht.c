@@ -251,8 +251,8 @@ static uint64_t ht_hash(ht* ht, void* key, size_t key_size) {
 static ht_result ht_resize(ht* ht) {
     size_t i, len = ht->capacity;
     size_t new_cap = ht->capacity << 1;
-    ht_entry** new_enries = calloc(new_cap, sizeof(ht_entry*));
-    if (new_enries == NULL) {
+    ht_entry** new_entries = calloc(new_cap, sizeof(ht_entry*));
+    if (new_entries == NULL) {
         return HT_OOM;
     }
     ht->capacity = new_cap;
@@ -264,15 +264,15 @@ static ht_result ht_resize(ht* ht) {
         }
         while (cur) {
             uint64_t slot = ht_hash(ht, cur->data, cur->key_size);
-            ht_entry* new_cur = new_enries[slot];
+            ht_entry* new_cur = new_entries[slot];
             next = cur->next;
             cur->next = NULL;
 
             if (!new_cur) {
-                new_enries[slot] = cur;
+                new_entries[slot] = cur;
             } else {
                 cur->next = new_cur;
-                new_enries[slot] = cur;
+                new_entries[slot] = cur;
             }
 
             cur = next;
@@ -280,7 +280,7 @@ static ht_result ht_resize(ht* ht) {
     }
 
     free(ht->entries);
-    ht->entries = new_enries;
+    ht->entries = new_entries;
     return HT_OK;
 }
 
