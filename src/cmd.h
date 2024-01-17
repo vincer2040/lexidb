@@ -21,6 +21,7 @@ typedef enum {
     Ping,
     Infoc,
     Help,
+    Keys,
     Set,
     Get,
     Del,

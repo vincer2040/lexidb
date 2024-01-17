@@ -1009,6 +1009,8 @@ static void cmd_free(cmd* cmd) {
         break;
     case Infoc:
         break;
+    case Keys:
+        break;
     case Set:
         object_free(&cmd->data.set.key);
         object_free(&cmd->data.set.value);
