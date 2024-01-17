@@ -11,6 +11,7 @@
 static set_entry* set_entry_new(void* data, size_t data_size);
 static void set_entry_free(set_entry* entry, free_fn* fn);
 static uint64_t set_hash(set* s, void* data, size_t data_size);
+static set_result set_resize(set* set);
 
 set set_new(size_t data_size, cmp_fn* key_cmp) {
     set s = {0};
@@ -23,15 +24,23 @@ set set_new(size_t data_size, cmp_fn* key_cmp) {
     return s;
 }
 
-size_t set_len(set* s) {
-    return s->num_entries;
-}
+size_t set_len(set* s) { return s->num_entries; }
 
 set_result set_insert(set* s, void* data, free_fn* fn) {
-    uint64_t slot = set_hash(s, data, s->data_size);
-    set_entry* cur = s->entries[slot];
+    uint64_t slot;
+    set_entry* cur;
     set_entry* new_entry;
     set_entry* head;
+
+    if (s->num_entries >= s->capacity) {
+        set_result resize = set_resize(s);
+        if (resize != SET_OK) {
+            return resize;
+        }
+    }
+
+    slot = set_hash(s, data, s->data_size);
+    cur = s->entries[slot];
     if (!cur) {
         new_entry = set_entry_new(data, s->data_size);
         if (new_entry == NULL) {
@@ -163,4 +172,39 @@ static void set_entry_free(set_entry* entry, free_fn* fn) {
         fn(entry->data);
     }
     free(entry);
+}
+
+static set_result set_resize(set* set) {
+    size_t i, len = set->capacity;
+    size_t new_cap = set->capacity << 1;
+    set_entry** new_entries = calloc(new_cap, sizeof(set_entry*));
+    if (new_entries == NULL) {
+        return SET_OOM;
+    }
+    set->capacity = new_cap;
+    for (i = 0; i < len; ++i) {
+        set_entry* cur = set->entries[i];
+        set_entry* next;
+        if (!cur) {
+            continue;
+        }
+
+        while (cur) {
+            uint64_t slot = set_hash(set, cur->data, set->data_size);
+            set_entry* new_cur = new_entries[slot];
+            next = cur->next;
+            cur->next = NULL;
+            if (!new_cur) {
+                new_entries[slot] = cur;
+            } else {
+                cur->next = new_cur;
+                new_entries[slot] = cur;
+            }
+            cur = next;
+        }
+    }
+
+    free(set->entries);
+    set->entries = new_entries;
+    return SET_OK;
 }
