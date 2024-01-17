@@ -27,7 +27,7 @@ size_t set_len(set* s) {
     return s->num_entries;
 }
 
-int set_insert(set* s, void* data, free_fn* fn) {
+set_result set_insert(set* s, void* data, free_fn* fn) {
     uint64_t slot = set_hash(s, data, s->data_size);
     set_entry* cur = s->entries[slot];
     set_entry* new_entry;
@@ -53,20 +53,20 @@ int set_insert(set* s, void* data, free_fn* fn) {
             if (fn) {
                 fn(data);
             }
-            return 1;
+            return SET_KEY_EXISTS;
         }
         cur = cur->next;
     }
 
     new_entry = set_entry_new(data, s->data_size);
     if (new_entry == NULL) {
-        return -1;
+        return SET_OOM;
     }
 
     new_entry->next = head;
     s->entries[slot] = new_entry;
     s->num_entries++;
-    return 0;
+    return SET_OK;
 }
 
 bool set_has(set* s, void* data) {
@@ -92,12 +92,12 @@ bool set_has(set* s, void* data) {
     return false;
 }
 
-int set_delete(set* s, void* data, free_fn* fn) {
+set_result set_delete(set* s, void* data, free_fn* fn) {
     uint64_t slot = set_hash(s, data, s->data_size);
     set_entry* cur = s->entries[slot];
     set_entry* prev = NULL;
     if (!cur) {
-        return -1;
+        return SET_INV_KEY;
     }
     while (cur) {
         int cmp;
@@ -116,13 +116,13 @@ int set_delete(set* s, void* data, free_fn* fn) {
 
             set_entry_free(cur, fn);
             s->num_entries--;
-            return 0;
+            return SET_OK;
         }
         prev = cur;
         cur = cur->next;
     }
 
-    return -1;
+    return SET_INV_KEY;
 }
 
 void set_free(set* s, free_fn* fn) {

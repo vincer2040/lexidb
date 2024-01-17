@@ -63,9 +63,9 @@ static int execute_push_command(server* s, push_cmd* push);
 static result(object) execute_pop_command(server* s);
 static int execute_enque_command(server* s, enque_cmd* enque);
 static result(object) execute_deque_command(server* s);
-static int execute_zset_command(server* s, zset_cmd* zset);
+static set_result execute_zset_command(server* s, zset_cmd* zset);
 static bool execute_zhas_command(server* s, zhas_cmd* zhas);
-static int execute_zdel_command(server* s, zdel_cmd* zdel);
+static set_result execute_zdel_command(server* s, zdel_cmd* zdel);
 
 static result(log_level) determine_loglevel(vstr* loglevel_s);
 
@@ -799,10 +799,12 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case ZSet: {
-        int res = execute_zset_command(s, &cmd.data.zset);
-        if (res == -1) {
-            builder_add_err(&c->builder, "failed to set", 13);
-            break;
+        set_result res = execute_zset_command(s, &cmd.data.zset);
+        if (res != SET_OK) {
+            if (res == SET_OOM) {
+                builder_add_err(&c->builder, err_oom.str, err_oom.str_len);
+                break;
+            }
         }
         builder_add_ok(&c->builder);
         s->cmd_executed++;
@@ -817,8 +819,8 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case ZDel: {
-        int res = execute_zdel_command(s, &cmd.data.zdel);
-        if (res == -1) {
+        set_result res = execute_zdel_command(s, &cmd.data.zdel);
+        if (res != SET_OK) {
             builder_add_err(&c->builder, err_invalid_key.str,
                             err_invalid_key.str_len);
             break;
@@ -939,7 +941,7 @@ static result(object) execute_deque_command(server* s) {
     return ro;
 }
 
-static int execute_zset_command(server* s, zset_cmd* zset) {
+static set_result execute_zset_command(server* s, zset_cmd* zset) {
     return set_insert(&s->db.set, &zset->value, server_free_object);
 }
 
@@ -949,8 +951,8 @@ static bool execute_zhas_command(server* s, zhas_cmd* zhas) {
     return res;
 }
 
-static int execute_zdel_command(server* s, zdel_cmd* zdel) {
-    int res = set_delete(&s->db.set, &zdel->value, server_free_object);
+static set_result execute_zdel_command(server* s, zdel_cmd* zdel) {
+    set_result res = set_delete(&s->db.set, &zdel->value, server_free_object);
     object_free(&zdel->value);
     return res;
 }
