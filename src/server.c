@@ -592,7 +592,8 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
 
 static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
     server* s = client_data;
-    ssize_t bytes_sent;
+    size_t bytes_sent = 0;
+    size_t to_send;
     client* c;
     ssize_t found = vec_find(s->clients, &fd, &c, client_compare);
 
@@ -603,23 +604,21 @@ static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
         return;
     }
 
-    bytes_sent = write(fd, c->write_buf, c->write_size);
+    to_send = c->write_size;
 
-    if (bytes_sent == -1) {
-        if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
-            error("write blocked\n");
-            return;
-        } else {
-            error("failed to write to client (errno: %d) %s\n", errno,
-                  strerror(errno));
-            return;
+    while (bytes_sent < to_send) {
+        ssize_t amt_sent = write(fd, c->write_buf, c->write_size);
+        if (amt_sent == -1) {
+            if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
+                error("write blocked\n");
+                return;
+            } else {
+                error("failed to write to client (errno: %d) %s\n", errno,
+                        strerror(errno));
+                return;
+            }
         }
-    }
-
-    if (bytes_sent != c->write_size) {
-        // todo
-        error("failed to write all bytes to %d\n", fd);
-        return;
+        bytes_sent += amt_sent;
     }
 
     ev_delete_event(ev, fd, EV_WRITE);
