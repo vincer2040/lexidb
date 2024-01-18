@@ -30,3 +30,13 @@ target_include_directories(parser_test PUBLIC "${PROJECT_BINARY_DIR}")
 
 add_test(NAME parser_test COMMAND parser_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing)
 set_tests_properties(parser_test PROPERTIES TIMEOUT 30)
+
+# json test
+add_executable(vjson_test vjson_test.c)
+
+target_link_libraries(vjson_test PUBLIC check pthread)
+
+target_include_directories(vjson_test PUBLIC "${PROJECT_BINARY_DIR}")
+
+add_test(NAME vjson_test COMMAND vjson_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing)
+set_tests_properties(vjson_test PROPERTIES TIMEOUT 30)
