@@ -113,7 +113,7 @@ int builder_add_string(builder* b, const char* str, size_t str_len) {
 
 int builder_add_int(builder* b, int64_t val) {
     int res = 0;
-    vstr int_str = vstr_format("%ld\n", val);
+    vstr int_str = vstr_format("%ld", val);
     const char* int_str_s = vstr_data(&int_str);
     size_t int_str_len = vstr_len(&int_str);
     res = vstr_push_char(b, ':');
