@@ -731,7 +731,13 @@ static void execute_cmd(server* s, client* c) {
     } break;
     case Keys: {
         size_t len = s->db->dict.num_entries;
-        ht_iter iter = ht_iter_new(&s->db->dict);
+        ht_iter iter;
+
+        if (len == 0) {
+            builder_add_none(&c->builder);
+            break;
+        }
+        iter = ht_iter_new(&s->db->dict);
         builder_add_array(&c->builder, len);
         while (iter.cur) {
             ht_entry* cur = iter.cur;

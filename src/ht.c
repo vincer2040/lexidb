@@ -349,6 +349,7 @@ void ht_iter_next(ht_iter* iter) {
         }
         iter->next = NULL;
         iter->next_slot = len;
+        return;
     }
     if (iter->next->next) {
         iter->next = iter->next->next;
