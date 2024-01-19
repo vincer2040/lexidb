@@ -14,6 +14,8 @@
         fflush(stdout);                                                        \
     }
 
+#define UNUSED(v) ((void)v);
+
 typedef enum {
     JT_Illegal,
     JT_Eof,
@@ -29,6 +31,12 @@ typedef enum {
     JT_False,
     JT_Null,
 } json_token_t;
+
+const char* json_token_type_strings[] = {
+    "JT_Illegal",  "JT_Eof",   "JT_LSquirly", "JT_RSquirly", "JT_LBracket",
+    "JT_RBracket", "JT_Colon", "JT_Comma",    "JT_Number",   "JT_String",
+    "JT_True",     "JT_False", "JT_Null",
+};
 
 typedef struct {
     json_token_t type;
@@ -52,6 +60,7 @@ typedef struct {
 static json_parser json_parser_new(json_lexer* l);
 static json_object* json_parser_parse(json_parser* p);
 static json_object* json_parser_parse_data(json_parser* p);
+static json_object* json_parser_parse_null(json_parser* p);
 static json_object* json_parser_parse_number(json_parser* p);
 static json_object* json_parser_parse_string(json_parser* p);
 static void json_parser_next_token(json_parser* p);
@@ -106,14 +115,26 @@ static json_object* json_parser_parse(json_parser* p) {
 
 static json_object* json_parser_parse_data(json_parser* p) {
     switch (p->cur.type) {
-    case JT_String:
-        return json_parser_parse_string(p);
+    case JT_Null:
+        return json_parser_parse_null(p);
     case JT_Number:
         return json_parser_parse_number(p);
+    case JT_String:
+        return json_parser_parse_string(p);
     default:
         break;
     }
     return NULL;
+}
+
+static json_object* json_parser_parse_null(json_parser* p) {
+    json_object* obj = calloc(1, sizeof *obj);
+    UNUSED(p);
+    if (obj == NULL) {
+        return NULL;
+    }
+    obj->type = JOT_Null;
+    return obj;
 }
 
 static json_object* json_parser_parse_number(json_parser* p) {
@@ -271,7 +292,7 @@ static json_token json_lexer_read_json_token(json_lexer* l) {
     char buf[6] = {0};
     size_t i = 0;
     while (i < 6 && !is_json_whitespace(l->byte) && l->byte != '}' &&
-           l->byte != ']' && l->byte != ',') {
+           l->byte != ']' && l->byte != ',' && l->byte != 0) {
         buf[i] = l->byte;
         i++;
         json_lexer_read_char(l);

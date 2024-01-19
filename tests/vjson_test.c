@@ -117,6 +117,16 @@ START_TEST(test_parse_numbers) {
         ck_assert_double_eq(got, t.exp);
     }
 }
+END_TEST
+
+START_TEST(test_parse_null) {
+    const unsigned char* input = (const unsigned char*)"null";
+    size_t input_len = strlen((char*)input);
+    json_object* parsed = vjson_parse(input, input_len);
+    ck_assert_ptr_nonnull(parsed);
+    ck_assert_int_eq(parsed->type, JOT_Null);
+}
+END_TEST
 
 Suite* suite() {
     Suite* s;
@@ -126,6 +136,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_lexer);
     tcase_add_test(tc_core, test_parse_strings);
     tcase_add_test(tc_core, test_parse_numbers);
+    tcase_add_test(tc_core, test_parse_null);
     suite_add_tcase(s, tc_core);
     return s;
 }
