@@ -32,6 +32,17 @@ typedef struct {
     json_object exps[5];
 } arr_test;
 
+typedef struct {
+    const char* key;
+    json_object exp;
+} kv_pair;
+
+typedef struct {
+    const char* input;
+    size_t num_exps;
+    kv_pair exps[10];
+} object_test;
+
 void test_object(json_object* got, json_object* exp) {
     ck_assert_int_eq(got->type, exp->type);
     switch (exp->type) {
@@ -52,9 +63,20 @@ void test_object(json_object* got, json_object* exp) {
         vstr exps = exp->data.string;
         ck_assert_int_eq(vstr_cmp(&gots, &exps), 0);
     } break;
-    case JOT_Array:
-        ck_assert(0 && "array test_object");
-        break;
+    case JOT_Array: {
+        vec_iter got_iter = vec_iter_new(got->data.array);
+        vec_iter exp_iter = vec_iter_new(exp->data.array);
+        ck_assert_uint_eq(got->data.array->len, exp->data.array->len);
+        while (exp_iter.cur) {
+            json_object** got_n = got_iter.cur;
+            json_object* exp_n = exp_iter.cur;
+            ck_assert_ptr_nonnull(got_n);
+            ck_assert_ptr_nonnull(exp_n);
+            test_object(*got_n, exp_n);
+            vec_iter_next(&got_iter);
+            vec_iter_next(&exp_iter);
+        }
+    } break;
     case JOT_Object:
         ck_assert(0 && "object test_object");
         break;
@@ -227,12 +249,62 @@ START_TEST(test_parse_array) {
         len2 = t.num_exps;
         for (j = 0; j < len2; ++j) {
             json_object to = t.exps[j];
-            json_object* got = *(json_object**)(vec_get_at(v, j));
+            json_object** got = (vec_get_at(v, j));
             ck_assert_ptr_nonnull(got);
-            test_object(got, &to);
+            test_object(*got, &to);
         }
         vjson_object_free(obj);
     }
+}
+END_TEST
+
+START_TEST(test_parse_object) {
+    vec* v = vec_new(sizeof(json_object));
+    json_object t = {JOT_Bool, .data = {.boolean = 1}};
+    json_object f = {JOT_Bool, .data = {.boolean = 0}};
+    vec_push(&v, &t);
+    vec_push(&v, &f);
+    object_test tests[] = {
+        {
+            "\
+            {\n\
+                \"foo\": \"bar\",\n\
+                \"bar\": 123.123,\n\
+                \"foobar\": [true, false]\n\
+            }\
+            ",
+            3,
+            {
+                {"foo", {JOT_String, .data = {.string = vstr_from("bar")}}},
+                {"bar", {JOT_Number, .data = {.number = 123.123}}},
+                {"foobar", {JOT_Array, .data = {.array = v}}},
+            },
+        },
+        {
+            "{}",
+            0,
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        object_test t = tests[i];
+        size_t j, jlen;
+        json_object* parsed =
+            vjson_parse((const unsigned char*)(t.input), strlen(t.input));
+        ck_assert_ptr_nonnull(parsed);
+        ck_assert_int_eq(parsed->type, JOT_Object);
+        jlen = t.num_exps;
+        ck_assert_uint_eq(parsed->data.object.num_entries, jlen);
+        for (j = 0; j < jlen; ++j) {
+            kv_pair p = t.exps[j];
+            json_object** got =
+                ht_get(&parsed->data.object, (void*)(p.key), strlen(p.key));
+            ck_assert_ptr_nonnull(got);
+            test_object(*got, &p.exp);
+        }
+        vjson_object_free(parsed);
+    }
+    vec_free(v, NULL);
 }
 END_TEST
 
@@ -247,6 +319,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_parse_null);
     tcase_add_test(tc_core, test_parse_boolean);
     tcase_add_test(tc_core, test_parse_array);
+    tcase_add_test(tc_core, test_parse_object);
     suite_add_tcase(s, tc_core);
     return s;
 }

@@ -1,4 +1,5 @@
 #include "vjson.h"
+#include "ht.h"
 #include "vstr.h"
 #include <assert.h>
 #include <ctype.h>
@@ -65,6 +66,7 @@ static json_object* json_parser_parse_number(json_parser* p);
 static json_object* json_parser_parse_boolean(json_parser* p);
 static json_object* json_parser_parse_string(json_parser* p);
 static json_object* json_parser_parse_array(json_parser* p);
+static json_object* json_parser_parse_object(json_parser* p);
 static int json_parser_peek_token_is(json_parser* p, json_token_t type);
 static int json_parser_expect_peek(json_parser* p, json_token_t type);
 static void json_parser_next_token(json_parser* p);
@@ -78,7 +80,7 @@ static int is_valid_json_number_byte(json_lexer* l);
 static void json_lexer_read_char(json_lexer* l);
 static int is_json_whitespace(unsigned char byte);
 static void json_lexer_skip_whitespace(json_lexer* l);
-static void json_object_free_in_vec(void* ptr);
+static void json_object_free_in_structure(void* ptr);
 
 json_object* vjson_parse(const unsigned char* input, size_t input_len) {
     json_lexer l = json_lexer_new(input, input_len);
@@ -99,7 +101,7 @@ void vjson_object_free(json_object* obj) {
         vstr_free(&obj->data.string);
         break;
     case JOT_Array:
-        vec_free(obj->data.array, json_object_free_in_vec);
+        vec_free(obj->data.array, json_object_free_in_structure);
         break;
     case JOT_Object:
         break;
@@ -132,6 +134,8 @@ static json_object* json_parser_parse_data(json_parser* p) {
         return json_parser_parse_string(p);
     case JT_LBracket:
         return json_parser_parse_array(p);
+    case JT_LSquirly:
+        return json_parser_parse_object(p);
     default:
         break;
     }
@@ -241,6 +245,52 @@ static json_object* json_parser_parse_string(json_parser* p) {
     return obj;
 }
 
+static vstr json_parser_parse_string_value(json_parser* p) {
+    vstr s = vstr_new();
+    size_t i, len = p->cur.end - p->cur.start;
+    for (i = 0; i < len; ++i) {
+        char ch = p->cur.start[i];
+        if (ch == '\\') {
+            char next_ch;
+            i += 1;
+            if (i > len) {
+                // TODO: emit invaid '\'
+                vstr_free(&s);
+                return s;
+            }
+            next_ch = p->cur.start[i];
+            switch (next_ch) {
+            case '"':
+                vstr_push_char(&s, '"');
+                break;
+            case '\\':
+                vstr_push_char(&s, '\\');
+                break;
+            case '/':
+                vstr_push_char(&s, '/');
+                break;
+            case 'n':
+                vstr_push_char(&s, '\n');
+                break;
+            case 'r':
+                vstr_push_char(&s, '\r');
+                break;
+            case 't':
+                vstr_push_char(&s, '\t');
+                break;
+            // TODO: 4 hex digits after \u
+            default:
+                // TODO: emmit bad control
+                vstr_free(&s);
+                return s;
+            }
+            continue;
+        }
+        vstr_push_char(&s, p->cur.start[i]);
+    }
+    return s;
+}
+
 static json_object* json_parser_parse_array(json_parser* p) {
     json_object* obj;
     vec* v;
@@ -257,12 +307,13 @@ static json_object* json_parser_parse_array(json_parser* p) {
     if (json_parser_peek_token_is(p, JT_RBracket)) {
         obj->type = JOT_Array;
         obj->data.array = v;
+        json_parser_next_token(p);
         return obj;
     }
     json_parser_next_token(p);
     item = json_parser_parse_data(p);
     if (item == NULL) {
-        vec_free(v, json_object_free_in_vec);
+        vec_free(v, json_object_free_in_structure);
         free(obj);
         return NULL;
     }
@@ -273,19 +324,122 @@ static json_object* json_parser_parse_array(json_parser* p) {
         json_parser_next_token(p);
         item = json_parser_parse_data(p);
         if (item == NULL) {
-            vec_free(v, json_object_free_in_vec);
+            vec_free(v, json_object_free_in_structure);
             free(obj);
             return NULL;
         }
         vec_push(&v, &item);
     }
     if (!json_parser_expect_peek(p, JT_RBracket)) {
-        vec_free(v, json_object_free_in_vec);
+        vec_free(v, json_object_free_in_structure);
         free(obj);
         return NULL;
     }
     obj->type = JOT_Array;
     obj->data.array = v;
+    return obj;
+}
+
+static json_object* json_parser_parse_object(json_parser* p) {
+    json_object* obj = calloc(1, sizeof *obj);
+    ht ht = ht_new(sizeof(json_object*), NULL);
+    json_object* item;
+    vstr key;
+    ht_result insert_res;
+    if (obj == NULL) {
+        return NULL;
+    }
+    if (json_parser_peek_token_is(p, JT_RSquirly)) {
+        obj->type = JOT_Object;
+        obj->data.object = ht;
+        json_parser_next_token(p);
+        return obj;
+    }
+
+    if (!json_parser_expect_peek(p, JT_String)) {
+        ht_free(&ht, NULL, json_object_free_in_structure);
+        free(obj);
+        return NULL;
+    }
+
+    key = json_parser_parse_string_value(p);
+
+    if (!json_parser_expect_peek(p, JT_Colon)) {
+        ht_free(&ht, NULL, json_object_free_in_structure);
+        vstr_free(&key);
+        free(obj);
+        return NULL;
+    }
+
+    json_parser_next_token(p);
+
+    item = json_parser_parse_data(p);
+    if (item == NULL) {
+        ht_free(&ht, NULL, json_object_free_in_structure);
+        vstr_free(&key);
+        free(obj);
+        return NULL;
+    }
+
+    insert_res =
+        ht_try_insert(&ht, (void*)vstr_data(&key), vstr_len(&key), &item);
+    if (insert_res != HT_OK) {
+        ht_free(&ht, NULL, json_object_free_in_structure);
+        vstr_free(&key);
+        free(obj);
+        return NULL;
+    }
+
+    vstr_free(&key);
+
+    while (json_parser_peek_token_is(p, JT_Comma)) {
+        json_parser_next_token(p);
+
+        if (!json_parser_expect_peek(p, JT_String)) {
+            ht_free(&ht, NULL, json_object_free_in_structure);
+            free(obj);
+            return NULL;
+        }
+
+        key = json_parser_parse_string_value(p);
+
+        if (!json_parser_expect_peek(p, JT_Colon)) {
+            ht_free(&ht, NULL, json_object_free_in_structure);
+            vstr_free(&key);
+            free(obj);
+            return NULL;
+        }
+
+        json_parser_next_token(p);
+
+        item = json_parser_parse_data(p);
+        if (item == NULL) {
+            ht_free(&ht, NULL, json_object_free_in_structure);
+            vstr_free(&key);
+            free(obj);
+            return NULL;
+        }
+
+        insert_res =
+            ht_try_insert(&ht, (void*)vstr_data(&key), vstr_len(&key), &item);
+        if (insert_res != HT_OK) {
+            ht_free(&ht, NULL, json_object_free_in_structure);
+            vstr_free(&key);
+            free(obj);
+            return NULL;
+        }
+
+        vstr_free(&key);
+    }
+
+    if (!json_parser_expect_peek(p, JT_RSquirly)) {
+        ht_free(&ht, NULL, json_object_free_in_structure);
+        free(obj);
+        return NULL;
+    }
+
+    obj->type = JOT_Object;
+    obj->data.object = ht;
     return obj;
 }
 
@@ -440,7 +594,7 @@ static void json_lexer_skip_whitespace(json_lexer* l) {
     }
 }
 
-static void json_object_free_in_vec(void* ptr) {
+static void json_object_free_in_structure(void* ptr) {
     json_object* obj = *((json_object**)ptr);
     vjson_object_free(obj);
 }
