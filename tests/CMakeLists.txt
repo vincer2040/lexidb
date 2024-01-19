@@ -34,7 +34,7 @@ set_tests_properties(parser_test PROPERTIES TIMEOUT 30)
 # json test
 add_executable(vjson_test vjson_test.c)
 
-target_link_libraries(vjson_test PUBLIC check pthread)
+target_link_libraries(vjson_test PUBLIC check pthread vstr)
 
 target_include_directories(vjson_test PUBLIC "${PROJECT_BINARY_DIR}")
 

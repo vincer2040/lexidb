@@ -11,6 +11,11 @@ typedef struct {
     const char* exp_literal;
 } token_test;
 
+typedef struct {
+    const char* input;
+    const char* exp;
+} string_test;
+
 START_TEST(test_lexer) {
     const unsigned char* input = (const unsigned char*)"\
 {\n\
@@ -67,12 +72,36 @@ START_TEST(test_lexer) {
 }
 END_TEST
 
+START_TEST(test_parse_strings) {
+    string_test tests[] = {
+        {"\"foo\"", "foo"},
+        {"\"foo\\n", "foo\n"},
+        {"\"foo\\r", "foo\r"},
+        {"\"\\\"foo\\\"", "\"foo\""},
+        {"\"foo\\\\", "foo\\"},
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        string_test t = tests[i];
+        json_object* parsed =
+            vjson_parse((const unsigned char*)(t.input), strlen(t.input));
+        vstr got;
+        ck_assert_ptr_nonnull(parsed);
+        ck_assert_int_eq(parsed->type, JOT_String);
+        got = parsed->data.string;
+        ck_assert_str_eq(vstr_data(&got), t.exp);
+        vjson_object_free(parsed);
+    }
+}
+END_TEST
+
 Suite* suite() {
     Suite* s;
     TCase* tc_core;
     s = suite_create("vjson");
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_lexer);
+    tcase_add_test(tc_core, test_parse_strings);
     suite_add_tcase(s, tc_core);
     return s;
 }
