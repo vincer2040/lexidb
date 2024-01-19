@@ -74,10 +74,8 @@ END_TEST
 
 START_TEST(test_parse_strings) {
     string_test tests[] = {
-        {"\"foo\"", "foo"},
-        {"\"foo\\n", "foo\n"},
-        {"\"foo\\r", "foo\r"},
-        {"\"\\\"foo\\\"", "\"foo\""},
+        {"\"foo\"", "foo"},     {"\"foo\\n", "foo\n"},
+        {"\"foo\\r", "foo\r"},  {"\"\\\"foo\\\"", "\"foo\""},
         {"\"foo\\\\", "foo\\"},
     };
     size_t i, len = arr_size(tests);
