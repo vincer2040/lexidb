@@ -62,6 +62,7 @@ static json_object* json_parser_parse(json_parser* p);
 static json_object* json_parser_parse_data(json_parser* p);
 static json_object* json_parser_parse_null(json_parser* p);
 static json_object* json_parser_parse_number(json_parser* p);
+static json_object* json_parser_parse_boolean(json_parser* p);
 static json_object* json_parser_parse_string(json_parser* p);
 static void json_parser_next_token(json_parser* p);
 static json_lexer json_lexer_new(const unsigned char* input, size_t input_len);
@@ -119,6 +120,9 @@ static json_object* json_parser_parse_data(json_parser* p) {
         return json_parser_parse_null(p);
     case JT_Number:
         return json_parser_parse_number(p);
+    case JT_True:
+    case JT_False:
+        return json_parser_parse_boolean(p);
     case JT_String:
         return json_parser_parse_string(p);
     default:
@@ -151,6 +155,28 @@ static json_object* json_parser_parse_number(json_parser* p) {
     // TODO: check errors
     obj->type = JOT_Number;
     obj->data.number = res;
+    return obj;
+}
+
+static json_object* json_parser_parse_boolean(json_parser* p) {
+    int res;
+    json_object* obj;
+    switch (p->cur.type) {
+    case JT_True:
+        res = 1;
+        break;
+    case JT_False:
+        res = 0;
+        break;
+    default:
+        assert(0 && "unreachable");
+    }
+    obj = calloc(1, sizeof *obj);
+    if (obj == NULL) {
+        return NULL;
+    }
+    obj->type = JOT_Bool;
+    obj->data.boolean = res;
     return obj;
 }
 

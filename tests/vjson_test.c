@@ -21,6 +21,11 @@ typedef struct {
     double exp;
 } number_test;
 
+typedef struct {
+    const char* input;
+    int exp;
+} bool_test;
+
 START_TEST(test_lexer) {
     const unsigned char* input = (const unsigned char*)"\
 {\n\
@@ -115,6 +120,7 @@ START_TEST(test_parse_numbers) {
         ck_assert_int_eq(parsed->type, JOT_Number);
         got = parsed->data.number;
         ck_assert_double_eq(got, t.exp);
+        vjson_object_free(parsed);
     }
 }
 END_TEST
@@ -125,6 +131,25 @@ START_TEST(test_parse_null) {
     json_object* parsed = vjson_parse(input, input_len);
     ck_assert_ptr_nonnull(parsed);
     ck_assert_int_eq(parsed->type, JOT_Null);
+    vjson_object_free(parsed);
+}
+END_TEST
+
+START_TEST(test_parse_boolean) {
+    bool_test tests[] = {
+        {"true", 1},
+        {"false", 0},
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        bool_test t = tests[i];
+        json_object* obj =
+            vjson_parse((const unsigned char*)(t.input), strlen(t.input));
+        ck_assert_ptr_nonnull(obj);
+        ck_assert_int_eq(obj->type, JOT_Bool);
+        ck_assert_int_eq(obj->data.boolean, t.exp);
+        vjson_object_free(obj);
+    }
 }
 END_TEST
 
@@ -137,6 +162,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_parse_strings);
     tcase_add_test(tc_core, test_parse_numbers);
     tcase_add_test(tc_core, test_parse_null);
+    tcase_add_test(tc_core, test_parse_boolean);
     suite_add_tcase(s, tc_core);
     return s;
 }
