@@ -285,6 +285,12 @@ static vstr json_parser_parse_string_value(json_parser* p) {
             case 't':
                 vstr_push_char(&s, '\t');
                 break;
+            case 'f':
+                vstr_push_char(&s, '\f');
+                break;
+            case 'b':
+                vstr_push_char(&s, '\b');
+                break;
             // TODO: 4 hex digits after \u
             default:
                 // TODO: emmit bad control
@@ -519,11 +525,20 @@ static json_token json_lexer_read_string(json_lexer* l) {
     res.start = l->input + (l->pos);
     json_lexer_read_char(l);
     while (l->byte != 0) {
-        prev = l->byte;
+        if (prev == '\\' && l->byte == '\\') {
+            prev = 0;
+        } else {
+            prev = l->byte;
+        }
         json_lexer_read_char(l);
         if (l->byte == '"' && prev != '\\') {
             break;
         }
+    }
+    if (l->byte != '"') {
+        res.type = JT_Illegal;
+        res.start = res.end = NULL;
+        return res;
     }
     res.end = l->input + (l->pos - 1);
     res.type = JT_String;
