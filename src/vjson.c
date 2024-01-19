@@ -394,8 +394,8 @@ static vjson_object* json_parser_parse_object(json_parser* p) {
         return NULL;
     }
 
-    insert_res =
-        ht_try_insert(&ht, (void*)vstr_data(&key), vstr_len(&key), &item);
+    insert_res = ht_insert(&ht, (void*)vstr_data(&key), vstr_len(&key), &item,
+                           NULL, json_object_free_in_structure);
     if (insert_res != HT_OK) {
         ht_free(&ht, NULL, json_object_free_in_structure);
         vstr_free(&key);
@@ -433,8 +433,8 @@ static vjson_object* json_parser_parse_object(json_parser* p) {
             return NULL;
         }
 
-        insert_res =
-            ht_try_insert(&ht, (void*)vstr_data(&key), vstr_len(&key), &item);
+        insert_res = ht_insert(&ht, (void*)vstr_data(&key), vstr_len(&key),
+                               &item, NULL, json_object_free_in_structure);
         if (insert_res != HT_OK) {
             ht_free(&ht, NULL, json_object_free_in_structure);
             vstr_free(&key);

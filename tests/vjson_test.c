@@ -285,6 +285,13 @@ START_TEST(test_parse_object) {
             "{}",
             0,
         },
+        {
+            "{\"foo\": \"bar\", \"foo\": \"baz\" }",
+            1,
+            {
+                {"foo", {JOT_String, .data = {.string = vstr_from("baz")}}},
+            },
+        },
     };
     size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
