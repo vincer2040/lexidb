@@ -229,7 +229,14 @@ static vjson_object* json_parser_parse_string(json_parser* p) {
             case 't':
                 vstr_push_char(&s, '\t');
                 break;
-            // TODO: 4 hex digits after \u
+            case 'f':
+                vstr_push_char(&s, '\f');
+                break;
+            case 'b':
+                vstr_push_char(&s, '\b');
+                break;
+            // TODO:
+            // - 4 hex digits after \u
             default:
                 // TODO: emmit bad control
                 free(obj);
