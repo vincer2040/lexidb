@@ -104,6 +104,7 @@ void vjson_object_free(vjson_object* obj) {
         vec_free(obj->data.array, json_object_free_in_structure);
         break;
     case JOT_Object:
+        ht_free(&obj->data.object, NULL, json_object_free_in_structure);
         break;
     }
     free(obj);
