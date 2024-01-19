@@ -16,6 +16,11 @@ typedef struct {
     const char* exp;
 } string_test;
 
+typedef struct {
+    const char* input;
+    double exp;
+} number_test;
+
 START_TEST(test_lexer) {
     const unsigned char* input = (const unsigned char*)"\
 {\n\
@@ -93,6 +98,26 @@ START_TEST(test_parse_strings) {
 }
 END_TEST
 
+START_TEST(test_parse_numbers) {
+    number_test tests[] = {
+        {"123", 123},
+        {"123.123", 123.123},
+        {"123e10", 123e10},
+        {"123e-10", 123e-10},
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        number_test t = tests[i];
+        json_object* parsed =
+            vjson_parse((const unsigned char*)(t.input), strlen(t.input));
+        double got;
+        ck_assert_ptr_nonnull(parsed);
+        ck_assert_int_eq(parsed->type, JOT_Number);
+        got = parsed->data.number;
+        ck_assert_double_eq(got, t.exp);
+    }
+}
+
 Suite* suite() {
     Suite* s;
     TCase* tc_core;
@@ -100,6 +125,7 @@ Suite* suite() {
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_lexer);
     tcase_add_test(tc_core, test_parse_strings);
+    tcase_add_test(tc_core, test_parse_numbers);
     suite_add_tcase(s, tc_core);
     return s;
 }

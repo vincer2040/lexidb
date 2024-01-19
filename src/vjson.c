@@ -52,6 +52,7 @@ typedef struct {
 static json_parser json_parser_new(json_lexer* l);
 static json_object* json_parser_parse(json_parser* p);
 static json_object* json_parser_parse_data(json_parser* p);
+static json_object* json_parser_parse_number(json_parser* p);
 static json_object* json_parser_parse_string(json_parser* p);
 static void json_parser_next_token(json_parser* p);
 static json_lexer json_lexer_new(const unsigned char* input, size_t input_len);
@@ -107,10 +108,29 @@ static json_object* json_parser_parse_data(json_parser* p) {
     switch (p->cur.type) {
     case JT_String:
         return json_parser_parse_string(p);
+    case JT_Number:
+        return json_parser_parse_number(p);
     default:
         break;
     }
     return NULL;
+}
+
+static json_object* json_parser_parse_number(json_parser* p) {
+    size_t len = p->cur.end - p->cur.start + 1;
+    json_object* obj = calloc(1, sizeof *obj);
+    vstr dbl_str;
+    double res;
+    char* end = NULL;
+    if (obj == NULL) {
+        return NULL;
+    }
+    dbl_str = vstr_from_len((const char*)(p->cur.start), len);
+    res = strtod(vstr_data(&dbl_str), &end);
+    // TODO: check errors
+    obj->type = JOT_Number;
+    obj->data.number = res;
+    return obj;
 }
 
 static json_object* json_parser_parse_string(json_parser* p) {
