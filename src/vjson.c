@@ -64,6 +64,9 @@ static json_object* json_parser_parse_null(json_parser* p);
 static json_object* json_parser_parse_number(json_parser* p);
 static json_object* json_parser_parse_boolean(json_parser* p);
 static json_object* json_parser_parse_string(json_parser* p);
+static json_object* json_parser_parse_array(json_parser* p);
+static int json_parser_peek_token_is(json_parser* p, json_token_t type);
+static int json_parser_expect_peek(json_parser* p, json_token_t type);
 static void json_parser_next_token(json_parser* p);
 static json_lexer json_lexer_new(const unsigned char* input, size_t input_len);
 static json_token json_lexer_next_token(json_lexer* l);
@@ -75,6 +78,7 @@ static int is_valid_json_number_byte(json_lexer* l);
 static void json_lexer_read_char(json_lexer* l);
 static int is_json_whitespace(unsigned char byte);
 static void json_lexer_skip_whitespace(json_lexer* l);
+static void json_object_free_in_vec(void* ptr);
 
 json_object* vjson_parse(const unsigned char* input, size_t input_len) {
     json_lexer l = json_lexer_new(input, input_len);
@@ -95,6 +99,7 @@ void vjson_object_free(json_object* obj) {
         vstr_free(&obj->data.string);
         break;
     case JOT_Array:
+        vec_free(obj->data.array, json_object_free_in_vec);
         break;
     case JOT_Object:
         break;
@@ -125,6 +130,8 @@ static json_object* json_parser_parse_data(json_parser* p) {
         return json_parser_parse_boolean(p);
     case JT_String:
         return json_parser_parse_string(p);
+    case JT_LBracket:
+        return json_parser_parse_array(p);
     default:
         break;
     }
@@ -232,6 +239,66 @@ static json_object* json_parser_parse_string(json_parser* p) {
     obj->type = JOT_String;
     obj->data.string = s;
     return obj;
+}
+
+static json_object* json_parser_parse_array(json_parser* p) {
+    json_object* obj;
+    vec* v;
+    json_object* item;
+    obj = calloc(1, sizeof *obj);
+    if (obj == NULL) {
+        return NULL;
+    }
+    v = vec_new(sizeof(json_object*));
+    if (v == NULL) {
+        free(obj);
+        return NULL;
+    }
+    if (json_parser_peek_token_is(p, JT_RBracket)) {
+        obj->type = JOT_Array;
+        obj->data.array = v;
+        return obj;
+    }
+    json_parser_next_token(p);
+    item = json_parser_parse_data(p);
+    if (item == NULL) {
+        vec_free(v, json_object_free_in_vec);
+        free(obj);
+        return NULL;
+    }
+    vec_push(&v, &item);
+
+    while (json_parser_peek_token_is(p, JT_Comma)) {
+        json_parser_next_token(p);
+        json_parser_next_token(p);
+        item = json_parser_parse_data(p);
+        if (item == NULL) {
+            vec_free(v, json_object_free_in_vec);
+            free(obj);
+            return NULL;
+        }
+        vec_push(&v, &item);
+    }
+    if (!json_parser_expect_peek(p, JT_RBracket)) {
+        vec_free(v, json_object_free_in_vec);
+        free(obj);
+        return NULL;
+    }
+    obj->type = JOT_Array;
+    obj->data.array = v;
+    return obj;
+}
+
+static int json_parser_peek_token_is(json_parser* p, json_token_t type) {
+    return p->next.type == type;
+}
+
+static int json_parser_expect_peek(json_parser* p, json_token_t type) {
+    if (!json_parser_peek_token_is(p, type)) {
+        return 0;
+    }
+    json_parser_next_token(p);
+    return 1;
 }
 
 static void json_parser_next_token(json_parser* p) {
@@ -371,4 +438,9 @@ static void json_lexer_skip_whitespace(json_lexer* l) {
     while (is_json_whitespace(l->byte)) {
         json_lexer_read_char(l);
     }
+}
+
+static void json_object_free_in_vec(void* ptr) {
+    json_object* obj = *((json_object**)ptr);
+    vjson_object_free(obj);
 }
