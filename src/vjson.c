@@ -74,10 +74,16 @@ json_object* vjson_parse(const unsigned char* input, size_t input_len) {
 void vjson_object_free(json_object* obj) {
     assert(obj != NULL);
     switch (obj->type) {
+    case JOT_Null:
+        break;
+    case JOT_Number:
+        break;
+    case JOT_Bool:
+        break;
     case JOT_String:
         vstr_free(&obj->data.string);
         break;
-    case JOT_Number:
+    case JOT_Array:
         break;
     case JOT_Object:
         break;
