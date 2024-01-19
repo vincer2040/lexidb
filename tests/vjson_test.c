@@ -29,12 +29,12 @@ typedef struct {
 typedef struct {
     const char* input;
     size_t num_exps;
-    json_object exps[5];
+    vjson_object exps[5];
 } arr_test;
 
 typedef struct {
     const char* key;
-    json_object exp;
+    vjson_object exp;
 } kv_pair;
 
 typedef struct {
@@ -43,7 +43,7 @@ typedef struct {
     kv_pair exps[10];
 } object_test;
 
-void test_object(json_object* got, json_object* exp) {
+void test_object(vjson_object* got, vjson_object* exp) {
     ck_assert_int_eq(got->type, exp->type);
     switch (exp->type) {
     case JOT_Null:
@@ -68,8 +68,8 @@ void test_object(json_object* got, json_object* exp) {
         vec_iter exp_iter = vec_iter_new(exp->data.array);
         ck_assert_uint_eq(got->data.array->len, exp->data.array->len);
         while (exp_iter.cur) {
-            json_object** got_n = got_iter.cur;
-            json_object* exp_n = exp_iter.cur;
+            vjson_object** got_n = got_iter.cur;
+            vjson_object* exp_n = exp_iter.cur;
             ck_assert_ptr_nonnull(got_n);
             ck_assert_ptr_nonnull(exp_n);
             test_object(*got_n, exp_n);
@@ -148,7 +148,7 @@ START_TEST(test_parse_strings) {
     size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
         string_test t = tests[i];
-        json_object* parsed =
+        vjson_object* parsed =
             vjson_parse((const unsigned char*)(t.input), strlen(t.input));
         vstr got;
         ck_assert_ptr_nonnull(parsed);
@@ -170,7 +170,7 @@ START_TEST(test_parse_numbers) {
     size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
         number_test t = tests[i];
-        json_object* parsed =
+        vjson_object* parsed =
             vjson_parse((const unsigned char*)(t.input), strlen(t.input));
         double got;
         ck_assert_ptr_nonnull(parsed);
@@ -185,7 +185,7 @@ END_TEST
 START_TEST(test_parse_null) {
     const unsigned char* input = (const unsigned char*)"null";
     size_t input_len = strlen((char*)input);
-    json_object* parsed = vjson_parse(input, input_len);
+    vjson_object* parsed = vjson_parse(input, input_len);
     ck_assert_ptr_nonnull(parsed);
     ck_assert_int_eq(parsed->type, JOT_Null);
     vjson_object_free(parsed);
@@ -200,7 +200,7 @@ START_TEST(test_parse_boolean) {
     size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
         bool_test t = tests[i];
-        json_object* obj =
+        vjson_object* obj =
             vjson_parse((const unsigned char*)(t.input), strlen(t.input));
         ck_assert_ptr_nonnull(obj);
         ck_assert_int_eq(obj->type, JOT_Bool);
@@ -238,7 +238,7 @@ START_TEST(test_parse_array) {
     size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
         arr_test t = tests[i];
-        json_object* obj =
+        vjson_object* obj =
             vjson_parse((const unsigned char*)(t.input), strlen(t.input));
         vec* v;
         size_t j, len2;
@@ -248,8 +248,8 @@ START_TEST(test_parse_array) {
         ck_assert_uint_eq(v->len, t.num_exps);
         len2 = t.num_exps;
         for (j = 0; j < len2; ++j) {
-            json_object to = t.exps[j];
-            json_object** got = (vec_get_at(v, j));
+            vjson_object to = t.exps[j];
+            vjson_object** got = (vec_get_at(v, j));
             ck_assert_ptr_nonnull(got);
             test_object(*got, &to);
         }
@@ -259,9 +259,9 @@ START_TEST(test_parse_array) {
 END_TEST
 
 START_TEST(test_parse_object) {
-    vec* v = vec_new(sizeof(json_object));
-    json_object t = {JOT_Bool, .data = {.boolean = 1}};
-    json_object f = {JOT_Bool, .data = {.boolean = 0}};
+    vec* v = vec_new(sizeof(vjson_object));
+    vjson_object t = {JOT_Bool, .data = {.boolean = 1}};
+    vjson_object f = {JOT_Bool, .data = {.boolean = 0}};
     vec_push(&v, &t);
     vec_push(&v, &f);
     object_test tests[] = {
@@ -289,7 +289,7 @@ START_TEST(test_parse_object) {
     for (i = 0; i < len; ++i) {
         object_test t = tests[i];
         size_t j, jlen;
-        json_object* parsed =
+        vjson_object* parsed =
             vjson_parse((const unsigned char*)(t.input), strlen(t.input));
         ck_assert_ptr_nonnull(parsed);
         ck_assert_int_eq(parsed->type, JOT_Object);
@@ -297,7 +297,7 @@ START_TEST(test_parse_object) {
         ck_assert_uint_eq(parsed->data.object.num_entries, jlen);
         for (j = 0; j < jlen; ++j) {
             kv_pair p = t.exps[j];
-            json_object** got =
+            vjson_object** got =
                 ht_get(&parsed->data.object, (void*)(p.key), strlen(p.key));
             ck_assert_ptr_nonnull(got);
             test_object(*got, &p.exp);

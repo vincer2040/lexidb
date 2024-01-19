@@ -13,10 +13,10 @@ typedef enum {
     JOT_String,
     JOT_Array,
     JOT_Object,
-} json_object_t;
+} vjson_object_t;
 
 typedef struct {
-    json_object_t type;
+    vjson_object_t type;
     union {
         double number;
         int boolean;
@@ -24,10 +24,10 @@ typedef struct {
         vec* array;
         ht object;
     } data;
-} json_object;
+} vjson_object;
 
-json_object* vjson_parse(const unsigned char* input, size_t input_len);
+vjson_object* vjson_parse(const unsigned char* input, size_t input_len);
 
-void vjson_object_free(json_object* obj);
+void vjson_object_free(vjson_object* obj);
 
 #endif

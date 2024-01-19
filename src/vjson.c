@@ -59,14 +59,14 @@ typedef struct {
 } json_parser;
 
 static json_parser json_parser_new(json_lexer* l);
-static json_object* json_parser_parse(json_parser* p);
-static json_object* json_parser_parse_data(json_parser* p);
-static json_object* json_parser_parse_null(json_parser* p);
-static json_object* json_parser_parse_number(json_parser* p);
-static json_object* json_parser_parse_boolean(json_parser* p);
-static json_object* json_parser_parse_string(json_parser* p);
-static json_object* json_parser_parse_array(json_parser* p);
-static json_object* json_parser_parse_object(json_parser* p);
+static vjson_object* json_parser_parse(json_parser* p);
+static vjson_object* json_parser_parse_data(json_parser* p);
+static vjson_object* json_parser_parse_null(json_parser* p);
+static vjson_object* json_parser_parse_number(json_parser* p);
+static vjson_object* json_parser_parse_boolean(json_parser* p);
+static vjson_object* json_parser_parse_string(json_parser* p);
+static vjson_object* json_parser_parse_array(json_parser* p);
+static vjson_object* json_parser_parse_object(json_parser* p);
 static int json_parser_peek_token_is(json_parser* p, json_token_t type);
 static int json_parser_expect_peek(json_parser* p, json_token_t type);
 static void json_parser_next_token(json_parser* p);
@@ -82,13 +82,13 @@ static int is_json_whitespace(unsigned char byte);
 static void json_lexer_skip_whitespace(json_lexer* l);
 static void json_object_free_in_structure(void* ptr);
 
-json_object* vjson_parse(const unsigned char* input, size_t input_len) {
+vjson_object* vjson_parse(const unsigned char* input, size_t input_len) {
     json_lexer l = json_lexer_new(input, input_len);
     json_parser p = json_parser_new(&l);
     return json_parser_parse(&p);
 }
 
-void vjson_object_free(json_object* obj) {
+void vjson_object_free(vjson_object* obj) {
     assert(obj != NULL);
     switch (obj->type) {
     case JOT_Null:
@@ -117,11 +117,11 @@ static json_parser json_parser_new(json_lexer* l) {
     return p;
 }
 
-static json_object* json_parser_parse(json_parser* p) {
+static vjson_object* json_parser_parse(json_parser* p) {
     return json_parser_parse_data(p);
 }
 
-static json_object* json_parser_parse_data(json_parser* p) {
+static vjson_object* json_parser_parse_data(json_parser* p) {
     switch (p->cur.type) {
     case JT_Null:
         return json_parser_parse_null(p);
@@ -142,8 +142,8 @@ static json_object* json_parser_parse_data(json_parser* p) {
     return NULL;
 }
 
-static json_object* json_parser_parse_null(json_parser* p) {
-    json_object* obj = calloc(1, sizeof *obj);
+static vjson_object* json_parser_parse_null(json_parser* p) {
+    vjson_object* obj = calloc(1, sizeof *obj);
     UNUSED(p);
     if (obj == NULL) {
         return NULL;
@@ -152,9 +152,9 @@ static json_object* json_parser_parse_null(json_parser* p) {
     return obj;
 }
 
-static json_object* json_parser_parse_number(json_parser* p) {
+static vjson_object* json_parser_parse_number(json_parser* p) {
     size_t len = p->cur.end - p->cur.start + 1;
-    json_object* obj = calloc(1, sizeof *obj);
+    vjson_object* obj = calloc(1, sizeof *obj);
     vstr dbl_str;
     double res;
     char* end = NULL;
@@ -169,9 +169,9 @@ static json_object* json_parser_parse_number(json_parser* p) {
     return obj;
 }
 
-static json_object* json_parser_parse_boolean(json_parser* p) {
+static vjson_object* json_parser_parse_boolean(json_parser* p) {
     int res;
-    json_object* obj;
+    vjson_object* obj;
     switch (p->cur.type) {
     case JT_True:
         res = 1;
@@ -191,10 +191,10 @@ static json_object* json_parser_parse_boolean(json_parser* p) {
     return obj;
 }
 
-static json_object* json_parser_parse_string(json_parser* p) {
+static vjson_object* json_parser_parse_string(json_parser* p) {
     vstr s = vstr_new();
     size_t i, len = p->cur.end - p->cur.start;
-    json_object* obj = calloc(1, sizeof *obj);
+    vjson_object* obj = calloc(1, sizeof *obj);
     if (obj == NULL) {
         return NULL;
     }
@@ -291,15 +291,15 @@ static vstr json_parser_parse_string_value(json_parser* p) {
     return s;
 }
 
-static json_object* json_parser_parse_array(json_parser* p) {
-    json_object* obj;
+static vjson_object* json_parser_parse_array(json_parser* p) {
+    vjson_object* obj;
     vec* v;
-    json_object* item;
+    vjson_object* item;
     obj = calloc(1, sizeof *obj);
     if (obj == NULL) {
         return NULL;
     }
-    v = vec_new(sizeof(json_object*));
+    v = vec_new(sizeof(vjson_object*));
     if (v == NULL) {
         free(obj);
         return NULL;
@@ -340,10 +340,10 @@ static json_object* json_parser_parse_array(json_parser* p) {
     return obj;
 }
 
-static json_object* json_parser_parse_object(json_parser* p) {
-    json_object* obj = calloc(1, sizeof *obj);
-    ht ht = ht_new(sizeof(json_object*), NULL);
-    json_object* item;
+static vjson_object* json_parser_parse_object(json_parser* p) {
+    vjson_object* obj = calloc(1, sizeof *obj);
+    ht ht = ht_new(sizeof(vjson_object*), NULL);
+    vjson_object* item;
     vstr key;
     ht_result insert_res;
     if (obj == NULL) {
@@ -595,6 +595,6 @@ static void json_lexer_skip_whitespace(json_lexer* l) {
 }
 
 static void json_object_free_in_structure(void* ptr) {
-    json_object* obj = *((json_object**)ptr);
+    vjson_object* obj = *((vjson_object**)ptr);
     vjson_object_free(obj);
 }
