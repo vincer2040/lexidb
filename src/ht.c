@@ -27,8 +27,8 @@ ht ht_new(size_t data_size, cmp_fn* key_cmp) {
     return ht;
 }
 
-ht_result ht_insert(ht* ht, void* key, size_t key_size, void* data, free_fn* free_key,
-              free_fn* free_data) {
+ht_result ht_insert(ht* ht, void* key, size_t key_size, void* data,
+                    free_fn* free_key, free_fn* free_data) {
     uint64_t slot;
     ht_entry* cur;
     ht_entry* head;
@@ -182,7 +182,7 @@ void* ht_get(ht* ht, void* key, size_t key_size) {
 }
 
 ht_result ht_delete(ht* ht, void* key, size_t key_size, free_fn* free_key,
-              free_fn* free_data) {
+                    free_fn* free_data) {
     uint64_t slot = ht_hash(ht, key, key_size);
     ht_entry* cur = ht->entries[slot];
     ht_entry* prev = NULL;
