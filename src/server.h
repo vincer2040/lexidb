@@ -41,6 +41,7 @@ typedef struct {
     vstr os_name;               /* name of the host's operating system */
     vstr addr;                  /* the host address as a vstr */
     vstr conf_file_path;        /* the path of the configuration file */
+    size_t num_databases;       /* the number of databases */
     lexidb* db;                 /* the database */
     ev* ev;                     /* multiplexing api */
     vec* clients;               /* vector of clients connected to the server */
@@ -58,17 +59,18 @@ typedef struct {
 } user;
 
 typedef struct {
-    int fd;             /* file descriptor */
-    uint32_t addr;      /* address */
-    uint16_t port;      /* port */
-    uint16_t flags;     /* flags */
-    uint8_t* read_buf;  /* the buffer used in read() */
-    size_t read_pos;    /* the position in the buffer to read to */
-    size_t read_cap;    /* the allocation size of read_buf */
-    uint8_t* write_buf; /* pointer to buffer to write to client */
-    size_t write_size;  /* the amount to write */
-    builder builder;    /* builder struct for constructing replies */
-    user user;          /* the user associated with this connection */
+    int fd;              /* file descriptor */
+    uint32_t addr;       /* address */
+    uint16_t port;       /* port */
+    uint16_t flags;      /* flags */
+    uint8_t* read_buf;   /* the buffer used in read() */
+    size_t read_pos;     /* the position in the buffer to read to */
+    size_t read_cap;     /* the allocation size of read_buf */
+    uint8_t* write_buf;  /* pointer to buffer to write to client */
+    size_t write_size;   /* the amount to write */
+    size_t database_num; /* the database this connection uses */
+    builder builder;     /* builder struct for constructing replies */
+    user user;           /* the user associated with this connection */
     struct timespec time_connected; /* time this user connected */
 } client;
 

@@ -44,9 +44,9 @@ typedef struct {
 static result(server) server_new(const char* addr, uint16_t port, log_level ll,
                                  vstr* conf_file_path);
 static int add_users(vec** users_vec, vec* users_from_config);
-static lexidb* lexidb_new(void);
+static lexidb* lexidb_new(size_t num_databases);
 static void server_free(server* s);
-static void lexidb_free(lexidb* db);
+static void lexidb_free(lexidb* db, size_t num_databases);
 
 static void server_accept(ev* ev, int fd, void* client_data, int mask);
 static void read_from_client(ev* ev, int fd, void* client_data, int mask);
@@ -56,16 +56,16 @@ static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port);
 
 static void execute_cmd(server* s, client* c);
 static int execute_auth_command(server* s, client* client, auth_cmd* auth);
-static ht_result execute_set_command(server* s, set_cmd* set);
-static object* execute_get_command(server* s, get_cmd* get);
-static ht_result execute_del_command(server* s, del_cmd* del);
-static int execute_push_command(server* s, push_cmd* push);
-static result(object) execute_pop_command(server* s);
-static int execute_enque_command(server* s, enque_cmd* enque);
-static result(object) execute_deque_command(server* s);
-static set_result execute_zset_command(server* s, zset_cmd* zset);
-static bool execute_zhas_command(server* s, zhas_cmd* zhas);
-static set_result execute_zdel_command(server* s, zdel_cmd* zdel);
+static ht_result execute_set_command(server* s, set_cmd* set, size_t database_num);
+static object* execute_get_command(server* s, get_cmd* get, size_t database_num);
+static ht_result execute_del_command(server* s, del_cmd* del, size_t database_num);
+static int execute_push_command(server* s, push_cmd* push, size_t database_num);
+static result(object) execute_pop_command(server* s, size_t database_num);
+static int execute_enque_command(server* s, enque_cmd* enque, size_t database_num);
+static result(object) execute_deque_command(server* s, size_t database_num);
+static set_result execute_zset_command(server* s, zset_cmd* zset, size_t database_num);
+static bool execute_zhas_command(server* s, zhas_cmd* zhas, size_t database_num);
+static set_result execute_zdel_command(server* s, zdel_cmd* zdel, size_t database_num);
 
 static result(log_level) determine_loglevel(vstr* loglevel_s);
 
@@ -239,7 +239,9 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     result(vstr) config_file_contents_res;
     result(ht) config_from_file_res;
     object* users_from_config;
+    object* databases_from_config;
     line_data_type user_type = User;
+    line_data_type databases_type = Databases;
     int add_users_res;
 
     if (sfd < 0) {
@@ -313,6 +315,12 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
         return result;
     }
 
+    databases_from_config = ht_get(&config_from_file_res.data.ok,
+                                   &databases_type, sizeof databases_type);
+    assert(databases_from_config != NULL);
+    assert(databases_from_config->type == Int);
+    s.num_databases = databases_from_config->data.num;
+
     config_free(&config_from_file_res.data.ok);
 
     s.executable_path = get_execuable_path();
@@ -376,7 +384,7 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     s.start_time = get_time();
     s.pid = getpid();
     s.sfd = sfd;
-    s.db = lexidb_new();
+    s.db = lexidb_new(s.num_databases);
     s.ev = ev;
     s.log_level = ll;
     result.type = Ok;
@@ -384,14 +392,17 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     return result;
 }
 
-static lexidb* lexidb_new(void) {
-    lexidb* res = calloc(1, sizeof *res);
+static lexidb* lexidb_new(size_t num_databases) {
+    lexidb* res = calloc(num_databases, sizeof *res);
+    size_t i;
     assert(res != NULL);
-    res->dict = ht_new(sizeof(object), server_compare_objects);
-    res->vec = vec_new(sizeof(object));
-    assert(res->vec != NULL);
-    res->queue = queue_new(sizeof(object));
-    res->set = set_new(sizeof(object), server_compare_objects);
+    for (i = 0; i < num_databases; ++i) {
+        res[i].dict = ht_new(sizeof(object), server_compare_objects);
+        res[i].vec = vec_new(sizeof(object));
+        assert(res[i].vec != NULL);
+        res[i].queue = queue_new(sizeof(object));
+        res[i].set = set_new(sizeof(object), server_compare_objects);
+    }
     return res;
 }
 
@@ -444,7 +455,7 @@ static int add_users(vec** users_vec, vec* users_from_config) {
 static void server_free(server* s) {
     free(s->executable_path);
     ev_free(s->ev);
-    lexidb_free(s->db);
+    lexidb_free(s->db, s->num_databases);
     vec_free(s->clients, client_in_vec_free);
     vstr_free(&s->addr);
     vstr_free(&s->conf_file_path);
@@ -454,11 +465,14 @@ static void server_free(server* s) {
     close(s->sfd);
 }
 
-static void lexidb_free(lexidb* db) {
-    ht_free(&(db->dict), server_free_object, server_free_object);
-    vec_free(db->vec, server_free_object);
-    queue_free(&(db->queue), server_free_object);
-    set_free(&(db->set), server_free_object);
+static void lexidb_free(lexidb* db, size_t num_databases) {
+    size_t i;
+    for (i = 0; i < num_databases; ++i) {
+        ht_free(&(db[i].dict), server_free_object, server_free_object);
+        vec_free(db[i].vec, server_free_object);
+        queue_free(&(db[i].queue), server_free_object);
+        set_free(&(db[i].set), server_free_object);
+    }
     free(db);
 }
 
@@ -730,7 +744,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Keys: {
-        size_t len = s->db->dict.num_entries;
+        size_t len = s->db[c->database_num].dict.num_entries;
         ht_iter iter;
 
         if (len == 0) {
@@ -749,7 +763,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Set: {
-        ht_result set_res = execute_set_command(s, &(cmd.data.set));
+        ht_result set_res = execute_set_command(s, &(cmd.data.set), c->database_num);
         if (set_res != HT_OK) {
             builder_add_err(&(c->builder), err_oom.str, err_oom.str_len);
             break;
@@ -758,7 +772,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Get: {
-        object* obj = execute_get_command(s, &(cmd.data.get));
+        object* obj = execute_get_command(s, &(cmd.data.get), c->database_num);
         if (obj == NULL) {
             builder_add_none(&(c->builder));
             break;
@@ -767,7 +781,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Del: {
-        int del_res = execute_del_command(s, &(cmd.data.del));
+        int del_res = execute_del_command(s, &(cmd.data.del), c->database_num);
         if (del_res != HT_OK) {
             builder_add_err(&(c->builder), err_invalid_key.str,
                             err_invalid_key.str_len);
@@ -777,7 +791,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Push: {
-        int push_res = execute_push_command(s, &(cmd.data.push));
+        int push_res = execute_push_command(s, &(cmd.data.push), c->database_num);
         if (push_res == -1) {
             builder_add_err(&(c->builder), "unable to push", 14);
             break;
@@ -786,7 +800,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Pop: {
-        result(object) ro = execute_pop_command(s);
+        result(object) ro = execute_pop_command(s, c->database_num);
         object obj;
         if (ro.type == Err) {
             builder_add_none(&(c->builder));
@@ -798,7 +812,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Enque: {
-        int res = execute_enque_command(s, &cmd.data.enque);
+        int res = execute_enque_command(s, &cmd.data.enque, c->database_num);
         if (res == -1) {
             builder_add_err(&c->builder, "failed to enque data", 20);
             break;
@@ -807,7 +821,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case Deque: {
-        result(object) ro = execute_deque_command(s);
+        result(object) ro = execute_deque_command(s, c->database_num);
         object obj;
         if (ro.type == Err) {
             builder_add_none(&c->builder);
@@ -819,7 +833,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case ZSet: {
-        set_result res = execute_zset_command(s, &cmd.data.zset);
+        set_result res = execute_zset_command(s, &cmd.data.zset, c->database_num);
         if (res != SET_OK) {
             if (res == SET_OOM) {
                 builder_add_err(&c->builder, err_oom.str, err_oom.str_len);
@@ -830,7 +844,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case ZHas: {
-        bool res = execute_zhas_command(s, &cmd.data.zhas);
+        bool res = execute_zhas_command(s, &cmd.data.zhas, c->database_num);
         if (res == false) {
             builder_add_none(&c->builder);
             break;
@@ -839,7 +853,7 @@ static void execute_cmd(server* s, client* c) {
         s->cmd_executed++;
     } break;
     case ZDel: {
-        set_result res = execute_zdel_command(s, &cmd.data.zdel);
+        set_result res = execute_zdel_command(s, &cmd.data.zdel, c->database_num);
         if (res != SET_OK) {
             builder_add_err(&c->builder, err_invalid_key.str,
                             err_invalid_key.str_len);
@@ -901,39 +915,39 @@ static int execute_auth_command(server* s, client* client, auth_cmd* auth) {
     return cmp;
 }
 
-static ht_result execute_set_command(server* s, set_cmd* set) {
+static ht_result execute_set_command(server* s, set_cmd* set, size_t database_num) {
     object key = set->key;
     object value = set->value;
-    ht_result res = ht_insert(&(s->db->dict), &key, sizeof(object), &value,
+    ht_result res = ht_insert(&(s->db[database_num].dict), &key, sizeof(object), &value,
                               server_free_object, server_free_object);
     return res;
 }
 
-static object* execute_get_command(server* s, get_cmd* get) {
+static object* execute_get_command(server* s, get_cmd* get, size_t database_num) {
     object key = get->key;
-    object* res = ht_get(&(s->db->dict), &key, sizeof(object));
+    object* res = ht_get(&(s->db[database_num].dict), &key, sizeof(object));
     object_free(&key);
     return res;
 }
 
-static ht_result execute_del_command(server* s, del_cmd* del) {
+static ht_result execute_del_command(server* s, del_cmd* del, size_t database_num) {
     object key = del->key;
-    ht_result res = ht_delete(&(s->db->dict), &key, sizeof(object),
+    ht_result res = ht_delete(&(s->db[database_num].dict), &key, sizeof(object),
                               server_free_object, server_free_object);
     object_free(&key);
     return res;
 }
 
-static int execute_push_command(server* s, push_cmd* push) {
+static int execute_push_command(server* s, push_cmd* push, size_t database_num) {
     object value = push->value;
-    int res = vec_push(&(s->db->vec), &value);
+    int res = vec_push(&(s->db[database_num].vec), &value);
     return res;
 }
 
-static result(object) execute_pop_command(server* s) {
+static result(object) execute_pop_command(server* s, size_t database_num) {
     result(object) ro = {0};
     object out;
-    int pop_res = vec_pop(s->db->vec, &out);
+    int pop_res = vec_pop(s->db[database_num].vec, &out);
     if (pop_res == -1) {
         ro.type = Err;
         return ro;
@@ -943,15 +957,15 @@ static result(object) execute_pop_command(server* s) {
     return ro;
 }
 
-static int execute_enque_command(server* s, enque_cmd* enque) {
+static int execute_enque_command(server* s, enque_cmd* enque, size_t database_num) {
     object to_enque = enque->value;
-    return queue_enque(&s->db->queue, &to_enque);
+    return queue_enque(&s->db[database_num].queue, &to_enque);
 }
 
-static result(object) execute_deque_command(server* s) {
+static result(object) execute_deque_command(server* s, size_t database_num) {
     result(object) ro = {0};
     object obj;
-    int deque_res = queue_deque(&s->db->queue, &obj);
+    int deque_res = queue_deque(&s->db[database_num].queue, &obj);
     if (deque_res == -1) {
         ro.type = Err;
         return ro;
@@ -961,18 +975,18 @@ static result(object) execute_deque_command(server* s) {
     return ro;
 }
 
-static set_result execute_zset_command(server* s, zset_cmd* zset) {
-    return set_insert(&s->db->set, &zset->value, server_free_object);
+static set_result execute_zset_command(server* s, zset_cmd* zset, size_t database_num) {
+    return set_insert(&s->db[database_num].set, &zset->value, server_free_object);
 }
 
-static bool execute_zhas_command(server* s, zhas_cmd* zhas) {
-    bool res = set_has(&s->db->set, &zhas->value);
+static bool execute_zhas_command(server* s, zhas_cmd* zhas, size_t database_num) {
+    bool res = set_has(&s->db[database_num].set, &zhas->value);
     object_free(&zhas->value);
     return res;
 }
 
-static set_result execute_zdel_command(server* s, zdel_cmd* zdel) {
-    set_result res = set_delete(&s->db->set, &zdel->value, server_free_object);
+static set_result execute_zdel_command(server* s, zdel_cmd* zdel, size_t databases_num) {
+    set_result res = set_delete(&s->db[databases_num].set, &zdel->value, server_free_object);
     object_free(&zdel->value);
     return res;
 }
