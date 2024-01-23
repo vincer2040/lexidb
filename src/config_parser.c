@@ -1,7 +1,9 @@
 #include "config_parser.h"
+#include "ht.h"
 #include "object.h"
 #include "vstr.h"
 #include <assert.h>
+#include <ctype.h>
 #include <memory.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -31,6 +33,7 @@ const line_data_type_lookup lookups[] = {
     {"port", 4, Port},
     {"user", 4, User},
     {"address", 8, Address},
+    {"databases", 9, Databases},
 };
 
 const size_t lookups_len = sizeof lookups / sizeof lookups[0];
@@ -39,8 +42,10 @@ static config_parser config_parser_new(const char* input, size_t input_len);
 static result(ht) parse(config_parser* p);
 static result(line_data) parse_line(config_parser* p);
 static object parse_user(config_parser* p);
+static object parse_number_obj(config_parser* p);
 static result(line_data_type) parse_line_data_type(config_parser* p);
 static vstr parse_string(config_parser* p);
+static int64_t parse_number(config_parser* p);
 static inline bool cur_char_is(config_parser* p, char ch);
 static void skip_line(config_parser* p);
 static void config_parser_read_char(config_parser* p);
@@ -106,11 +111,15 @@ static result(ht) parse(config_parser* p) {
                 vec_push(&cur->data.vec, &data.data);
             }
         } break;
+        case Databases:
+            insert_res = ht_try_insert(&ht, &data.type, sizeof(line_data_type),
+                                       &data.data);
+            break;
         }
 
         // insert_res = ht_try_insert(&ht, &data_res.data.ok.type,
         // sizeof(line_data_type), &data_res.data.ok.data);
-        if (insert_res == -1) {
+        if (insert_res != HT_OK) {
             res.type = Err;
             res.data.err = vstr_from("invalid duplicate type in config");
             config_free(&ht);
@@ -148,6 +157,10 @@ static result(line_data) parse_line(config_parser* p) {
         res.data.ok.type = User;
         res.data.ok.data = parse_user(p);
         break;
+    case Databases:
+        res.type = Ok;
+        res.data.ok.type = Databases;
+        res.data.ok.data = parse_number_obj(p);
     }
     return res;
 }
@@ -165,6 +178,13 @@ static object parse_user(config_parser* p) {
     vec_push(&user_data, &username_obj);
     vec_push(&user_data, &password_obj);
     res = object_new(Array, &user_data);
+    return res;
+}
+
+static object parse_number_obj(config_parser* p) {
+    object res = {0};
+    res.type = Int;
+    res.data.num = parse_number(p);
     return res;
 }
 
@@ -199,6 +219,15 @@ static vstr parse_string(config_parser* p) {
         config_parser_read_char(p);
     }
     return s;
+}
+
+static int64_t parse_number(config_parser* p) {
+    int64_t res = 0;
+    while (isdigit(p->ch)) {
+        res = (res * 10) + (p->ch - '0');
+        config_parser_read_char(p);
+    }
+    return res;
 }
 
 static void skip_line(config_parser* p) {

@@ -9,6 +9,7 @@ typedef enum {
     Address,
     Port,
     User,
+    Databases,
 } line_data_type;
 
 result_t(ht, vstr);
