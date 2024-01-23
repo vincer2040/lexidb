@@ -735,6 +735,7 @@ static void execute_cmd(server* s, client* c) {
 
         if (len == 0) {
             builder_add_none(&c->builder);
+            s->cmd_executed++;
             break;
         }
         iter = ht_iter_new(&s->db->dict);
