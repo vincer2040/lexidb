@@ -11,6 +11,7 @@
 #include "networking.h"
 #include "object.h"
 #include "parser.h"
+#include "reply.h"
 #include "result.h"
 #include "set.h"
 #include "util.h"
@@ -753,6 +754,16 @@ static void execute_cmd(server* s, client* c) {
 
         s->cmd_executed++;
     } break;
+    case Select: {
+        int64_t db_num = cmd.data.select.value.data.num;
+        if (db_num >= s->num_databases) {
+            builder_add_err(&c->builder, err_dbrange.str, err_dbrange.str_len);
+        } else {
+            c->database_num = db_num;
+            builder_add_ok(&c->builder);
+        }
+        break;
+    } break;
     case Keys: {
         size_t len = s->db[c->database_num].dict.num_entries;
         ht_iter iter;
@@ -1096,6 +1107,9 @@ static void cmd_free(cmd* cmd) {
         break;
     case ZDel:
         object_free(&cmd->data.zdel.value);
+        break;
+    case Select:
+        object_free(&cmd->data.select.value);
         break;
     }
 }

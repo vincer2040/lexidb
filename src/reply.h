@@ -30,4 +30,7 @@ err_reply_def(invalid_key);
 err_reply_t(oom);
 err_reply_def(oom);
 
+err_reply_t(dbrange);
+err_reply_def(dbrange);
+
 #endif /* __REPLY_H__ */
