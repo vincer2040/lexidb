@@ -113,6 +113,8 @@ fn = "cmd_help cmd_help_get(cmdt cmd_type) {\n\
         return zhas_help;\n\
     case ZDel:\n\
         return zdel_help;\n\
+    case Select:\n\
+        return select_help;\n\
     default:\n\
         break;\n\
     }\n\
