@@ -160,6 +160,46 @@ result(object) hilexi_info(hilexi* l) {
     return res;
 }
 
+result(object) hilexi_select(hilexi* l, size_t db_num) {
+    result(object) res = {0};
+    object obj;
+    int add;
+    add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "SELECT", 6);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add select to builder");
+        return res;
+    }
+    add = builder_add_int(&(l->builder), db_num);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add db num to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
 result(object) hilexi_keys(hilexi* l) {
     result(object) res = {0};
     object obj;

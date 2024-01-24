@@ -31,12 +31,12 @@ typedef struct {
 } cmdt_lookup;
 
 const cmdt_lookup lookup[] = {
-    {"OK", 2, Okc},      {"SET", 3, Set},   {"GET", 3, Get},
-    {"DEL", 3, Del},     {"POP", 3, Pop},   {"HELP", 4, Help},
-    {"AUTH", 4, Auth},   {"PING", 4, Ping}, {"INFO", 4, Infoc},
-    {"KEYS", 4, Keys},   {"PUSH", 4, Push}, {"ZSET", 4, ZSet},
-    {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel}, {"ENQUE", 5, Enque},
-    {"DEQUE", 5, Deque},
+    {"OK", 2, Okc},      {"SET", 3, Set},       {"GET", 3, Get},
+    {"DEL", 3, Del},     {"POP", 3, Pop},       {"HELP", 4, Help},
+    {"AUTH", 4, Auth},   {"PING", 4, Ping},     {"INFO", 4, Infoc},
+    {"KEYS", 4, Keys},   {"PUSH", 4, Push},     {"ZSET", 4, ZSet},
+    {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel},     {"ENQUE", 5, Enque},
+    {"DEQUE", 5, Deque}, {"SELECT", 6, Select},
 };
 
 const size_t lookup_len = sizeof lookup / sizeof lookup[0];
@@ -275,6 +275,21 @@ static cmd parse_array_cmd(parser* p) {
         zdel.value = value;
         cmd.type = ZDel;
         cmd.data.zdel = zdel;
+    } break;
+    case Select: {
+        object value;
+        select_cmd select = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type != Int) {
+            object_free(&value);
+            return cmd;
+        }
+        select.value = value;
+        cmd.type = Select;
+        cmd.data.select = select;
     } break;
     default:
         break;

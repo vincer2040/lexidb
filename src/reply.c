@@ -5,3 +5,4 @@ err_reply_init(invalid_command, "EINVCMD", 7);
 err_reply_init(bad_auth, "EBADAUTH", 8);
 err_reply_init(invalid_key, "EINVKEY", 7);
 err_reply_init(oom, "EOOM", 4);
+err_reply_init(dbrange, "EDBRANGE", 8);

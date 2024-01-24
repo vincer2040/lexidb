@@ -20,6 +20,7 @@ typedef enum {
     Auth,
     Ping,
     Infoc,
+    Select,
     Help,
     Keys,
     Set,
@@ -65,6 +66,7 @@ typedef v_cmd enque_cmd;
 typedef v_cmd zset_cmd;
 typedef v_cmd zhas_cmd;
 typedef v_cmd zdel_cmd;
+typedef v_cmd select_cmd;
 
 typedef struct {
     cmdt type;
@@ -79,6 +81,7 @@ typedef struct {
         zhas_cmd zhas;
         zdel_cmd zdel;
         help_cmd help;
+        select_cmd select;
     } data;
 } cmd;
 

@@ -19,16 +19,16 @@ typedef struct {
 } lookup;
 
 const lookup lookups[] = {
-    {"set", 3, Set},     {"SET", 3, Set},     {"get", 3, Get},
-    {"GET", 3, Get},     {"del", 3, Del},     {"DEL", 3, Del},
-    {"pop", 3, Pop},     {"POP", 3, Pop},     {"ping", 4, Ping},
-    {"PING", 4, Ping},   {"info", 4, Infoc},  {"INFO", 4, Infoc},
-    {"HELP", 4, Help},   {"help", 4, Help},   {"keys", 4, Keys},
-    {"KEYS", 4, Keys},   {"push", 4, Push},   {"PUSH", 4, Push},
-    {"zset", 4, ZSet},   {"ZSET", 4, ZSet},   {"zhas", 4, ZHas},
-    {"ZHAS", 4, ZHas},   {"zdel", 4, ZDel},   {"ZDEL", 4, ZDel},
-    {"enque", 5, Enque}, {"ENQUE", 5, Enque}, {"deque", 5, Deque},
-    {"DEQUE", 5, Deque},
+    {"set", 3, Set},     {"SET", 3, Set},       {"get", 3, Get},
+    {"GET", 3, Get},     {"del", 3, Del},       {"DEL", 3, Del},
+    {"pop", 3, Pop},     {"POP", 3, Pop},       {"ping", 4, Ping},
+    {"PING", 4, Ping},   {"info", 4, Infoc},    {"INFO", 4, Infoc},
+    {"HELP", 4, Help},   {"help", 4, Help},     {"keys", 4, Keys},
+    {"KEYS", 4, Keys},   {"push", 4, Push},     {"PUSH", 4, Push},
+    {"zset", 4, ZSet},   {"ZSET", 4, ZSet},     {"zhas", 4, ZHas},
+    {"ZHAS", 4, ZHas},   {"zdel", 4, ZDel},     {"ZDEL", 4, ZDel},
+    {"enque", 5, Enque}, {"ENQUE", 5, Enque},   {"deque", 5, Deque},
+    {"DEQUE", 5, Deque}, {"select", 6, Select}, {"SELECT", 6, Select},
 };
 
 size_t lookups_len = sizeof lookups / sizeof lookups[0];
@@ -127,6 +127,15 @@ static cmd parse_cmd(line_parser* p) {
         object value = parse_object(p);
         cmd.data.zdel.value = value;
         cmd.type = ZDel;
+    } break;
+    case Select: {
+        object value = parse_object(p);
+        if (value.type != Int) {
+            object_free(&value);
+            return cmd;
+        }
+        cmd.data.select.value = value;
+        cmd.type = Select;
     } break;
     default:
         cmd.type = Illegal;
