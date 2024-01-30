@@ -23,6 +23,7 @@ object object_new(objectt type, void* data) {
     case Bool:
         obj.type = Bool;
         obj.data.boolean = *(int*)data;
+        break;
     case String:
         obj.type = String;
         obj.data.string = *(vstr*)data;
