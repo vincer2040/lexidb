@@ -392,6 +392,28 @@ static object parse_object(parser* p) {
         obj = object_new(Double, &val);
         parser_read_char(p);
     } break;
+    case '#': {
+        int boolean = 0;
+
+        parser_read_char(p);
+        if (p->ch == 't') {
+            boolean = 1;
+        } else if (p->ch == 'f') {
+            boolean = 0;
+        } else {
+            return obj;
+        }
+
+        if (!expect_peek_byte(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        obj = object_new(Bool, &boolean);
+        parser_read_char(p);
+    } break;
     case '+': {
         vstr s = parse_simple_string(p);
         obj = object_new(String, &s);
