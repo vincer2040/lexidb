@@ -132,6 +132,19 @@ int builder_add_int(builder* b, int64_t val) {
     return res;
 }
 
+int builder_add_boolean(builder* b, int boolean) {
+    int res = vstr_push_char(b, '#');
+    if (res == -1) {
+        return -1;
+    }
+    res = boolean ? vstr_push_char(b, 't') : vstr_push_char(b, 'f');
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_end(b);
+    return res;
+}
+
 int builder_add_double(builder* b, double val) {
     vstr tmp = vstr_format("%f", val);
     const char* tmp_data = vstr_data(&tmp);
@@ -178,6 +191,8 @@ int builder_add_object(builder* b, const object* obj) {
         return builder_add_int(b, obj->data.num);
     case Double:
         return builder_add_double(b, obj->data.dbl);
+    case Bool:
+        return builder_add_boolean(b, obj->data.boolean);
     case String:
         return builder_add_string(b, vstr_data((vstr*)&(obj->data.string)),
                                   vstr_len((vstr*)&(obj->data.string)));

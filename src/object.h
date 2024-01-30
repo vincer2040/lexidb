@@ -11,6 +11,7 @@ typedef enum {
     Null,
     Int,
     Double,
+    Bool,
     String,
     Array,
     Ht,
@@ -21,6 +22,7 @@ typedef struct {
     union {
         int64_t num;
         double dbl;
+        int boolean;
         vstr string;
         vec* vec;
         ht ht;

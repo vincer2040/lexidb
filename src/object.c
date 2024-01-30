@@ -20,6 +20,9 @@ object object_new(objectt type, void* data) {
         obj.type = Double;
         obj.data.dbl = *(double*)data;
         break;
+    case Bool:
+        obj.type = Bool;
+        obj.data.boolean = *(int*)data;
     case String:
         obj.type = String;
         obj.data.string = *(vstr*)data;
@@ -47,6 +50,16 @@ int object_cmp(object* a, object* b) {
         int64_t bi = b->data.num;
         return ai - bi;
     }
+    case Double: {
+        double ad = a->data.dbl;
+        double bd = a->data.dbl;
+        return ad - bd;
+    }
+    case Bool: {
+        int ab = a->data.boolean;
+        int bb = a->data.boolean;
+        return ab - bb;
+    }
     case String: {
         vstr as = a->data.string;
         vstr bs = b->data.string;
@@ -69,6 +82,12 @@ void object_show(object* obj) {
     case Double:
         printf("%f\n", obj->data.dbl);
         break;
+    case Bool:
+        if (obj->data.boolean) {
+            printf("t\n");
+        } else {
+            printf("f\n");
+        }
     case String:
         printf("%s\n", vstr_data(&(obj->data.string)));
         break;
@@ -97,10 +116,6 @@ void object_show(object* obj) {
 
 void object_free(object* obj) {
     switch (obj->type) {
-    case Null:
-        break;
-    case Int:
-        break;
     case String:
         vstr_free(&(obj->data.string));
         break;
@@ -127,6 +142,12 @@ static void object_show_no_newline(object* obj) {
     case Double:
         printf("%f", obj->data.dbl);
         break;
+    case Bool:
+        if (obj->data.boolean) {
+            printf("t");
+        } else {
+            printf("f");
+        }
     case String:
         printf("%s", vstr_data(&(obj->data.string)));
         break;
