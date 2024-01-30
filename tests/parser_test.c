@@ -38,6 +38,11 @@ typedef struct {
     cmd exp;
 } help_cmd_test;
 
+typedef struct {
+    const char* input;
+    int exp;
+} bool_test;
+
 #define test_object_eq(exp, got)                                               \
     do {                                                                       \
         int cmp = object_cmp(&exp, &got);                                      \
@@ -395,6 +400,27 @@ $6\r\nfoobar\r\n$6\r\nbarbaz\r\n\
     object_free(&parsed);
 }
 
+START_TEST(test_parse_booleans) {
+    bool_test tests[] = {
+        {
+            "#t\r\n",
+            1,
+        },
+        {
+            "#f\r\n",
+            0,
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        bool_test t = tests[i];
+        object parsed = parse_from_server((const uint8_t*)t.input, strlen(t.input));
+        ck_assert_int_eq(parsed.type, Bool);
+        ck_assert_int_eq(parsed.data.boolean, t.exp);
+    }
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -408,6 +434,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_parse_double);
     tcase_add_test(tc_core, test_parse_help_cmd);
     tcase_add_test(tc_core, test_parse_ht);
+    tcase_add_test(tc_core, test_parse_booleans);
     suite_add_tcase(s, tc_core);
     return s;
 }
