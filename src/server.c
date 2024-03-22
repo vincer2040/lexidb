@@ -166,7 +166,7 @@ int server_run(int argc, char* argv[]) {
         free(real_path);
     } else {
         char* real_path = realpath("../lexi.conf", NULL);
-        size_t real_path_len = strlen(real_path);
+        size_t real_path_len;
         if (real_path == NULL) {
             error("configuration file (%s) path is invalid (errno: %d) %s\n",
                   "../lexi.conf", errno, strerror(errno));
@@ -174,6 +174,7 @@ int server_run(int argc, char* argv[]) {
             clap_free(&cla);
             return 1;
         }
+        real_path_len = strlen(real_path);
         conf_file_path = vstr_from_len(real_path, real_path_len);
         free(real_path);
     }
