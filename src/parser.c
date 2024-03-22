@@ -1,403 +1,634 @@
 #include "parser.h"
-#include "lexer.h"
-#include "token.h"
-#include "util.h"
+#include "cmd.h"
+#include "object.h"
+#include "vstr.h"
 #include <ctype.h>
-#include <stdint.h>
+#include <memory.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
 
-void print_array_stmt(ArrayStatement* stmt);
-void statement_free(Statement* stmt);
-Statement parser_parse_statement(Parser* p);
-ParserErrors parser_init_errors(size_t initial_cap);
+const int parser_debug = 1;
 
-static int parser_debug = 0;
-
-void parser_toggle_debug(int onoff) { parser_debug = onoff; }
-
-#define parser_debug(...)                                                      \
-    {                                                                          \
-        if (parser_debug) {                                                    \
-            printf("%s:%d\t", __FILE__, __LINE__);                             \
-            printf(__VA_ARGS__);                                               \
-            fflush(stdout);                                                    \
-        }                                                                      \
+#define dbgf(...)                                                              \
+    if (parser_debug) {                                                        \
+        printf("%s:%d ", __FILE__, __LINE__);                                  \
+        printf(__VA_ARGS__);                                                   \
+        fflush(stdout);                                                        \
     }
 
-void print_bulk_stmt(BulkStatement* bulk_stmt) {
-    if (parser_debug) {
-        size_t i, len;
-        len = bulk_stmt->len;
-        printf("bulk (len: %lu): ", len);
-        for (i = 0; i < len; ++i) {
-            printf("%c", bulk_stmt->str[i]);
-        }
-        printf("\n");
-    }
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    size_t pos;
+    uint8_t ch;
+} parser;
+
+typedef struct {
+    const char* cmd;
+    size_t cmd_len;
+    cmdt type;
+} cmdt_lookup;
+
+const cmdt_lookup lookup[] = {
+    {"OK", 2, Okc},      {"SET", 3, Set},       {"GET", 3, Get},
+    {"DEL", 3, Del},     {"POP", 3, Pop},       {"HELP", 4, Help},
+    {"AUTH", 4, Auth},   {"PING", 4, Ping},     {"INFO", 4, Infoc},
+    {"KEYS", 4, Keys},   {"PUSH", 4, Push},     {"ZSET", 4, ZSet},
+    {"ZHAS", 4, ZHas},   {"ZDEL", 4, ZDel},     {"ENQUE", 5, Enque},
+    {"DEQUE", 5, Deque}, {"SELECT", 6, Select},
+};
+
+const size_t lookup_len = sizeof lookup / sizeof lookup[0];
+
+static parser parser_new(const uint8_t* input, size_t input_len);
+static cmd parse_cmd(parser* p);
+static cmd parse_array_cmd(parser* p);
+static cmdt parse_cmd_type(parser* p);
+static cmdt lookup_cmd(vstr* s);
+static cmdt parse_simple_string_cmd(parser* p);
+static cmdt parse_bulk_string_cmd(parser* p);
+static object parse_object(parser* p);
+static vstr parse_string(parser* p, uint64_t len);
+static vstr parse_simple_string(parser* p);
+static vstr parse_error(parser* p);
+static int64_t parse_integer(parser* p);
+static double parse_double(parser* p);
+static uint64_t parse_len(parser* p);
+static uint8_t peek_byte(parser* p);
+static inline bool cur_byte_is(parser* p, uint8_t byte);
+static inline bool peek_byte_is(parser* p, uint8_t byte);
+static bool expect_peek_byte(parser* p, uint8_t byte);
+static bool expect_peek_byte_to_be_num(parser* p);
+static inline void parser_read_char(parser* p);
+static int parser_object_cmp(void* a, void* b);
+static void parser_free_object(void* ptr);
+
+cmd parse(const uint8_t* input, size_t input_len) {
+    parser p = parser_new(input, input_len);
+    return parse_cmd(&p);
 }
 
-void print_statement(Statement* stmt) {
-    if (stmt->type == SARR) {
-        print_array_stmt(&(stmt->statement.arr));
-    } else if (stmt->type == SBULK) {
-        print_bulk_stmt(&(stmt->statement.bulk));
-    }
+object parse_from_server(const uint8_t* input, size_t input_len) {
+    parser p = parser_new(input, input_len);
+    return parse_object(&p);
 }
 
-void print_array_stmt(ArrayStatement* stmt) {
-    size_t i, len;
-    len = stmt->len;
-    printf("array (len: %lu):\n", len);
-    for (i = 0; i < len; ++i) {
-        Statement s = stmt->statements[i];
-        printf("\t");
-        print_statement(&s);
-    }
-}
-
-void print_cmd_ir(CmdIR* cmd_ir) {
-    Statement stmt = cmd_ir->stmt;
-    print_statement(&stmt);
-}
-
-ParserError parser_new_err(TokenT exp, Token* got) {
-    ParserError pe = {0};
-
-    pe.exp = exp;
-    pe.got = *got;
-    return pe;
-}
-
-void parser_append_error(Parser* p, ParserError* e) {
-    size_t len = p->errors.len;
-    size_t cap = p->errors.cap;
-    if (cap == 0) {
-        p->errors = parser_init_errors(5);
-        cap = 5;
-    }
-    if (len == cap) {
-        cap += cap;
-        p->errors.errs = realloc(p->errors.errs, sizeof(ParserError) * cap);
-        if (p->errors.errs == NULL) {
-            fmt_error("out of memory\n");
-            p->errors.cap = 0;
-            p->errors.len = 0;
-            return;
-        }
-
-        memset(p->errors.errs + len, 0, sizeof(ParserError) * (cap - len));
-        p->errors.cap = cap;
-    }
-
-    p->errors.errs[len] = *e;
-    p->errors.len += 1;
-}
-
-void parser_next_token(Parser* p) {
-    p->cur_tok = p->peek_tok;
-    p->peek_tok = lexer_next_token(&(p->l));
-}
-
-uint8_t parser_cur_token_is(Parser* p, TokenT type) {
-    return p->cur_tok.type == type ? 1 : 0;
-}
-
-uint8_t parser_peek_token_is(Parser* p, TokenT type) {
-    return p->peek_tok.type == type ? 1 : 0;
-}
-
-uint8_t parser_expect_peek(Parser* p, TokenT type) {
-    if (parser_peek_token_is(p, type)) {
-        parser_next_token(p);
-        return 1;
-    }
-    return 0;
-}
-
-ssize_t _parser_parse_len(Parser* p) {
-    uint8_t* lit = p->cur_tok.literal;
-    ssize_t len = 0;
-    size_t i;
-    for (i = 0; isdigit(lit[i]) != 0; i++) {
-        len = (len * 10) + (lit[i] - '0');
-    }
-    return len;
-}
-
-/* we expect <length>\r\n */
-ssize_t parser_parse_len(Parser* p) {
-    ssize_t len;
-    if (!parser_expect_peek(p, LEN)) {
-        ParserError e = parser_new_err(LEN, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("len is not after array declaration\n");
-        return -1;
-    }
-
-    len = _parser_parse_len(p);
-
-    if (!parser_expect_peek(p, RETCAR)) {
-        ParserError e = parser_new_err(RETCAR, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected retchar after len\n");
-        return -1;
-    }
-
-    if (!parser_expect_peek(p, NEWL)) {
-        ParserError e = parser_new_err(NEWL, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected new line after retchar\n");
-        return -1;
-    }
-
-    parser_next_token(p);
-    return len;
-}
-
-/**
- * expect $<length>\r\n<string>\r\n
- * length must be greater than 0
- */
-BulkStatement parser_parse_bulk(Parser* p) {
-    BulkStatement bulk_stmt = {0};
-    ssize_t slen;
-
-    slen = parser_parse_len(p);
-    if (slen == -1) {
-        return bulk_stmt;
-    }
-
-    bulk_stmt.len = ((size_t)slen);
-    bulk_stmt.str = p->cur_tok.literal;
-    if (!parser_expect_peek(p, RETCAR)) {
-        ParserError e = parser_new_err(RETCAR, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected retcar after bulk\n");
-        memset(&bulk_stmt, 0, sizeof bulk_stmt);
-        return bulk_stmt;
-    }
-    if (!parser_expect_peek(p, NEWL)) {
-        ParserError e = parser_new_err(NEWL, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected newl after retcar\n");
-        memset(&bulk_stmt, 0, sizeof bulk_stmt);
-        return bulk_stmt;
-    }
-    parser_next_token(p);
-    return bulk_stmt;
-}
-
-/**
- * expect *<length>\r\n<array>
- * length must be greater than 0
- */
-ArrayStatement parser_parse_array(Parser* p) {
-    ArrayStatement array_stmt = {0};
-    ssize_t slen;
-    size_t i, len;
-
-    slen = parser_parse_len(p);
-    if (slen == -1) {
-        return array_stmt;
-    }
-
-    len = ((size_t)slen);
-
-    if (len == 0) {
-        array_stmt.len = 0;
-        array_stmt.statements = NULL;
-        parser_debug("parsed array with length 0\n");
-        return array_stmt;
-    }
-
-    array_stmt.len = len;
-    array_stmt.statements = calloc(len, sizeof(Statement));
-    if (array_stmt.statements == NULL) {
-        array_stmt.len = 0;
-        return array_stmt;
-    }
-
-    for (i = 0; i < len; ++i) {
-        array_stmt.statements[i] = parser_parse_statement(p);
-    }
-
-    return array_stmt;
-}
-
-/**
- * Simple strings must be the only command sent
- * and cannot be sent in an array, so we expect EOFT at peek
- *
- * Should this be the case ? probably not. It should just
- * work if this check gets removed though
- */
-SimpleStringStatement parser_parse_simple_string(Parser* p) {
-    SimpleStringStatement sss = p->cur_tok.type == PING ? SST_PING : SST_OK;
-    if (!parser_expect_peek(p, EOFT)) {
-        ParserError e = parser_new_err(EOFT, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected EOF after simple\n");
-        return SST_INVALID;
-    }
-    return sss;
-}
-
-/**
- * the byte order is not of our concern right now - we
- * simply unpack whatever bytes were sent to us into an
- * int64_t
- */
-int64_t parser_parse_int(Parser* p) {
-    int64_t res = 0;
-    uint64_t temp = 0;
-    uint8_t* buf = p->cur_tok.literal;
-    size_t i;
-    size_t len = 9;
-    uint8_t shift = 56;
-
-    // maybe just replace this with memcpy ?
-    for (i = 1; i < len; ++i, shift -= 8) {
-        uint8_t at = buf[i];
-        temp |= (uint64_t)(at) << shift;
-    }
-
-    // hack for checking if value should be negative
-    if (temp <= 0x7fffffffffffffffu) {
-        res = temp;
-    } else {
-        res = -1 - (long long int)(0xffffffffffffffffu - temp);
-    }
-
-    // todo: some sort of error handling...
-    if (!parser_expect_peek(p, RETCAR)) {
-        ParserError e = parser_new_err(RETCAR, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected retcar after int\n");
-        return -1;
-    }
-    if (!parser_expect_peek(p, NEWL)) {
-        ParserError e = parser_new_err(NEWL, &(p->peek_tok));
-        parser_append_error(p, &e);
-        parser_debug("expected newl after retcar\n");
-        return -1;
-    }
-    parser_next_token(p);
-    return res;
-}
-
-StatementType parser_parse_statement_type(uint8_t* literal) {
-    uint8_t type_byte = *literal;
-    switch (type_byte) {
-    case ((uint8_t)'*'):
-        return SARR;
-    case ((uint8_t)'$'):
-        return SBULK;
-    default:
-        return SINVALID;
-    }
-}
-
-Statement parser_parse_statement(Parser* p) {
-    Statement stmt = {0};
-    if (parser_cur_token_is(p, TYPE)) {
-        ParserError e;
-        stmt.type = parser_parse_statement_type(p->cur_tok.literal);
-        switch (stmt.type) {
-        case SARR:
-            stmt.statement.arr = parser_parse_array(p);
-            break;
-        case SBULK:
-            stmt.statement.bulk = parser_parse_bulk(p);
-            break;
-        default:
-            e = parser_new_err(TYPE, &(p->cur_tok));
-            parser_append_error(p, &e);
-            parser_debug("syntax error, invalid type\n");
-            stmt.type = SINVALID;
-            break;
-        }
-        return stmt;
-    }
-    if (parser_cur_token_is(p, PING)) {
-        stmt.type = SPING;
-        stmt.statement.sst = parser_parse_simple_string(p);
-        return stmt;
-    }
-    if (parser_cur_token_is(p, OK)) {
-        stmt.type = SOK;
-        stmt.statement.sst = parser_parse_simple_string(p);
-        return stmt;
-    }
-    if (parser_cur_token_is(p, INT)) {
-        stmt.type = SINT;
-        stmt.statement.i64 = parser_parse_int(p);
-        return stmt;
-    }
-    ParserError e = parser_new_err(TYPE, &(p->cur_tok));
-    parser_append_error(p, &e);
-    parser_debug("syntax error, no type\n");
-    return stmt;
-}
-
-ParserErrors parser_init_errors(size_t initial_cap) {
-    ParserErrors errors = {0};
-
-    errors.errs = calloc(initial_cap, sizeof(ParserError));
-
-    if (errors.errs == NULL) {
-        return errors;
-    }
-
-    errors.cap = initial_cap;
-
-    return errors;
-}
-
-size_t parser_errors_len(Parser* p) { return p->errors.len; }
-
-CmdIR parse_cmd(Parser* p) {
-    CmdIR cmd_ir = {0};
-    cmd_ir.stmt = parser_parse_statement(p);
-    return cmd_ir;
-}
-
-Parser parser_new(Lexer* l) {
-    Parser p = {0};
-
-    p.l = *l;
-
-    parser_next_token(&p);
-    parser_next_token(&p);
-
+static parser parser_new(const uint8_t* input, size_t input_len) {
+    parser p = {0};
+    p.input = input;
+    p.input_len = input_len;
+    parser_read_char(&p);
     return p;
 }
 
-void parser_free_errors(Parser* p) { free(p->errors.errs); }
+static cmd parse_cmd(parser* p) {
+    cmd cmd = {0};
+    switch (p->ch) {
+    case '*':
+        cmd = parse_array_cmd(p);
+        break;
+    case '+':
+        cmd.type = parse_simple_string_cmd(p);
+        break;
+    case '$':
+        cmd.type = parse_bulk_string_cmd(p);
+        break;
+    default:
+        break;
+    }
+    return cmd;
+}
 
-void array_stmt_free(ArrayStatement* stmt) {
-    size_t i, len;
-    len = stmt->len;
-    if (len > 0) {
-        for (i = 0; i < len; ++i) {
-            Statement s = stmt->statements[i];
-            statement_free(&s);
+static cmd parse_array_cmd(parser* p) {
+    cmd cmd = {0};
+    uint64_t len;
+    cmdt type;
+
+    if (!expect_peek_byte_to_be_num(p)) {
+        return cmd;
+    }
+
+    len = parse_len(p);
+
+    if (!cur_byte_is(p, '\r')) {
+        return cmd;
+    }
+    if (!expect_peek_byte(p, '\n')) {
+        return cmd;
+    }
+
+    if (len == 0) {
+        return cmd;
+    }
+
+    parser_read_char(p);
+
+    type = parse_cmd_type(p);
+
+    if (type == Illegal) {
+        return cmd;
+    }
+
+    switch (type) {
+    case Help: {
+        cmdt help_cmd = parse_bulk_string_cmd(p);
+        if (help_cmd == Illegal) {
+            return cmd;
         }
-        free(stmt->statements);
+        cmd.type = Help;
+        cmd.data.help.wants_cmd_help = 1;
+        cmd.data.help.cmd_to_help = help_cmd;
+    } break;
+    case Auth: {
+        object username;
+        object password;
+        auth_cmd auth = {0};
+        if (len != 3) {
+            return cmd;
+        }
+        username = parse_object(p);
+        if (username.type == Null) {
+            return cmd;
+        }
+        password = parse_object(p);
+        if (password.type == Null) {
+            object_free(&username);
+            return cmd;
+        }
+        auth.username = username;
+        auth.password = password;
+        cmd.data.auth = auth;
+        cmd.type = Auth;
+    } break;
+    case Set: {
+        object key;
+        object value;
+        set_cmd set = {0};
+        if (len != 3) {
+            return cmd;
+        }
+        key = parse_object(p);
+        if (key.type == Null) {
+            return cmd;
+        }
+        value = parse_object(p);
+        set.key = key;
+        set.value = value;
+        cmd.type = Set;
+        cmd.data.set = set;
+    } break;
+    case Get: {
+        object key;
+        get_cmd get = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        key = parse_object(p);
+        if (key.type == Null) {
+            return cmd;
+        }
+        get.key = key;
+        cmd.type = Get;
+        cmd.data.get = get;
+    } break;
+    case Del: {
+        object key;
+        del_cmd del = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        key = parse_object(p);
+        if (key.type == Null) {
+            return cmd;
+        }
+        del.key = key;
+        cmd.type = Del;
+        cmd.data.del = del;
+    } break;
+    case Push: {
+        object value;
+        push_cmd push = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        push.value = value;
+        cmd.type = Push;
+        cmd.data.push = push;
+    } break;
+    case Enque: {
+        object value;
+        enque_cmd enque = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        enque.value = value;
+        cmd.type = Enque;
+        cmd.data.enque = enque;
+    } break;
+    case ZSet: {
+        object value;
+        zset_cmd zset = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        zset.value = value;
+        cmd.type = ZSet;
+        cmd.data.zset = zset;
+    } break;
+    case ZHas: {
+        object value;
+        zhas_cmd zhas = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        zhas.value = value;
+        cmd.type = ZHas;
+        cmd.data.zhas = zhas;
+    } break;
+    case ZDel: {
+        object value;
+        zdel_cmd zdel = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type == Null) {
+            return cmd;
+        }
+        zdel.value = value;
+        cmd.type = ZDel;
+        cmd.data.zdel = zdel;
+    } break;
+    case Select: {
+        object value;
+        select_cmd select = {0};
+        if (len != 2) {
+            return cmd;
+        }
+        value = parse_object(p);
+        if (value.type != Int) {
+            object_free(&value);
+            return cmd;
+        }
+        select.value = value;
+        cmd.type = Select;
+        cmd.data.select = select;
+    } break;
+    default:
+        break;
     }
+
+    return cmd;
 }
 
-void statement_free(Statement* stmt) {
-    StatementType type = stmt->type;
-    if (type == SARR) {
-        ArrayStatement array_stmt = stmt->statement.arr;
-        array_stmt_free(&array_stmt);
+static cmdt parse_cmd_type(parser* p) {
+    cmdt type = Illegal;
+    switch (p->ch) {
+    case '$': {
+        object obj = parse_object(p);
+        if (obj.type != String) {
+            return type;
+        }
+        type = lookup_cmd(&obj.data.string);
+        object_free(&obj);
+    } break;
+    case '+':
+        type = parse_simple_string_cmd(p);
+        break;
+    default:
+        break;
     }
+    return type;
 }
 
-void cmdir_free(CmdIR* cmd_ir) {
-    Statement stmt = cmd_ir->stmt;
-    statement_free(&stmt);
+static cmdt lookup_cmd(vstr* s) {
+    size_t i;
+    size_t s_len = vstr_len(s);
+    const char* s_data = vstr_data(s);
+    for (i = 0; i < lookup_len; ++i) {
+        cmdt_lookup l = lookup[i];
+        if (l.cmd_len != s_len) {
+            continue;
+        }
+        if (memcmp(s_data, l.cmd, s_len) == 0) {
+            return l.type;
+        }
+    }
+    return Illegal;
 }
+
+static object parse_object(parser* p) {
+    object obj = {0};
+    switch (p->ch) {
+    case '$': {
+        vstr s;
+        uint64_t len;
+        if (!expect_peek_byte_to_be_num(p)) {
+            return obj;
+        }
+
+        len = parse_len(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        parser_read_char(p);
+
+        s = parse_string(p, len);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+        obj = object_new(String, &s);
+        parser_read_char(p);
+    } break;
+    case ':': {
+        int64_t val = parse_integer(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        obj = object_new(Int, &val);
+        parser_read_char(p);
+    } break;
+    case ',': {
+        double val = parse_double(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        obj = object_new(Double, &val);
+        parser_read_char(p);
+    } break;
+    case '#': {
+        int boolean = 0;
+
+        parser_read_char(p);
+        if (p->ch == 't') {
+            boolean = 1;
+        } else if (p->ch == 'f') {
+            boolean = 0;
+        } else {
+            return obj;
+        }
+
+        if (!expect_peek_byte(p, '\r')) {
+            return obj;
+        }
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        obj = object_new(Bool, &boolean);
+        parser_read_char(p);
+    } break;
+    case '+': {
+        vstr s = parse_simple_string(p);
+        obj = object_new(String, &s);
+        parser_read_char(p);
+    } break;
+    case '-': {
+        vstr s = parse_error(p);
+        obj = object_new(String, &s);
+        parser_read_char(p);
+    } break;
+    case '*': {
+        uint64_t i, len;
+        vec* vec;
+        if (!expect_peek_byte_to_be_num(p)) {
+            return obj;
+        }
+
+        len = parse_len(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        parser_read_char(p);
+
+        vec = vec_new(sizeof(object));
+
+        for (i = 0; i < len; ++i) {
+            object cur = parse_object(p);
+            vec_push(&vec, &cur);
+        }
+
+        obj.type = Array;
+        obj.data.vec = vec;
+    } break;
+    case '%': {
+        uint64_t i, len;
+        ht ht;
+        if (!expect_peek_byte_to_be_num(p)) {
+            return obj;
+        }
+
+        len = parse_len(p);
+
+        if (!cur_byte_is(p, '\r')) {
+            return obj;
+        }
+
+        if (!expect_peek_byte(p, '\n')) {
+            return obj;
+        }
+
+        parser_read_char(p);
+
+        ht = ht_new(sizeof(object), parser_object_cmp);
+
+        for (i = 0; i < len; ++i) {
+            object key = parse_object(p);
+            object value = parse_object(p);
+            ht_insert(&ht, &key, sizeof(object), &value, parser_free_object,
+                      parser_free_object);
+        }
+        obj.type = Ht;
+        obj.data.ht = ht;
+    } break;
+    default:
+        break;
+    }
+    return obj;
+}
+
+static vstr parse_string(parser* p, uint64_t len) {
+    size_t i;
+    vstr s = vstr_new_len(len + 1);
+    for (i = 0; i < len; ++i) {
+        vstr_push_char(&s, p->ch);
+        parser_read_char(p);
+    }
+
+    return s;
+}
+
+static cmdt parse_bulk_string_cmd(parser* p) { return parse_cmd_type(p); }
+
+static cmdt parse_simple_string_cmd(parser* p) {
+    cmdt type = Illegal;
+    vstr s = vstr_new_len(5);
+    s = parse_simple_string(p);
+    parser_read_char(p);
+    type = lookup_cmd(&s);
+    vstr_free(&s);
+    return type;
+}
+
+static vstr parse_simple_string(parser* p) {
+    vstr s = vstr_new_len(5);
+    parser_read_char(p);
+    while (p->ch != '\r' && p->ch != 0) {
+        vstr_push_char(&s, p->ch);
+        parser_read_char(p);
+    }
+    if (!cur_byte_is(p, '\r')) {
+        vstr_free(&s);
+        return s;
+    }
+    if (!expect_peek_byte(p, '\n')) {
+        vstr_free(&s);
+        return s;
+    }
+    return s;
+}
+
+static vstr parse_error(parser* p) {
+    vstr s = vstr_new();
+    parser_read_char(p);
+    while (p->ch != '\r' && p->ch != 0) {
+        vstr_push_char(&s, p->ch);
+        parser_read_char(p);
+    }
+    if (!cur_byte_is(p, '\r')) {
+        vstr_free(&s);
+        return s;
+    }
+    if (!expect_peek_byte(p, '\n')) {
+        vstr_free(&s);
+        return s;
+    }
+    return s;
+}
+
+static int64_t parse_integer(parser* p) {
+    int64_t res;
+    vstr int_str = vstr_new();
+    char* end_ptr = NULL;
+    const char* int_str_s;
+    parser_read_char(p);
+    while (p->ch != '\r' && p->ch != 0) {
+        vstr_push_char(&int_str, p->ch);
+        parser_read_char(p);
+    }
+    int_str_s = vstr_data(&int_str);
+    res = strtold(int_str_s, &end_ptr);
+    vstr_free(&int_str);
+    return res;
+}
+
+static double parse_double(parser* p) {
+    double res = 0;
+    vstr number_string = vstr_new();
+    char* end_ptr = NULL;
+    const char* num_str;
+    parser_read_char(p);
+    while (p->ch != '\r') {
+        vstr_push_char(&number_string, p->ch);
+        parser_read_char(p);
+    }
+    num_str = vstr_data(&number_string);
+    res = strtod(num_str, &end_ptr);
+    return res;
+}
+
+static uint64_t parse_len(parser* p) {
+    uint64_t res = 0;
+    while (isdigit(p->ch)) {
+        res = (res * 10) + (p->ch - '0');
+        parser_read_char(p);
+    }
+    return res;
+}
+
+static inline bool cur_byte_is(parser* p, uint8_t byte) {
+    return p->ch == byte;
+}
+
+static inline bool peek_byte_is(parser* p, uint8_t byte) {
+    return peek_byte(p) == byte;
+}
+
+static bool expect_peek_byte(parser* p, uint8_t byte) {
+    if (peek_byte_is(p, byte)) {
+        parser_read_char(p);
+        return true;
+    }
+    return false;
+}
+
+static bool expect_peek_byte_to_be_num(parser* p) {
+    uint8_t peek = peek_byte(p);
+    if (isdigit(peek)) {
+        parser_read_char(p);
+        return true;
+    }
+    return false;
+}
+
+static inline void parser_read_char(parser* p) {
+    if (p->pos >= p->input_len) {
+        p->ch = 0;
+        return;
+    }
+    p->ch = p->input[p->pos];
+    p->pos++;
+}
+
+static uint8_t peek_byte(parser* p) {
+    if (p->pos >= p->input_len) {
+        return 0;
+    }
+    return p->input[p->pos];
+}
+
+static int parser_object_cmp(void* a, void* b) { return object_cmp(a, b); }
+
+static void parser_free_object(void* ptr) { object_free(ptr); }

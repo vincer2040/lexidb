@@ -1,953 +1,673 @@
 #include "hilexi.h"
 #include "builder.h"
-#include "hilexi_parser.h"
-#include "objects.h"
-#include "sock.h"
-#include <assert.h>
+#include "networking.h"
+#include "parser.h"
+#include "result.h"
 #include <errno.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#define HL_BUILDER_INITIAL_CAP 32
-#define HL_READ_MAX 4069
-#define HL_CONNECTED_FLAG (1 << 1)
+#define READ_BUF_INITIAL_CAP 4096
 
-static int hilexi_read(HiLexi* l);
-static int hilexi_write(HiLexi* l);
-static int hilexi_read_and_write(HiLexi* l);
-static HiLexiData hilexi_lex_and_parse(HiLexi* l);
+static object hilexi_parse(hilexi* l);
+static ssize_t hilexi_read(hilexi* l);
+static ssize_t hilexi_write(hilexi* l);
+static int realloc_read_buf(hilexi* l);
 
-HiLexi* hilexi_new(const char* addr, uint16_t port) {
-    HiLexi* l;
+result(hilexi) hilexi_new(const char* addr, uint16_t port) {
+    result(hilexi) rl = {0};
+    hilexi l = {0};
     int sfd;
-    l = calloc(1, sizeof *l);
-    assert(l != NULL);
-    l->addr = parse_addr(addr, strlen(addr));
-    l->port = port;
-    l->builder = builder_create(HL_BUILDER_INITIAL_CAP);
-    assert(l->builder.buf != NULL);
-    l->read_buf = calloc(HL_READ_MAX, sizeof(uint8_t));
-    l->read_cap = HL_READ_MAX;
-    assert(l->read_buf != NULL);
-    sfd = create_tcp_socket(0);
+
+    l.addr = parse_addr(addr);
+    l.port = port;
+
+    sfd = create_tcp_socket(1);
     if (sfd == -1) {
-        hilexi_destory(l);
-        return NULL;
+        rl.type = Err;
+        rl.data.err = vstr_format("failed to make socket (errno %d) %s", errno,
+                                  strerror(errno));
+        return rl;
     }
-    l->sfd = sfd;
-    return l;
+
+    l.sfd = sfd;
+
+    l.read_buf = calloc(READ_BUF_INITIAL_CAP, sizeof(uint8_t));
+    if (l.read_buf == NULL) {
+        rl.type = Err;
+        rl.data.err = vstr_format("failed to allocate read buffer");
+        close(sfd);
+        return rl;
+    }
+
+    l.read_pos = 0;
+    l.read_cap = READ_BUF_INITIAL_CAP;
+
+    l.builder = builder_new();
+
+    rl.type = Ok;
+    rl.data.ok = l;
+
+    return rl;
 }
 
-int hilexi_connect(HiLexi* l) {
-    int connect_res = connect_tcp_sock_u32(l->sfd, l->addr, l->port);
-    if (connect_res == -1) {
+int hilexi_connect(hilexi* l) {
+    int res;
+    while (1) {
+        res = tcp_connect(l->sfd, l->addr, l->port);
+        if (res == 0) {
+            break;
+        } else if (res == -1) {
+            if (errno == EINPROGRESS) {
+                continue;
+            } else {
+                break;
+            }
+        }
+    }
+    return res;
+}
+
+int hilexi_authenticate(hilexi* l, const char* username, const char* password) {
+    int add = builder_add_array(&l->builder, 3);
+    object obj;
+    int res;
+    add = builder_add_string(&l->builder, "AUTH", 4);
+    if (add == -1) {
         return -1;
     }
-    l->flags = HL_CONNECTED_FLAG;
-    return 0;
-}
-
-HiLexiData hilexi_ping(HiLexi* l) {
-    Builder* b = &(l->builder);
-    HiLexiData res = {0};
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_ping(b);
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_set(HiLexi* l, const char* key, size_t key_len,
-                      const char* value, size_t val_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 3);
-    b_res = builder_add_string(b, "SET", 3);
-    b_res = builder_add_string(b, (char*)key, key_len);
-    b_res = builder_add_string(b, (char*)value, val_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_set_int(HiLexi* l, const char* key, size_t key_len,
-                          int64_t val) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 3);
-    b_res = builder_add_string(b, "SET", 3);
-    b_res = builder_add_string(b, (char*)key, key_len);
-    b_res = builder_add_int(b, val);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_get(HiLexi* l, const char* key, size_t key_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "GET", 3);
-    b_res = builder_add_string(b, (char*)key, key_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_del(HiLexi* l, const char* key, size_t key_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "DEL", 3);
-    b_res = builder_add_string(b, (char*)key, key_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_keys(HiLexi* l) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_string(b, "KEYS", 4);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_values(HiLexi* l) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_string(b, "VALUES", 6);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_entries(HiLexi* l) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_string(b, "ENTRIES", 7);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_push(HiLexi* l, const char* val, size_t val_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "PUSH", 4);
-    b_res = builder_add_string(b, (char*)val, val_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_push_int(HiLexi* l, int64_t val) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "PUSH", 4);
-    b_res = builder_add_int(b, val);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_pop(HiLexi* l) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_string(b, "POP", 3);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_enque(HiLexi* l, const char* val, size_t val_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "ENQUE", 5);
-    b_res = builder_add_string(b, (char*)val, val_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_enque_int(HiLexi* l, int64_t val) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "ENQUE", 5);
-    b_res = builder_add_int(b, val);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_deque(HiLexi* l) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_string(b, "DEQUE", 5);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_new(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "CLUSTER.NEW", 11);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_drop(HiLexi* l, const char* cluster_name,
-                               size_t cluster_name_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "CLUSTER.DROP", 12);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_set(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len, const char* key,
-                              size_t key_len, const char* val, size_t val_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 4);
-    b_res = builder_add_string(b, "CLUSTER.SET", 11);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-    b_res = builder_add_string(b, (char*)key, key_len);
-    b_res = builder_add_string(b, (char*)val, val_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_set_int(HiLexi* l, const char* cluster_name,
-                                  size_t cluster_name_len, const char* key,
-                                  size_t key_len, int64_t val) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 4);
-    b_res = builder_add_string(b, "CLUSTER.SET", 11);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-    b_res = builder_add_string(b, (char*)key, key_len);
-    b_res = builder_add_int(b, val);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_get(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len, const char* key,
-                              size_t key_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 3);
-    b_res = builder_add_string(b, "CLUSTER.GET", 11);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-    b_res = builder_add_string(b, (char*)key, key_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_del(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len, const char* key,
-                              size_t key_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 3);
-    b_res = builder_add_string(b, "CLUSTER.DEL", 11);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-    b_res = builder_add_string(b, (char*)key, key_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_push(HiLexi* l, const char* cluster_name,
-                               size_t cluster_name_len, const char* val,
-                               size_t val_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 3);
-    b_res = builder_add_string(b, "CLUSTER.PUSH", 12);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-    b_res = builder_add_string(b, (char*)val, val_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_push_int(HiLexi* l, const char* cluster_name,
-                                   size_t cluster_name_len, int64_t val) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 3);
-    b_res = builder_add_string(b, "CLUSTER.PUSH", 12);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-    b_res = builder_add_int(b, val);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_pop(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "CLUSTER.POP", 11);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_keys(HiLexi* l, const char* cluster_name,
-                               size_t cluster_name_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "CLUSTER.KEYS", 12);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_values(HiLexi* l, const char* cluster_name,
-                                 size_t cluster_name_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "CLUSTER.VALUES", 14);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_cluster_entries(HiLexi* l, const char* cluster_name,
-                                  size_t cluster_name_len) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_arr(b, 2);
-    b_res = builder_add_string(b, "CLUSTER.ENTRIES", 15);
-    b_res = builder_add_string(b, (char*)cluster_name, cluster_name_len);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-HiLexiData hilexi_stats_cycles(HiLexi* l) {
-    HiLexiData res = {0};
-    Builder* b = &(l->builder);
-    int b_res;
-    int read_write_res;
-
-    builder_reset(b);
-
-    b_res = builder_add_string(b, "STATS.CYCLES", 12);
-
-    if (b_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_NO_MEM;
-        return res;
-    }
-
-    l->write_buf = builder_out(b);
-    l->write_len = b->ins;
-    read_write_res = hilexi_read_and_write(l);
-    if (read_write_res == -1) {
-        res.type = HL_ERR;
-        res.val.hl_err = HL_IO;
-        return res;
-    }
-    res = hilexi_lex_and_parse(l);
-    return res;
-}
-
-static HiLexiData hilexi_lex_and_parse(HiLexi* l) {
-    HiLexiData res = {0};
-    HLLexer lex;
-    HLParser p;
-    lex = hl_lexer_new(l->read_buf, l->read_pos);
-    p = hl_parser_new(&lex);
-    res = hl_parse(&p);
-    return res;
-}
-
-static int hilexi_read(HiLexi* l) {
-    ssize_t read_amt;
-    l->read_pos = 0;
-    memset(l->read_buf, 0, l->read_cap);
-    read_amt = read(l->sfd, l->read_buf, l->read_cap);
-    if (read_amt == -1) {
+    add = builder_add_string(&l->builder, username, strlen(username));
+    if (add == -1) {
         return -1;
     }
-    l->read_pos = read_amt;
-    return 0;
-}
-
-static int hilexi_write(HiLexi* l) {
-    ssize_t write_amt;
-    l->write_pos = 0;
-    write_amt = write(l->sfd, l->write_buf, l->write_len);
-    if (write_amt == -1) {
+    add = builder_add_string(&l->builder, password, strlen(password));
+    if (add == -1) {
         return -1;
     }
-    l->write_pos = write_amt;
-    return 0;
-}
-
-static int hilexi_read_and_write(HiLexi* l) {
-    int send_res = hilexi_write(l);
-    if (send_res == -1) {
+    if (hilexi_write(l) == -1) {
         return -1;
     }
-    int read_res = hilexi_read(l);
-    if (read_res == -1) {
+    if (hilexi_read(l) == -1) {
         return -1;
     }
-    return 0;
+    obj = hilexi_parse(l);
+    if (obj.type == String) {
+        vstr s = obj.data.string;
+        vstr ok = vstr_from("OK");
+        res = vstr_cmp(&s, &ok);
+    } else {
+        res = -1;
+    }
+    object_free(&obj);
+    return res;
 }
 
-void hilexi_data_vec_free_cb(void* ptr) { hilexi_data_free((HiLexiData*)ptr); }
-
-void hilexi_data_free(HiLexiData* data) {
-    switch (data->type) {
-    case HL_ARR:
-        vec_free(data->val.arr, hilexi_data_vec_free_cb);
-        break;
-    case HL_BULK_STRING:
-        vstr_delete(data->val.string);
-        break;
-    case HL_ERR_STR:
-        vstr_delete(data->val.string);
-        break;
-    default:
-        break;
+result(object) hilexi_ping(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_ping(&(l->builder));
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add ping to builder");
+        return res;
     }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
 }
 
-void hilexi_disconnect(HiLexi* l) {
-    if (l->flags) {
-        close(l->sfd);
+result(object) hilexi_info(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_string(&(l->builder), "INFO", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add ping to builder");
+        return res;
     }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
 }
 
-void hilexi_destory(HiLexi* l) {
-    if (l->read_buf) {
-        free(l->read_buf);
+result(object) hilexi_select(hilexi* l, size_t db_num) {
+    result(object) res = {0};
+    object obj;
+    int add;
+    add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
     }
+    add = builder_add_string(&(l->builder), "SELECT", 6);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add select to builder");
+        return res;
+    }
+    add = builder_add_int(&(l->builder), db_num);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add db num to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_keys(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_string(&l->builder, "KEYS", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_set(hilexi* l, object* key, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "SET", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add set to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), key);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add key to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_get(hilexi* l, object* key) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "GET", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add get to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), key);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add key to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_del(hilexi* l, object* key) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "DEL", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add del to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), key);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add key to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_push(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&(l->builder), 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&(l->builder), "PUSH", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add push to builder");
+        return res;
+    }
+    add = builder_add_object(&(l->builder), value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_pop(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_string(&(l->builder), "POP", 3);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add pop to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno: %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_enque(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ENQUE", 5);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add enque to builder");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_deque(hilexi* l) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_string(&l->builder, "DEQUE", 5);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add deque to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_zset(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ZSET", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add zset to builer");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_zhas(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ZHAS", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add zhas to builer");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+result(object) hilexi_zdel(hilexi* l, object* value) {
+    result(object) res = {0};
+    object obj;
+    int add = builder_add_array(&l->builder, 2);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add array to builder");
+        return res;
+    }
+    add = builder_add_string(&l->builder, "ZDEL", 4);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add zdel to builer");
+        return res;
+    }
+    add = builder_add_object(&l->builder, value);
+    if (add == -1) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to add value to builder");
+        return res;
+    }
+    if (hilexi_write(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to write to server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    if (hilexi_read(l) == -1) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to read from server (errno %d) %s",
+                                   errno, strerror(errno));
+        return res;
+    }
+    obj = hilexi_parse(l);
+    res.type = Ok;
+    res.data.ok = obj;
+    return res;
+}
+
+void hilexi_close(hilexi* l) {
+    free(l->read_buf);
+    close(l->sfd);
     builder_free(&(l->builder));
-    hilexi_disconnect(l);
-    free(l);
+}
+
+static object hilexi_parse(hilexi* l) {
+    object obj = parse_from_server(l->read_buf, l->read_pos);
+    memset(l->read_buf, 0, l->read_pos);
+    l->read_pos = 0;
+    return obj;
+}
+
+static ssize_t hilexi_read(hilexi* l) {
+    ssize_t amt_read;
+    int received_data = 0;
+    for (;;) {
+        if (l->read_pos == l->read_cap) {
+            if (realloc_read_buf(l) == -1) {
+                return -1;
+            }
+        }
+        amt_read =
+            read(l->sfd, l->read_buf + l->read_pos, l->read_cap - l->read_pos);
+        if (amt_read == 0) {
+            return 0;
+        }
+        if (amt_read == -1) {
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                if (received_data) {
+                    break;
+                } else {
+                    continue;
+                }
+            }
+            return -1;
+        }
+        received_data = 1;
+        l->read_pos += amt_read;
+    }
+
+    return l->read_pos;
+}
+
+static ssize_t hilexi_write(hilexi* l) {
+    const uint8_t* write_buf = builder_out(&(l->builder));
+    size_t write_size = builder_len(&(l->builder));
+    ssize_t amount_written = 0;
+    while (amount_written < write_size) {
+        ssize_t amt = write(l->sfd, write_buf + amount_written,
+                            write_size - amount_written);
+        if (amt == -1) {
+            amount_written = -1;
+            break;
+        }
+        amount_written += amt;
+    }
+    builder_reset(&(l->builder));
+    return amount_written;
+}
+
+static int realloc_read_buf(hilexi* l) {
+    size_t new_cap = l->read_cap << 1;
+    void* tmp = realloc(l->read_buf, new_cap);
+    if (tmp == NULL) {
+        return -1;
+    }
+    l->read_buf = tmp;
+    memset(l->read_buf + l->read_pos, 0, new_cap - l->read_pos);
+    l->read_cap = new_cap;
+    return 0;
 }

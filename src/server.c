@@ -1,1628 +1,1163 @@
 #include "server.h"
 #include "builder.h"
-#include "cluster.h"
+#include "clap.h"
 #include "cmd.h"
+#include "cmd_help.c"
 #include "config.h"
-#include "de.h"
+#include "config_parser.h"
+#include "ev.h"
 #include "ht.h"
-#include "lexer.h"
 #include "log.h"
-#include "objects.h"
+#include "networking.h"
+#include "object.h"
 #include "parser.h"
-#include "queue.h"
-#include "sock.h"
+#include "reply.h"
+#include "result.h"
+#include "set.h"
 #include "util.h"
+#include "vec.h"
+#include "vstr.h"
 #include <assert.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#define HT_INITIAL_CAP 32
-#define YES_NONBLOCK 1
-#define BACKLOG 10
-#define MAX_READ 4096
-#define CONN_BUF_INIT_CAP 4096
+#define DEFAULT_ADDRESS "127.0.0.1"
+#define DEFAULT_PORT 6969
+#define SERVER_BACKLOG 10
+#define CLIENT_READ_BUF_CAP 4096
 
-void read_from_client(De* de, int fd, void* client_data, uint32_t flags);
-void write_to_client(De* de, int fd, void* client_data, uint32_t flags);
-int find_master_in_vec(void* cmp, void* c);
-void lexidb_free(LexiDB* db);
-void vec_free_cb(void* ptr);
-void free_cb(void* ptr);
+typedef client* client_ptr;
 
-LexiDB* lexidb_new(void) {
-    LexiDB* db;
-    db = calloc(1, sizeof *db);
+result_t(server, vstr);
+result_t(client_ptr, vstr);
+result_t(object, void*);
+result_t(log_level, vstr);
 
-    if (db == NULL) {
-        return NULL;
+typedef struct {
+    const char* str;
+    log_level ll;
+} log_level_lookup;
+
+static result(server) server_new(const char* addr, uint16_t port, log_level ll,
+                                 vstr* conf_file_path);
+static int add_users(vec** users_vec, vec* users_from_config);
+static lexidb* lexidb_new(size_t num_databases);
+static void server_free(server* s);
+static void lexidb_free(lexidb* db, size_t num_databases);
+
+static void server_accept(ev* ev, int fd, void* client_data, int mask);
+static void read_from_client(ev* ev, int fd, void* client_data, int mask);
+static void write_to_client(ev* ev, int fd, void* client_data, int mask);
+
+static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port);
+
+static void execute_cmd(server* s, client* c);
+static int execute_auth_command(server* s, client* client, auth_cmd* auth);
+static ht_result execute_set_command(server* s, set_cmd* set,
+                                     size_t database_num);
+static object* execute_get_command(server* s, get_cmd* get,
+                                   size_t database_num);
+static ht_result execute_del_command(server* s, del_cmd* del,
+                                     size_t database_num);
+static int execute_push_command(server* s, push_cmd* push, size_t database_num);
+static result(object) execute_pop_command(server* s, size_t database_num);
+static int execute_enque_command(server* s, enque_cmd* enque,
+                                 size_t database_num);
+static result(object) execute_deque_command(server* s, size_t database_num);
+static set_result execute_zset_command(server* s, zset_cmd* zset,
+                                       size_t database_num);
+static bool execute_zhas_command(server* s, zhas_cmd* zhas,
+                                 size_t database_num);
+static set_result execute_zdel_command(server* s, zdel_cmd* zdel,
+                                       size_t database_num);
+
+static result(log_level) determine_loglevel(vstr* loglevel_s);
+
+static int realloc_client_read_buf(client* c);
+
+static int server_compare_objects(void* a, void* b);
+static int client_compare(void* fdp, void* clientp);
+static int user_compare(void* a, void* b);
+static int user_compare_by_username(void* a, void* b);
+
+static void cmd_free(cmd* cmd);
+static void client_free(client* client);
+static void server_free_object(void* ptr);
+static void client_in_vec_free(void* ptr);
+static void user_in_vec_free(void* ptr);
+
+const log_level_lookup log_level_lookups[] = {
+    {"none", None},
+    {"info", Info},
+    {"debug", Debug},
+    {"verbose", Verbose},
+};
+
+int server_run(int argc, char* argv[]) {
+    result(server) rs;
+    server s;
+    args args;
+    cla cla;
+    object* addr_obj;
+    object* port_obj;
+    object* log_level_obj;
+    object* conf_file_path_obj;
+    const char* addr;
+    uint16_t port;
+    log_level ll;
+    vstr conf_file_path;
+
+    if (create_sigint_handler() == -1) {
+        error("failed to create sigint handler (errno: %d) %s\n", errno,
+              strerror(errno));
+        return 1;
     }
 
-    db->ht = ht_new(HT_INITIAL_CAP, sizeof(Object));
-    if (db->ht == NULL) {
-        free(db);
-        return NULL;
+    args = args_new();
+    args_add(&args, "config file path", "-c", "--config",
+             "the path to the configuration file to configure lexidb", String);
+    args_add(&args, "address", "-a", "--address",
+             "the address the server should listen on", String);
+    args_add(&args, "port", "-p", "--port",
+             "the port the server should listen on", Int);
+    args_add(&args, "loglevel", "-ll", "--loglevel",
+             "the amount to log (none, info, debug, verbose)", String);
+    cla = parse_cmd_line_args(args, argc, argv);
+
+    if (clap_has_error(&cla)) {
+        const char* err = clap_error(&cla);
+        error("clap error: %s\n", err);
+        args_free(args);
+        clap_free(&cla);
+        return 0;
     }
 
-    db->cluster = cluster_new(HT_INITIAL_CAP);
-    if (db->cluster == NULL) {
-        ht_free(db->ht, free_cb);
-        free(db);
-        return NULL;
+    if (clap_version_requested(&cla)) {
+        printf("v%d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        args_free(args);
+        clap_free(&cla);
+        return 0;
     }
 
-    db->stack = vec_new(32, sizeof(Object));
-    if (db->stack == NULL) {
-        ht_free(db->ht, free_cb);
-        cluster_free(db->cluster);
-        free(db);
-        return NULL;
+    if (clap_help_requested(&cla)) {
+        args_free(args);
+        clap_free(&cla);
+        return 0;
     }
 
-    db->queue = queue_new(sizeof(Object));
-    if (db->queue == NULL) {
-        ht_free(db->ht, free_cb);
-        cluster_free(db->cluster);
-        vec_free(db->stack, vec_free_cb);
-        free(db);
-        return NULL;
+    conf_file_path_obj = args_get(&cla, "config file path");
+    if (conf_file_path_obj != NULL) {
+        const char* path = vstr_data(&conf_file_path_obj->data.string);
+        char* real_path = realpath(path, NULL);
+        size_t real_path_len;
+        if (real_path == NULL) {
+            error("configuration file path (%s) is invalid (errno: %d) %s\n",
+                  path, errno, strerror(errno));
+            args_free(args);
+            clap_free(&cla);
+            return 1;
+        }
+        real_path_len = strlen(real_path);
+        conf_file_path = vstr_from_len(real_path, real_path_len);
+        free(real_path);
+    } else {
+        char* real_path = realpath("../lexi.conf", NULL);
+        size_t real_path_len;
+        if (real_path == NULL) {
+            error("configuration file (%s) path is invalid (errno: %d) %s\n",
+                  "../lexi.conf", errno, strerror(errno));
+            args_free(args);
+            clap_free(&cla);
+            return 1;
+        }
+        real_path_len = strlen(real_path);
+        conf_file_path = vstr_from_len(real_path, real_path_len);
+        free(real_path);
     }
 
-    return db;
+    addr_obj = args_get(&cla, "address");
+    if (addr_obj != NULL) {
+        addr = vstr_data(&addr_obj->data.string);
+    } else {
+        addr = DEFAULT_ADDRESS;
+    }
+
+    port_obj = args_get(&cla, "port");
+    if (port_obj != NULL) {
+        port = port_obj->data.num;
+    } else {
+        port = DEFAULT_PORT;
+    }
+
+    log_level_obj = args_get(&cla, "loglevel");
+    if (log_level_obj != NULL) {
+        result(log_level) ll_res =
+            determine_loglevel(&(log_level_obj->data.string));
+        if (ll_res.type == Err) {
+            error("%s %s\n", vstr_data(&ll_res.data.err),
+                  vstr_data(&log_level_obj->data.string));
+            args_free(args);
+            clap_free(&cla);
+            return 1;
+        }
+        ll = ll_res.data.ok;
+    } else {
+        ll = Info;
+    }
+
+    rs = server_new(addr, port, ll, &conf_file_path);
+
+    args_free(args);
+    clap_free(&cla);
+
+    if (rs.type == Err) {
+        error("%s\n", vstr_data(&(rs.data.err)));
+        vstr_free(&conf_file_path);
+        vstr_free(&(rs.data.err));
+        return 1;
+    }
+
+    s = rs.data.ok;
+
+    if (s.log_level >= Info) {
+        info("listening on %s:%u\n", vstr_data(&s.addr), s.port);
+    }
+
+    ev_await(s.ev);
+
+    if (s.log_level >= Info) {
+        info("server shutting down\n");
+    }
+
+    server_free(&s);
+
+    return 0;
 }
 
-Server* server_create(int sfd, LogLevel loglevel, int isreplica) {
-    Server* server;
+static result(server) server_new(const char* addr, uint16_t port, log_level ll,
+                                 vstr* conf_file_path) {
+    result(server) result = {0};
+    server s = {0};
+    int sfd = create_tcp_socket(1);
+    ev* ev;
+    vstr addr_str;
+    result(vstr) config_file_contents_res;
+    result(ht) config_from_file_res;
+    object* users_from_config;
+    object* databases_from_config;
+    line_data_type user_type = User;
+    line_data_type databases_type = Databases;
+    int add_users_res;
 
     if (sfd < 0) {
-        return NULL;
+        result.type = Err;
+        result.data.err = vstr_format("failed to create socket (errno: %d) %s",
+                                      errno, strerror(errno));
+        return result;
     }
 
-    server = calloc(1, sizeof *server);
-    if (server == NULL) {
-        return NULL;
-    }
-
-    server->sfd = sfd;
-    server->loglevel = loglevel;
-
-    server->db = lexidb_new();
-    if (server->db == NULL) {
-        free(server);
+    if (tcp_bind(sfd, addr, port) < 0) {
+        result.type = Err;
+        result.data.err = vstr_format("failed to bind socket (errno: %d) %s",
+                                      errno, strerror(errno));
         close(sfd);
-        return NULL;
+        return result;
     }
 
-    server->clients = vec_new(32, sizeof(Client*));
-    if (server->clients == NULL) {
-        lexidb_free(server->db);
-        free(server);
+    if (tcp_listen(sfd, SERVER_BACKLOG) < 0) {
+        result.type = Err;
+        result.data.err =
+            vstr_format("failed to listen on socket (errno: %d) %s", errno,
+                        strerror(errno));
         close(sfd);
-        return NULL;
+        return result;
     }
 
-    server->stats = stats_new();
+    s.conf_file_path = *conf_file_path;
 
-    if (isreplica == -1) {
-        server->ismaster = 1;
-    } else {
-        server->isslave = 1;
+    config_file_contents_res = read_file(vstr_data(&s.conf_file_path));
+    if (config_file_contents_res.type == Err) {
+        result.type = Err;
+        result.data.err = config_file_contents_res.data.err;
+        close(sfd);
+        return result;
     }
 
-    return server;
-}
-
-Connection* connection_create(uint32_t addr, uint16_t port) {
-    Connection* conn;
-
-    conn = calloc(1, sizeof *conn);
-    if (conn == NULL) {
-        return NULL;
+    config_from_file_res =
+        parse_config(vstr_data(&config_file_contents_res.data.ok),
+                     vstr_len(&config_file_contents_res.data.ok));
+    if (config_from_file_res.type == Err) {
+        close(sfd);
+        result.type = Err;
+        result.data.err = config_from_file_res.data.err;
+        vstr_free(&config_file_contents_res.data.ok);
+        return result;
     }
 
-    conn->addr = addr;
-    conn->port = port;
+    vstr_free(&config_file_contents_res.data.ok);
 
-    conn->read_buf = calloc(CONN_BUF_INIT_CAP, sizeof(uint8_t));
-    if (conn->read_buf == NULL) {
-        free(conn);
-        return NULL;
+    s.users = vec_new(sizeof(user));
+    if (s.users == NULL) {
+        result.type = Err;
+        result.data.err =
+            vstr_from("failed to allocate memory for users vector");
+        close(sfd);
+        return result;
     }
 
-    conn->read_pos = 0;
-    conn->read_cap = CONN_BUF_INIT_CAP;
-    conn->flags = 0;
+    users_from_config =
+        ht_get(&config_from_file_res.data.ok, &user_type, sizeof user_type);
+    assert(users_from_config != NULL);
+    assert(users_from_config->type == Array);
 
-    return conn;
-}
-
-Client* client_create(Connection* conn, LexiDB* db, int fd) {
-    Client* client;
-
-    client = calloc(1, sizeof *client);
-    if (client == NULL) {
-        return NULL;
+    add_users_res = add_users(&s.users, users_from_config->data.vec);
+    if (add_users_res == -1) {
+        config_free(&config_from_file_res.data.ok);
+        vec_free(s.users, user_in_vec_free);
+        close(sfd);
+        result.type = Err;
+        result.data.err = vstr_from("failed to add users to user array");
+        return result;
     }
 
-    client->fd = fd;
-    client->conn = conn;
-    client->db = db;
-    client->builder = builder_create(32);
-    return client;
-}
+    databases_from_config = ht_get(&config_from_file_res.data.ok,
+                                   &databases_type, sizeof databases_type);
+    assert(databases_from_config != NULL);
+    assert(databases_from_config->type == Int);
+    s.num_databases = databases_from_config->data.num;
 
-void free_cb(void* ptr) {
-    Object* obj = ((Object*)ptr);
-    object_free(obj);
-    free(obj);
-}
+    config_free(&config_from_file_res.data.ok);
 
-void vec_free_cb(void* ptr) {
-    Object* obj = ((Object*)ptr);
-    object_free(obj);
-}
-
-void connection_close(De* de, Client* client, int fd, uint32_t flags,
-                      LogLevel loglevel) {
-    Connection* conn = client->conn;
-    if (loglevel >= LL_INFO) {
-        LOG(LOG_CLOSE "fd: %d, addr: %u, port: %u\n", fd, conn->addr,
-            conn->port);
+    s.executable_path = get_execuable_path();
+    if (s.executable_path == NULL) {
+        result.type = Err;
+        result.data.err =
+            vstr_format("failed to get executable path (errno: %d) %s\n", errno,
+                        strerror(errno));
+        vstr_free(&s.conf_file_path);
+        vec_free(s.users, user_in_vec_free);
+        close(sfd);
+        return result;
     }
-    if (conn->read_buf) {
-        free(conn->read_buf);
-        conn->read_buf = NULL;
+
+    s.os_name = get_os_name();
+
+    addr_str = vstr_from(addr);
+    s.addr = addr_str;
+    s.port = port;
+
+    s.clients = vec_new(sizeof(client*));
+    if (s.clients == NULL) {
+        result.type = Err;
+        result.data.err = vstr_from("failed to allocate for client vec");
+        vstr_free(&s.conf_file_path);
+        free(s.executable_path);
+        vec_free(s.users, user_in_vec_free);
+        close(sfd);
+        return result;
     }
-    builder_free(&(client->builder));
-    free(conn);
-    conn = NULL;
-    if (de_del_event(de, fd, flags) == -1) {
-        fmt_error("error deleting event\n");
-        return;
+
+    ev = ev_new(SERVER_BACKLOG);
+    if (ev == NULL) {
+        result.type = Err;
+        result.data.err = vstr_from("failed to allocate memory for ev");
+        vec_free(s.clients, client_in_vec_free);
+        free(s.executable_path);
+        vstr_free(&s.conf_file_path);
+        vec_free(s.users, user_in_vec_free);
+        close(sfd);
+        return result;
     }
-    close(fd);
+
+    if (ev_add_event(ev, sfd, EV_READ, server_accept, &s) == -1) {
+        result.type = Err;
+        result.data.err = vstr_format(
+            "failed to add server accept as event_fn to ev (errno: %d) %s",
+            errno, strerror(errno));
+        vstr_free(&s.conf_file_path);
+        vec_free(s.clients, client_in_vec_free);
+        ev_free(ev);
+        vec_free(s.users, user_in_vec_free);
+        free(s.executable_path);
+        close(sfd);
+        return result;
+    }
+
+    s.help_cmds = init_all_cmd_helps();
+    s.help_cmds_len = get_all_cmd_helps_len();
+
+    s.start_time = get_time();
+    s.pid = getpid();
+    s.sfd = sfd;
+    s.db = lexidb_new(s.num_databases);
+    s.ev = ev;
+    s.log_level = ll;
+    result.type = Ok;
+    result.data.ok = s;
+    return result;
 }
 
-int remove_client_from_vec(void* a, void* b) {
-    Client* ac = ((Client*)a);
-    Client* bc = *((Client**)b);
-    return ac->fd - bc->fd;
+static lexidb* lexidb_new(size_t num_databases) {
+    lexidb* res = calloc(num_databases, sizeof *res);
+    size_t i;
+    assert(res != NULL);
+    for (i = 0; i < num_databases; ++i) {
+        res[i].dict = ht_new(sizeof(object), server_compare_objects);
+        res[i].vec = vec_new(sizeof(object));
+        assert(res[i].vec != NULL);
+        res[i].queue = queue_new(sizeof(object));
+        res[i].set = set_new(sizeof(object), server_compare_objects);
+    }
+    return res;
 }
 
-void client_close(De* de, Server* s, Client* client, int fd, uint32_t flags) {
-    vec_remove(s->clients, client, remove_client_from_vec);
-    connection_close(de, client, fd, flags, s->loglevel);
-    free(client);
+static int add_users(vec** users_vec, vec* users_from_config) {
+    vec_iter iter = vec_iter_new(users_from_config);
+    while (iter.cur) {
+        object* cur = iter.cur;
+        object* name_obj;
+        object* password_obj;
+        vstr name;
+        vstr password;
+        user user = {0};
+        int push_res;
+        vstr hash;
+
+        assert(cur->type == Array);
+
+        name_obj = vec_get_at(cur->data.vec, 0);
+        password_obj = vec_get_at(cur->data.vec, 1);
+
+        assert(name_obj->type == String);
+        assert(password_obj->type == String);
+
+        name = name_obj->data.string;
+        password = password_obj->data.string;
+
+        hash = hash_password(vstr_data(&password), vstr_len(&password));
+
+        user.name = vstr_from(vstr_data(&name));
+        user.password = hash;
+
+        if (vec_find(*users_vec, &user, NULL, user_compare) != -1) {
+            vstr_free(&user.name);
+            vstr_free(&user.password);
+            return -1;
+        }
+
+        push_res = vec_push(users_vec, &user);
+        if (push_res == -1) {
+            vstr_free(&user.name);
+            vstr_free(&user.password);
+            return -1;
+        }
+
+        vec_iter_next(&iter);
+    }
+    return 0;
 }
 
-void lexidb_free(LexiDB* db) {
-    ht_free(db->ht, free_cb);
-    cluster_free(db->cluster);
-    vec_free(db->stack, vec_free_cb);
-    queue_free(db->queue, vec_free_cb);
+static void server_free(server* s) {
+    free(s->executable_path);
+    ev_free(s->ev);
+    lexidb_free(s->db, s->num_databases);
+    vec_free(s->clients, client_in_vec_free);
+    vstr_free(&s->addr);
+    vstr_free(&s->conf_file_path);
+    vstr_free(&s->os_name);
+    vec_free(s->users, user_in_vec_free);
+    free(s->help_cmds);
+    close(s->sfd);
+}
+
+static void lexidb_free(lexidb* db, size_t num_databases) {
+    size_t i;
+    for (i = 0; i < num_databases; ++i) {
+        ht_free(&(db[i].dict), server_free_object, server_free_object);
+        vec_free(db[i].vec, server_free_object);
+        queue_free(&(db[i].queue), server_free_object);
+        set_free(&(db[i].set), server_free_object);
+    }
     free(db);
 }
 
-/**
- * TODO: send message to clients
- * telling them we are disconnecting
- * due to server shutdown
- */
-void vec_free_client_cb(void* ptr) {
-    Client* client = *((Client**)ptr);
-    if (client->conn->read_buf) {
-        free(client->conn->read_buf);
-    }
-    builder_free(&(client->builder));
-    free(client->conn);
-    free(client);
-}
-
-void server_destroy(Server* server) {
-    close(server->sfd);
-    lexidb_free(server->db);
-    vec_free(server->clients, vec_free_client_cb);
-    vec_free(server->stats.cycles, NULL);
-    vec_free(server->stats.times, NULL);
-    free(server);
-    server = NULL;
-}
-
-/**
- * run the command sent to the server
- * the command is valid if it is passed to
- * this function, so there is no checking.
- * all commands are in this function
- * to avoid jumping around the whole file.
- */
-void evaluate_cmd(Cmd* cmd, Server* s, Client* client, LogLevel loglevel,
-                  Builder* builder) {
-    CmdT cmd_type;
-    Connection* conn = client->conn;
-
-    if (loglevel >= LL_CMD) {
-        log_cmd(cmd);
-    }
-
-    cmd_type = cmd->type;
-
-    switch (cmd_type) {
-    case INV: {
-        builder_add_err(builder, ((uint8_t*)"invalid command"), 15);
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-    case CPING: {
-        builder_add_pong(builder);
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case COK:
-        return;
-
-    case SET: {
-        Object obj;
-        int set_res;
-        SetCmd set_cmd;
-        uint8_t* key;
-        size_t key_len;
-        void* value;
-        size_t value_size;
-
-        set_cmd = cmd->expression.set;
-        key = set_cmd.key.value;
-        key_len = set_cmd.key.len;
-        value = set_cmd.value.ptr;
-        value_size = set_cmd.value.size;
-
-        if (set_cmd.value.type == VTSTRING) {
-            obj = object_new(STRING, value, value_size);
-        } else if (set_cmd.value.type == VTINT) {
-            obj = object_new(OINT64, value, value_size);
-        } else {
-            obj = object_new(ONULL, NULL, 0);
-        }
-
-        set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
-
-        if (set_res != 0) {
-            uint8_t* e = ((uint8_t*)"could not set");
-            size_t n = strlen((char*)e);
-            builder_add_err(builder, e, n);
-        } else {
-            builder_add_ok(builder);
-        }
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case GET: {
-        GetCmd get_cmd;
-        uint8_t* key;
-        size_t key_len;
-        void* get_res;
-
-        get_cmd = cmd->expression.get;
-        key = get_cmd.key.value;
-        key_len = get_cmd.key.len;
-        get_res = ht_get(client->db->ht, key, key_len);
-
-        if (get_res == NULL) {
-            builder_add_none(builder);
-        } else {
-            Object* obj = ((Object*)get_res);
-            vstr str;
-            if (obj->type == STRING) {
-                size_t len;
-                str = obj->data.str;
-                len = vstr_len(obj->data.str);
-                builder_add_string(builder, str, len);
-            } else if (obj->type == OINT64) {
-                int64_t i;
-                i = obj->data.i64;
-                builder_add_int(builder, i);
-            } else {
-                builder_add_none(builder);
-            }
-        }
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case DEL: {
-        DelCmd del_cmd;
-        uint8_t* key;
-        size_t key_len;
-
-        del_cmd = cmd->expression.del;
-        key = del_cmd.key.value;
-        key_len = del_cmd.key.len;
-
-        ht_delete(client->db->ht, key, key_len, free_cb);
-        builder_add_ok(builder);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case PUSH: {
-        Object obj;
-        PushCmd push_cmd;
-        int push_res;
-        void* value;
-        size_t value_size;
-
-        push_cmd = cmd->expression.push;
-        value = push_cmd.value.ptr;
-        value_size = push_cmd.value.size;
-
-        if (push_cmd.value.type == VTSTRING) {
-            obj = object_new(STRING, value, value_size);
-        } else if (push_cmd.value.type == VTINT) {
-            obj = object_new(OINT64, value, value_size);
-        } else {
-            obj = object_new(ONULL, NULL, 0);
-        }
-
-        push_res = vec_push(&(client->db->stack), &obj);
-        if (push_res != 0) {
-            uint8_t* e = ((uint8_t*)"could not push");
-            size_t n = strlen((char*)e);
-            builder_add_err(builder, e, n);
-        } else {
-            builder_add_ok(builder);
-        }
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case POP: {
-        Object obj;
-        int pop_res;
-
-        pop_res = vec_pop(client->db->stack, &obj);
-        if (client->ismaster || client->ismaster) {
-            if (obj.type == STRING) {
-                vstr_delete(obj.data.str);
-            }
-            builder_add_ok(builder);
-        } else {
-            if (pop_res == -1) {
-                builder_add_none(builder);
-                conn->write_buf = builder_out(builder);
-                conn->write_size = builder->ins;
-                return;
-            }
-
-            if (obj.type == ONULL) {
-                builder_add_none(builder);
-            }
-
-            if (obj.type == OINT64) {
-                builder_add_int(builder, obj.data.i64);
-            }
-
-            if (obj.type == STRING) {
-                size_t len = vstr_len(obj.data.str);
-                builder_add_string(builder, obj.data.str, len);
-                vstr_delete(obj.data.str);
-            }
-        }
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case ENQUE: {
-        Object obj;
-        EnqueCmd enque_cmd;
-        int enque_res;
-        void* value;
-        size_t value_size;
-
-        enque_cmd = cmd->expression.enque;
-        value = enque_cmd.value.ptr;
-        value_size = enque_cmd.value.size;
-
-        if (enque_cmd.value.type == VTSTRING) {
-            obj = object_new(STRING, value, value_size);
-        } else if (enque_cmd.value.type == VTINT) {
-            obj = object_new(OINT64, value, value_size);
-        } else {
-            obj = object_new(ONULL, NULL, 0);
-        }
-
-        enque_res = queue_enque(client->db->queue, &obj);
-
-        if (enque_res != 0) {
-            uint8_t* e = (uint8_t*)"could not enque";
-            size_t n = strlen((char*)e);
-            builder_add_err(builder, e, n);
-        } else {
-            builder_add_ok(builder);
-        }
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case DEQUE: {
-        Object obj;
-        int deque_res;
-
-        deque_res = queue_deque(client->db->queue, &obj);
-        if (deque_res == -1) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        if (client->ismaster || client->isslave) {
-            if (obj.type == STRING) {
-                vstr_delete(obj.data.str);
-            }
-            builder_add_ok(builder);
-        } else {
-            if (obj.type == ONULL) {
-                builder_add_none(builder);
-            }
-
-            if (obj.type == OINT64) {
-                builder_add_int(builder, obj.data.i64);
-            }
-
-            if (obj.type == STRING) {
-                size_t len = vstr_len(obj.data.str);
-                builder_add_string(builder, obj.data.str, len);
-                vstr_delete(obj.data.str);
-            }
-        }
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case KEYS: {
-        HtEntriesIter* iter;
-        Entry* cur;
-
-        if (client->db->ht->len == 0) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        iter = ht_entries_iter(client->db->ht);
-        if (iter == NULL) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        builder_add_arr(builder, client->db->ht->len);
-
-        for (cur = iter->cur; cur != NULL;
-             ht_entries_next(iter), cur = iter->cur) {
-            builder_add_string(builder, ((char*)cur->key), cur->key_len);
-        }
-
-        ht_entries_iter_free(iter);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-
-    } break;
-
-    case VALUES: {
-        HtEntriesIter* iter;
-        Entry* cur;
-
-        if (client->db->ht->len == 0) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        iter = ht_entries_iter(client->db->ht);
-        if (iter == NULL) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        builder_add_arr(builder, client->db->ht->len);
-
-        for (cur = iter->cur; cur != NULL;
-             ht_entries_next(iter), cur = iter->cur) {
-            Object* obj = ((Object*)cur->value);
-            if (obj->type == OINT64) {
-                builder_add_int(builder, obj->data.i64);
-            } else if (obj->type == STRING) {
-                size_t len = vstr_len(obj->data.str);
-                builder_add_string(builder, obj->data.str, len);
-            }
-        }
-
-        ht_entries_iter_free(iter);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-
-    } break;
-
-    case ENTRIES: {
-        HtEntriesIter* iter;
-        Entry* cur;
-
-        if (client->db->ht->len == 0) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        iter = ht_entries_iter(client->db->ht);
-        if (iter == NULL) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        builder_add_arr(builder, client->db->ht->len);
-
-        for (cur = iter->cur; cur != NULL;
-             ht_entries_next(iter), cur = iter->cur) {
-            uint8_t* key = cur->key;
-            size_t key_len = cur->key_len;
-            Object* obj = ((Object*)cur->value);
-            builder_add_arr(builder, 2);
-            builder_add_string(builder, ((char*)key), key_len);
-            if (obj->type == OINT64) {
-                builder_add_int(builder, obj->data.i64);
-            } else if (obj->type == STRING) {
-                size_t len = vstr_len(obj->data.str);
-                builder_add_string(builder, obj->data.str, len);
-            }
-        }
-
-        ht_entries_iter_free(iter);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-
-    } break;
-
-    case CLUSTER_NEW: {
-        ClusterNewCmd cluster_new_cmd;
-        uint8_t* name;
-        size_t name_len;
-        int create_res;
-
-        cluster_new_cmd = cmd->expression.cluster_new;
-
-        name = cluster_new_cmd.cluster_name.value;
-        name_len = cluster_new_cmd.cluster_name.len;
-
-        create_res = cluster_namespace_new(client->db->cluster, name, name_len,
-                                           HT_INITIAL_CAP);
-        if (builder) {
-            if (create_res == 1) {
-                builder_add_err(builder,
-                                ((uint8_t*)"cluster name already taken"), 18);
-            } else if (create_res == -1) {
-                builder_add_err(builder, ((uint8_t*)"failed to create cluster"),
-                                24);
-            } else {
-                builder_add_ok(builder);
-            }
-
-            conn->write_size = builder->ins;
-            conn->write_buf = builder_out(builder);
-        }
-    } break;
-
-    case CLUSTER_DROP: {
-        ClusterDropCmd cluster_drop_cmd;
-        uint8_t* name;
-        size_t name_len;
-        int drop_res;
-
-        cluster_drop_cmd = cmd->expression.cluster_drop;
-
-        name = cluster_drop_cmd.cluster_name.value;
-        name_len = cluster_drop_cmd.cluster_name.len;
-
-        drop_res = cluster_namespace_drop(client->db->cluster, name, name_len);
-        if (drop_res == -1) {
-            builder_add_err(builder, ((uint8_t*)"invalid name"), 12);
-        } else {
-            builder_add_ok(builder);
-        }
-
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
-    } break;
-
-    case CLUSTER_SET: {
-        ClusterSetCmd cluster_set_cmd;
-        uint8_t *name, *key;
-        void* value;
-        size_t name_len, key_len, value_size;
-        int set_res;
-        Object obj;
-
-        cluster_set_cmd = cmd->expression.cluster_set;
-
-        name = cluster_set_cmd.cluster_name.value;
-        name_len = cluster_set_cmd.cluster_name.len;
-        key = cluster_set_cmd.set.key.value;
-        key_len = cluster_set_cmd.set.key.len;
-        value = cluster_set_cmd.set.value.ptr;
-        value_size = cluster_set_cmd.set.value.size;
-
-        if (cluster_set_cmd.set.value.type == VTSTRING) {
-            obj = object_new(STRING, value, value_size);
-        } else if (cluster_set_cmd.set.value.type == VTINT) {
-            obj = object_new(OINT64, value, value_size);
-        } else {
-            obj = object_new(ONULL, NULL, 0);
-        }
-        set_res = cluster_namespace_insert(client->db->cluster, name, name_len,
-                                           key, key_len, &obj, free_cb);
-
-        if (builder) {
-            if (set_res != 0) {
-                uint8_t* e = ((uint8_t*)"could not set");
-                size_t n = strlen((char*)e);
-                builder_add_err(builder, e, n);
-            } else {
-                builder_add_ok(builder);
-            }
-
-            conn->write_size = builder->ins;
-            conn->write_buf = builder_out(builder);
-        }
-    } break;
-
-    case CLUSTER_GET: {
-        ClusterGetCmd cluster_get_cmd;
-        uint8_t *name, *key;
-        size_t name_len, key_len;
-        void* get_res;
-
-        cluster_get_cmd = cmd->expression.cluster_get;
-
-        name = cluster_get_cmd.cluster_name.value;
-        name_len = cluster_get_cmd.cluster_name.len;
-        key = cluster_get_cmd.get.key.value;
-        key_len = cluster_get_cmd.get.key.len;
-
-        get_res = cluster_namespace_get(client->db->cluster, name, name_len,
-                                        key, key_len);
-
-        if (get_res == NULL) {
-            builder_add_none(builder);
-        } else {
-            Object* obj = ((Object*)get_res);
-            vstr str;
-            if (obj->type == STRING) {
-                size_t len;
-                str = obj->data.str;
-                len = vstr_len(obj->data.str);
-                builder_add_string(builder, str, len);
-            } else if (obj->type == OINT64) {
-                int64_t i;
-                i = obj->data.i64;
-                builder_add_int(builder, i);
-            } else {
-                builder_add_none(builder);
-            }
-        }
-
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
-    } break;
-
-    case CLUSTER_DEL: {
-        ClusterDelCmd cluster_del_cmd;
-        uint8_t *name, *key;
-        size_t name_len, key_len;
-
-        cluster_del_cmd = cmd->expression.cluster_del;
-
-        name = cluster_del_cmd.cluster_name.value;
-        name_len = cluster_del_cmd.cluster_name.len;
-        key = cluster_del_cmd.del.key.value;
-        key_len = cluster_del_cmd.del.key.len;
-
-        cluster_namespace_del(client->db->cluster, name, name_len, key, key_len,
-                              free_cb);
-
-        builder_add_ok(builder);
-
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
-    } break;
-
-    case CLUSTER_PUSH: {
-        ClusterPushCmd cluster_push_cmd;
-        uint8_t* name;
-        void* value;
-        size_t name_len, value_size;
-        int push_res;
-        Object obj;
-
-        cluster_push_cmd = cmd->expression.cluster_push;
-
-        name = cluster_push_cmd.cluster_name.value;
-        name_len = cluster_push_cmd.cluster_name.len;
-        value = cluster_push_cmd.push.value.ptr;
-        value_size = cluster_push_cmd.push.value.size;
-
-        if (cluster_push_cmd.push.value.type == VTSTRING) {
-            obj = object_new(STRING, value, value_size);
-        } else if (cluster_push_cmd.push.value.type == VTINT) {
-            obj = object_new(OINT64, value, value_size);
-        } else {
-            obj = object_new(ONULL, NULL, 0);
-        }
-
-        push_res =
-            cluster_namespace_push(client->db->cluster, name, name_len, &obj);
-
-        if (builder) {
-            if (push_res != 0) {
-                uint8_t* e = ((uint8_t*)"could not push");
-                size_t n = strlen((char*)e);
-                builder_add_err(builder, e, n);
-            } else {
-                builder_add_ok(builder);
-            }
-
-            conn->write_size = builder->ins;
-            conn->write_buf = builder_out(builder);
-        }
-    } break;
-
-    case CLUSTER_POP: {
-        ClusterPopCmd cluster_pop_cmd;
-        uint8_t* name;
-        size_t name_len;
-        int pop_res;
-        Object obj = {0};
-
-        cluster_pop_cmd = cmd->expression.cluster_pop;
-
-        name = cluster_pop_cmd.cluster_name.value;
-        name_len = cluster_pop_cmd.cluster_name.len;
-
-        pop_res =
-            cluster_namespace_pop(client->db->cluster, name, name_len, &obj);
-
-        if (pop_res == -1) {
-            builder_add_none(builder);
-            conn->write_size = builder->ins;
-            conn->write_buf = builder_out(builder);
-            return;
-        }
-
-        if (client->ismaster || client->isslave) {
-            if (obj.type == STRING) {
-                size_t len = vstr_len(obj.data.str);
-                builder_add_string(builder, obj.data.str, len);
-                vstr_delete(obj.data.str);
-            }
-            builder_add_ok(builder);
-        } else {
-            if (obj.type == ONULL) {
-                builder_add_none(builder);
-            }
-
-            if (obj.type == OINT64) {
-                builder_add_int(builder, obj.data.i64);
-            }
-
-            if (obj.type == STRING) {
-                size_t len = vstr_len(obj.data.str);
-                builder_add_string(builder, obj.data.str, len);
-                vstr_delete(obj.data.str);
-            }
-        }
-
-        conn->write_size = builder->ins;
-        conn->write_buf = builder_out(builder);
-    } break;
-
-    case CLUSTER_KEYS: {
-        HtEntriesIter* iter;
-        ClusterKeysCmd cluster_keys_cmd;
-        Entry* cur;
-        uint8_t* name;
-        size_t name_len, cluster_len;
-
-        if (client->db->cluster->len == 0) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        cluster_keys_cmd = cmd->expression.cluster_keys;
-
-        name = cluster_keys_cmd.cluster_name.value;
-        name_len = cluster_keys_cmd.cluster_name.len;
-
-        iter =
-            cluster_namespace_entries_iter(client->db->cluster, name, name_len);
-        if (iter == NULL) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        cluster_len =
-            cluster_namespace_len(client->db->cluster, name, name_len);
-
-        builder_add_arr(builder, cluster_len);
-
-        for (cur = iter->cur; cur != NULL;
-             ht_entries_next(iter), cur = iter->cur) {
-            builder_add_string(builder, ((char*)cur->key), cur->key_len);
-        }
-
-        ht_entries_iter_free(iter);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case CLUSTER_VALUES: {
-        HtEntriesIter* iter;
-        ClusterValuesCmd cluster_values_cmd;
-        Entry* cur;
-        uint8_t* name;
-        size_t name_len, cluster_len;
-
-        if (client->db->cluster->len == 0) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        cluster_values_cmd = cmd->expression.cluster_values;
-
-        name = cluster_values_cmd.cluster_name.value;
-        name_len = cluster_values_cmd.cluster_name.len;
-
-        iter =
-            cluster_namespace_entries_iter(client->db->cluster, name, name_len);
-        if (iter == NULL) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        cluster_len =
-            cluster_namespace_len(client->db->cluster, name, name_len);
-
-        builder_add_arr(builder, cluster_len);
-
-        for (cur = iter->cur; cur != NULL;
-             ht_entries_next(iter), cur = iter->cur) {
-            Object* obj = ((Object*)(cur->value));
-            if (obj->type == OINT64) {
-                builder_add_int(builder, obj->data.i64);
-            } else if (obj->type == STRING) {
-                size_t len = vstr_len(obj->data.str);
-                builder_add_string(builder, obj->data.str, len);
-            }
-        }
-
-        ht_entries_iter_free(iter);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-
-    case CLUSTER_ENTRIES: {
-        HtEntriesIter* iter;
-        ClusterEntriesCmd cluster_entries_cmd;
-        Entry* cur;
-        uint8_t* name;
-        size_t name_len, cluster_len;
-
-        if (client->db->cluster->len == 0) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        cluster_entries_cmd = cmd->expression.cluster_entries;
-
-        name = cluster_entries_cmd.cluster_name.value;
-        name_len = cluster_entries_cmd.cluster_name.len;
-
-        iter =
-            cluster_namespace_entries_iter(client->db->cluster, name, name_len);
-        if (iter == NULL) {
-            builder_add_none(builder);
-            conn->write_buf = builder_out(builder);
-            conn->write_size = builder->ins;
-            return;
-        }
-
-        cluster_len =
-            cluster_namespace_len(client->db->cluster, name, name_len);
-
-        builder_add_arr(builder, cluster_len);
-
-        for (cur = iter->cur; cur != NULL;
-             ht_entries_next(iter), cur = iter->cur) {
-            uint8_t* key = cur->key;
-            size_t key_len = cur->key_len;
-            Object* obj = ((Object*)cur->value);
-            builder_add_arr(builder, 2);
-            builder_add_string(builder, ((char*)key), key_len);
-            if (obj->type == OINT64) {
-                builder_add_int(builder, obj->data.i64);
-            } else if (obj->type == STRING) {
-                size_t len = vstr_len(obj->data.str);
-                builder_add_string(builder, obj->data.str, len);
-            }
-        }
-
-        ht_entries_iter_free(iter);
-
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-    case MULTI_CMD: {
-        MultiCmd multi = cmd->expression.multi;
-        size_t i, num_cmds = multi.len;
-        builder_add_arr(builder, num_cmds);
-        for (i = 0; i < num_cmds; ++i) {
-            Cmd c = multi.commands[i];
-            evaluate_cmd(&c, s, client, loglevel, builder);
-        }
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-    case REPLICATE:
-        client->isslave = 1;
-        replicate(client->db, client);
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-        break;
-    case REPLICATION: {
-        Cmd ht_cmd = cmd->expression.multi.commands[0];
-        Cmd stack_cmd = cmd->expression.multi.commands[1];
-        Cmd q_cmd = cmd->expression.multi.commands[2];
-        Cmd cluster_cmd = cmd->expression.multi.commands[3];
-        size_t i, len = ht_cmd.expression.multi.len;
-        for (i = 0; i < len; ++i) {
-            Cmd cur_set = ht_cmd.expression.multi.commands[i];
-            SetCmd set = cur_set.expression.set;
-            uint8_t* key = set.key.value;
-            size_t key_len = set.key.len;
-            void* value = set.value.ptr;
-            size_t value_size = set.value.size;
-            Object obj;
-            int set_res;
-            if (set.value.type == VTSTRING) {
-                obj = object_new(STRING, value, value_size);
-            } else if (set.value.type == VTINT) {
-                obj = object_new(OINT64, value, value_size);
-            } else {
-                obj = object_new(ONULL, NULL, 0);
-            }
-            set_res = ht_insert(client->db->ht, key, key_len, &obj, free_cb);
-            if (set_res != 0) {
-                uint8_t* e = ((uint8_t*)"could not set");
-                size_t n = strlen((char*)e);
-                builder_add_err(builder, e, n);
-                conn->write_buf = builder_out(builder);
-                conn->write_size = builder->ins;
-                return;
-            }
-        }
-        len = stack_cmd.expression.multi.len;
-        for (i = 0; i < len; ++i) {
-            Cmd cur_push = stack_cmd.expression.multi.commands[i];
-            PushCmd push = cur_push.expression.push;
-            void* value = push.value.ptr;
-            size_t value_size = push.value.size;
-            Object obj;
-            int push_res;
-            if (push.value.type == VTSTRING) {
-                obj = object_new(STRING, value, value_size);
-            } else if (push.value.type == VTINT) {
-                obj = object_new(OINT64, value, value_size);
-            } else {
-                obj = object_new(ONULL, NULL, 0);
-            }
-            push_res = vec_push(&(client->db->stack), &obj);
-            if (push_res != 0) {
-                uint8_t* e = ((uint8_t*)"could not push");
-                size_t n = strlen((char*)e);
-                builder_add_err(builder, e, n);
-                conn->write_buf = builder_out(builder);
-                conn->write_size = builder->ins;
-                return;
-            }
-        }
-        len = q_cmd.expression.multi.len;
-        for (i = 0; i < len; ++i) {
-            Cmd cur_enque = stack_cmd.expression.multi.commands[i];
-            EnqueCmd enque = cur_enque.expression.enque;
-            void* value = enque.value.ptr;
-            size_t value_size = enque.value.size;
-            Object obj;
-            int enque_res;
-            if (enque.value.type == VTSTRING) {
-                obj = object_new(STRING, value, value_size);
-            } else if (enque.value.type == VTINT) {
-                obj = object_new(OINT64, value, value_size);
-            } else {
-                obj = object_new(ONULL, NULL, 0);
-            }
-            enque_res = queue_enque(client->db->queue, &obj);
-            if (enque_res != 0) {
-                uint8_t* e = ((uint8_t*)"could not enque");
-                size_t n = strlen((char*)e);
-                builder_add_err(builder, e, n);
-                conn->write_buf = builder_out(builder);
-                conn->write_size = builder->ins;
-                return;
-            }
-        }
-        len = cluster_cmd.expression.multi.len;
-        for (i = 0; i < len; ++i) {
-            Cmd cur_cluster = cluster_cmd.expression.multi.commands[i];
-            size_t j, clen = cur_cluster.expression.multi.len;
-            for (j = 0; j < clen; ++j) {
-                Cmd cur_cmd = cur_cluster.expression.multi.commands[j];
-                evaluate_cmd(&cur_cmd, s, client, loglevel, NULL);
-            }
-        }
-        builder_add_ok(builder);
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-    case STATS_CYCLES: {
-        VecIter iter = vec_iter_new(s->stats.cycles, 0);
-        size_t i, len = s->stats.cycles->len;
-        if (len == 0) {
-            builder_add_none(builder);
-        } else {
-            builder_add_arr(builder, len);
-            for (i = 0; i < len; ++i) {
-                uint64_t* cur = iter.cur;
-                builder_add_int(builder, *cur);
-                vec_iter_next(&iter);
-            }
-        }
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-    } break;
-    default:
-        builder_add_err(builder, (uint8_t*)"-Invalid command", 15);
-        conn->write_buf = builder_out(builder);
-        conn->write_size = builder->ins;
-        break;
-    }
-}
-
-void notify_slaves(De* de, Server* server, uint8_t* data, size_t data_len) {
-    VecIter iter = vec_iter_new(server->clients, 0);
-    size_t i, len = server->clients->len;
-
-    for (i = 0; i < len; ++i) {
-        Client* cur = *((Client**)(iter.cur));
-        if (cur->isslave) {
-            builder_copy_from(&(cur->builder), data, data_len);
-            cur->conn->write_buf = builder_out(&(cur->builder));
-            cur->conn->write_size = cur->builder.ins;
-            de_add_event(de, cur->fd, DE_WRITE, write_to_client, server);
-        }
-        vec_iter_next(&iter);
-    }
-}
-
-void notify_master(De* de, Server* server, uint8_t* data, size_t data_len) {
-    Client* master;
-    int found;
-
-    found = vec_find(server->clients, NULL, find_master_in_vec, &master);
-    if (found == -1) {
-        LOG(LOG_ERROR "no master\n");
-        return;
-    }
-
-    builder_copy_from(&(master->builder), data, data_len);
-    master->conn->write_buf = builder_out(&(master->builder));
-    master->conn->write_size = master->builder.ins;
-    de_add_event(de, master->fd, DE_WRITE, write_to_client, server);
-}
-
-void evaluate_message(Server* server, De* de, uint8_t* data, size_t len,
-                      Client* client, LogLevel loglevel) {
-    Lexer l;
-    Parser p;
-    CmdIR cir;
-    Cmd cmd;
-    Connection* conn = client->conn;
-
-    if (loglevel >= LL_VERBOSE) {
-        slowlog(data, len);
-    }
-
-    l = lexer_new(data, len);
-    p = parser_new(&l);
-    cir = parse_cmd(&p);
-    cmd = cmd_from_statement(&(cir.stmt));
-
-    if (parser_errors_len(&p)) {
-        cmdir_free(&cir);
-        parser_free_errors(&p);
-        builder_add_err(&(client->builder), (uint8_t*)"INVALID", 7);
-        conn->write_buf = builder_out(&(client->builder));
-        conn->write_size = client->builder.ins;
-        return;
-    }
-
-    evaluate_cmd(&cmd, server, client, loglevel, &(client->builder));
-
-    if (client->isslave || client->ismaster) {
-        goto done;
-    }
-    if (server->isslave && is_write_command(cmd.type)) {
-        notify_master(de, server, data, len);
-    } else if (server->ismaster && is_write_command(cmd.type)) {
-        notify_slaves(de, server, data, len);
-    } else if (cmd.type == MULTI_CMD) {
-        size_t i, len = cmd.expression.multi.len;
-        for (i = 0; i < len; ++i) {
-            Cmd cur = cmd.expression.multi.commands[i];
-            if (server->isslave && is_write_command(cur.type)) {
-                notify_master(de, server, data, len);
-            } else if (server->ismaster && is_write_command(cmd.type)) {
-                notify_slaves(de, server, data, len);
-            }
-        }
-    }
-
-done:
-
-    cmd_free(&cmd);
-    cmdir_free(&cir);
-    parser_free_errors(&p);
-}
-
-int find_client_in_vec(void* fdp, void* c) {
-    int fd = *((int*)fdp);
-    Client* client = *((Client**)c);
-    return fd - client->fd;
-}
-
-int find_master_in_vec(void* cmp, void* c) {
-    Client* client = *((Client**)c);
-    UNUSED(cmp);
-    if (client->ismaster) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
-
-void write_to_client(De* de, int fd, void* client_data, uint32_t flags) {
-    ssize_t bytes_sent;
-    Client* client;
-    Connection* conn;
-    Server* s;
-    int found;
-    struct rusage usage;
-    struct timeval time_end;
-    uint64_t cycles, num_cycles;
-    CmdTime cmd_time_tot;
-
-    s = client_data;
-
-    found = vec_find(s->clients, &fd, find_client_in_vec, &client);
-    if (found == -1) {
-        LOG(LOG_ERROR "could not find client %d\n", fd);
-        de_del_event(de, fd, flags);
-        return;
-    }
-
-    if (client->ismaster) {
-        printf("writing to master\n");
-    }
-
-    conn = client->conn;
-    if (conn->flags == 1) {
-        // we were expecting more data but we now have it all
-        evaluate_message(s, de, conn->read_buf, conn->read_pos, client,
-                         s->loglevel);
-        conn->flags = 0;
-    }
-    if (conn->write_buf != NULL) {
-        size_t write_size = conn->write_size;
-        bytes_sent = write(fd, conn->write_buf, write_size);
-        if (bytes_sent < 0) {
-            fmt_error("failed to write to client\n");
-            return;
-        }
-
-        if (bytes_sent < write_size) {
-            fmt_error("failed to send all bytes\n");
-            return;
-        }
-        builder_reset(&(client->builder));
-    } else {
-        bytes_sent = write(fd, "+noop\r\n", 7);
-        if (bytes_sent < 0) {
-            fmt_error("failed to write to client\n");
-            return;
-        }
-        if (bytes_sent < 7) {
-            fmt_error("failed to send all bytes\n");
-            return;
-        }
-    }
-
-    conn->flags = 0;
-    de_del_event(de, fd, DE_WRITE);
-    UNUSED(flags);
-
-    cycles = rdtsc();
-    usage = get_cur_usage();
-    time_end = add_user_and_sys_time(usage.ru_utime, usage.ru_stime);
-    cmd_time_tot = cmd_time(client->time_start, time_end);
-    num_cycles = cycles - client->cycle_start;
-    update_stats(&(s->stats), &cmd_time_tot, num_cycles);
-}
-
-void read_from_client(De* de, int fd, void* client_data, uint32_t flags) {
-    ssize_t bytes_read;
-    Server* s;
-    Client* client = NULL;
-    Connection* conn;
-    int found;
-    uint64_t cycles_start = rdtsc();
-    struct rusage usage = get_cur_usage();
-
-    s = client_data;
-
-    found = vec_find(s->clients, &fd, find_client_in_vec, &client);
-    if (found == -1) {
-        LOG(LOG_ERROR "could not find client %d\n", fd);
-        de_del_event(de, fd, flags);
-        return;
-    }
-
-    client->time_start = add_user_and_sys_time(usage.ru_utime, usage.ru_stime);
-    client->cycle_start = cycles_start;
-
-    conn = client->conn;
-
-    if (conn->flags == 0) {
-        memset(conn->read_buf, 0, conn->read_cap);
-        conn->read_pos = 0;
-    }
-
-    bytes_read = read(fd, conn->read_buf + conn->read_pos, MAX_READ);
-
-    if (bytes_read < 0) {
-        fmt_error("closing client fd %d\n", fd);
-        client_close(de, s, client, fd, flags);
-        return;
-    }
-
-    if (bytes_read == 0) {
-        client_close(de, s, client, fd, flags);
-        return;
-    }
-
-    // we have filled the buffer
-    if (bytes_read == 4096) {
-        conn->flags = 1;
-        conn->read_pos += MAX_READ;
-        if ((conn->read_cap - conn->read_pos) < 4096) {
-            void* tmp;
-            conn->read_cap += MAX_READ;
-            tmp = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
-            if (tmp == NULL) {
-                conn->read_cap -= MAX_READ;
-                LOG(LOG_ERROR "failed to realloce read buf for client. this "
-                              "won't be good\n");
-                return;
-            }
-            conn->read_buf = tmp;
-            memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
-        }
-        // if we do not read again before the write event, the message
-        // will be evaluated in write_to_client before
-        // writing a response
-        de_add_event(de, fd, DE_WRITE, write_to_client, s);
-        return;
-    }
-
-    conn->read_pos += bytes_read;
-
-    evaluate_message(s, de, conn->read_buf, conn->read_pos, client,
-                     s->loglevel);
-    conn->flags = 0;
-
-    de_add_event(de, fd, DE_WRITE, write_to_client, s);
-}
-
-void server_accept(De* de, int fd, void* client_data, uint32_t flags) {
-    Server* s;
-    Connection* c;
-    Client* client;
+static void server_accept(ev* ev, int fd, void* client_data, int mask) {
+    server* s = client_data;
     int cfd;
     struct sockaddr_in addr = {0};
     socklen_t len = 0;
-
-    s = ((Server*)(client_data));
-    if (s->sfd != fd) {
-        fmt_error("server_accept called for non sfd event\n");
-        return;
-    }
+    result(client_ptr) r_client;
+    client* client;
+    int add;
 
     cfd = tcp_accept(fd, &addr, &len);
     if (cfd == -1) {
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            fmt_error("accept blocked\n");
+            warn("accept blocked\n");
             return;
         } else {
-            fmt_error("accept failed\n");
+            error("accept failed (errno: %d) %s\n", errno, strerror(errno));
             return;
         }
     }
 
-    if (make_socket_nonblocking(cfd) < 0) {
-        fmt_error("failed to make fd %d (addr: %u),  nonblocking\n", cfd,
-                  addr.sin_addr.s_addr);
+    if (make_socket_nonblocking(cfd) == -1) {
+        error("failed to make %d nonblocking\n", cfd);
         return;
     }
 
-    if (s->loglevel >= LL_INFO) {
-        LOG(LOG_CONNECTION "fd: %d addr: %u port: %u\n", cfd,
-            addr.sin_addr.s_addr, addr.sin_port);
+    r_client = create_client(cfd, addr.sin_addr.s_addr, addr.sin_port);
+    if (r_client.type == Err) {
+        error("%s\n", vstr_data(&(r_client.data.err)));
+        vstr_free(&(r_client.data.err));
+        return;
     }
 
-    c = connection_create(addr.sin_addr.s_addr, addr.sin_port);
-    client = client_create(c, s->db, cfd);
-    vec_push(&(s->clients), &client);
-    de_add_event(de, cfd, DE_READ, read_from_client, s);
+    client = r_client.data.ok;
+
+    add = vec_push(&(s->clients), &client);
+    if (add == -1) {
+        error("failed to add client to client vector (errno: %d) %s\n", errno,
+              strerror(errno));
+        return;
+    }
+
+    add = ev_add_event(s->ev, cfd, EV_READ, read_from_client, s);
+    if (add == -1) {
+        error("failed to add read event for client (errno: %d) %s\n", errno,
+              strerror(errno));
+        client_free(client);
+        return;
+    }
+
+    if (s->log_level >= Info) {
+        info("new connection: %d\n", cfd);
+    }
 }
 
-int create_master_connection(Server* s, const char* addr, uint16_t port) {
-    int res;
-    int socket;
-    uint32_t adder;
-    Connection* c;
-    Client* client;
-    adder = parse_addr(addr, strlen(addr));
-    /* make it blocking to start, we will make it non blocking after we have
-     * connected to ensure a connection has been established
-     */
-    socket = create_tcp_socket(0);
-    if (connect_tcp_sock_u32(socket, adder, port) == -1) {
-        SLOG_ERROR;
-        return -1;
-    }
-    res = make_socket_nonblocking(socket);
-    if (res == -1) {
-        SLOG_ERROR;
-        close(socket);
-        return -1;
-    }
-    c = connection_create(adder, port);
-    if (c == NULL) {
-        fmt_error("out of memory, buy more ram\n");
-        close(socket);
-        return -1;
-    }
-    client = client_create(c, s->db, socket);
-    if (client == NULL) {
-        fmt_error("out of memory, buy more ram\n");
-        free(c);
-        close(socket);
-        return -1;
-    }
-    client->ismaster = 1;
+static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
+    ssize_t read_amt;
+    server* s = client_data;
+    client* c;
+    ssize_t found;
+    int add;
 
-    builder_add_string(&(client->builder), "REPLICATE", 9);
-    client->conn->write_buf = builder_out(&(client->builder));
-    client->conn->write_size = client->builder.ins;
-    vec_push(&(s->clients), &client);
-    return 0;
-}
-
-void read_from_master(De* de, int fd, void* client_data, uint32_t flags) {
-    ssize_t bytes_read;
-    Server* s;
-    Client* client = NULL;
-    Connection* conn;
-    int found;
-
-    s = client_data;
-
-    found = vec_find(s->clients, &fd, find_client_in_vec, &client);
+    found = vec_find(s->clients, &fd, &c, client_compare);
     if (found == -1) {
-        LOG(LOG_ERROR "could not find client %d\n", fd);
-        de_del_event(de, fd, flags);
+        error("failed to find client (fd %d) in client vec\n", fd);
+        ev_delete_event(ev, fd, EV_READ);
+        close(fd);
         return;
     }
 
-    conn = client->conn;
-
-    if (conn->flags == 0) {
-        memset(conn->read_buf, 0, conn->read_cap);
-        conn->read_pos = 0;
-    }
-
-    bytes_read = read(fd, conn->read_buf + conn->read_pos, MAX_READ);
-
-    if (bytes_read < 0) {
-        fmt_error("closing client fd %d\n", fd);
-        client_close(de, s, client, fd, flags);
-        return;
-    }
-
-    if (bytes_read == 0) {
-        client_close(de, s, client, fd, flags);
-        return;
-    }
-
-    // we have filled the buffer
-    if (bytes_read == 4096) {
-        conn->flags = 1;
-        conn->read_pos += MAX_READ;
-        if ((conn->read_cap - conn->read_pos) < 4096) {
-            void* tmp;
-            conn->read_cap += MAX_READ;
-            tmp = realloc(conn->read_buf, sizeof(uint8_t) * conn->read_cap);
-            if (tmp == NULL) {
-                LOG(LOG_ERROR "failed to reallocate connection write buf, this "
-                              "will not be good\n");
-                conn->read_cap -= MAX_READ;
+    for (;;) {
+        /* it should never be greater than, but just in case */
+        if (c->read_pos >= c->read_cap) {
+            if (realloc_client_read_buf(c) == -1) {
+                error("failed to realloce client buffer, closing connection\n");
+                vec_remove_at(s->clients, found, NULL);
+                ev_delete_event(ev, fd, mask);
+                client_free(c);
                 return;
             }
-            conn->read_buf = tmp;
-            memset(conn->read_buf + conn->read_pos, 0, MAX_READ);
         }
+
+        read_amt =
+            read(fd, c->read_buf + c->read_pos, c->read_cap - c->read_pos);
+
+        if (read_amt == 0) {
+            if (s->log_level >= Info) {
+                info("closing %d\n", fd);
+            }
+            vec_remove_at(s->clients, found, NULL);
+            ev_delete_event(ev, fd, mask);
+            client_free(c);
+            return;
+        }
+
+        if (read_amt == -1) {
+            if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
+                break;
+            } else {
+                // todo
+                error("failed to read from client (errno: %d) %s\n", errno,
+                      strerror(errno));
+                return;
+            }
+        }
+        c->read_pos += read_amt;
+    }
+
+    if (s->log_level >= Debug) {
+        debug("received: %s\n", c->read_buf);
+    }
+
+    execute_cmd(s, c);
+
+    c->write_buf = (uint8_t*)builder_out(&(c->builder));
+    c->write_size = builder_len(&(c->builder));
+
+    add = ev_add_event(ev, fd, EV_WRITE, write_to_client, s);
+    if (add == -1) {
+        error("failed to add write event for %d\n", fd);
         return;
     }
 
-    conn->read_pos += bytes_read;
+    memset(c->read_buf, 0, c->read_pos);
+    c->read_pos = 0;
 
-    evaluate_message(s, de, conn->read_buf, conn->read_pos, client,
-                     s->loglevel);
-    conn->flags = 0;
+    return;
 }
 
-int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica) {
-    Server* server;
-    De* de;
-    int sfd;
-    uint32_t addr;
-    uint8_t add_event_res;
+static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
+    server* s = client_data;
+    size_t bytes_sent = 0;
+    size_t to_send;
+    client* c;
+    ssize_t found = vec_find(s->clients, &fd, &c, client_compare);
 
-    create_sigint_handler();
-
-    addr = parse_addr(addr_str, strlen(addr_str));
-    sfd = create_tcp_socket(YES_NONBLOCK);
-    if (sfd < 0) {
-        SLOG_ERROR;
-        return -1;
+    if (found == -1) {
+        error("failed to find client %d\n", fd);
+        ev_delete_event(ev, fd, mask);
+        close(fd);
+        return;
     }
 
-    if (set_reuse_addr(sfd) < 0) {
-        SLOG_ERROR;
-        return -1;
-    }
+    to_send = c->write_size;
 
-    if (bind_tcp_sock(sfd, addr, port) < 0) {
-        SLOG_ERROR;
-        return -1;
-    }
-
-    if (tcp_listen(sfd, BACKLOG) < 0) {
-        SLOG_ERROR;
-        return -1;
-    }
-
-    server = server_create(sfd, loglevel, isreplica);
-    if (server == NULL) {
-        fmt_error("failed to allocate memory for server\n");
-        close(sfd);
-        return -1;
-    }
-
-    de = de_create(BACKLOG);
-    if (de == NULL) {
-        fmt_error("failed to allocate memory for event loop\n");
-        return -1;
-    }
-
-    if (server->isslave == 1) {
-        Client* master_client;
-        uint16_t replica_port = isreplica;
-        int cmc_res, found;
-        cmc_res = create_master_connection(server, "127.0.0.1", replica_port);
-        if (cmc_res == -1) {
-            server_destroy(server);
-            de_free(de);
-            fmt_error("failed to connect to master\n");
-            return -1;
+    while (bytes_sent < to_send) {
+        ssize_t amt_sent = write(fd, c->write_buf, c->write_size);
+        if (amt_sent == -1) {
+            if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) {
+                error("write blocked\n");
+                return;
+            } else {
+                error("failed to write to client (errno: %d) %s\n", errno,
+                      strerror(errno));
+                return;
+            }
         }
-
-        found =
-            vec_find(server->clients, NULL, find_master_in_vec, &master_client);
-        if (found == -1) {
-            server_destroy(server);
-            de_free(de);
-            LOG(LOG_ERROR "could not find master in client vector. Server is "
-                          "shutting down\n");
-            return -1;
-        }
-
-        add_event_res = de_add_event(de, master_client->fd, DE_WRITE,
-                                     write_to_client, server);
-        if ((add_event_res == 1) || (add_event_res == 2)) {
-            de_free(de);
-            server_destroy(server);
-            return -1;
-        }
-
-        add_event_res = de_add_event(de, master_client->fd, DE_READ,
-                                     read_from_master, server);
-        if ((add_event_res == 1) || (add_event_res == 2)) {
-            de_free(de);
-            server_destroy(server);
-            return -1;
-        }
+        bytes_sent += amt_sent;
     }
 
-    add_event_res = de_add_event(de, sfd, DE_READ, server_accept, server);
+    ev_delete_event(ev, fd, EV_WRITE);
+    builder_reset(&(c->builder));
+}
 
-    if ((add_event_res == 1) || (add_event_res == 2)) {
-        free(de);
-        server_destroy(server);
+static result(client_ptr) create_client(int fd, uint32_t addr, uint16_t port) {
+    result(client_ptr) res = {0};
+    client* c;
+    c = calloc(1, sizeof *c);
+    if (c == NULL) {
+        res.type = Err;
+        res.data.err = vstr_from("failed to allocate memory for client");
+        return res;
+    }
+    c->fd = fd;
+    c->time_connected = get_time();
+    c->addr = addr;
+    c->port = port;
+    c->read_buf = calloc(CLIENT_READ_BUF_CAP, sizeof(uint8_t));
+    if (c->read_buf == NULL) {
+        free(c);
+        res.type = Err;
+        res.data.err =
+            vstr_from("failed to allocate memory for client read buf");
+        return res;
+    }
+    c->read_cap = CLIENT_READ_BUF_CAP;
+    c->read_pos = 0;
+    c->builder = builder_new();
+    res.type = Ok;
+    res.data.ok = c;
+    return res;
+}
+
+static void execute_cmd(server* s, client* c) {
+    cmd cmd = parse(c->read_buf, c->read_pos);
+    if (cmd.type == Illegal) {
+        builder_add_err(&(c->builder), err_invalid_command.str,
+                        err_invalid_command.str_len);
+        return;
+    }
+    if (!(c->flags & AUTHENTICATED) && cmd.type != Auth) {
+        cmd_free(&cmd);
+        builder_add_err(&c->builder, err_unauthed.str, err_unauthed.str_len);
+        return;
+    }
+    switch (cmd.type) {
+    case Okc:
+        break;
+    case Ping:
+        builder_add_pong(&(c->builder));
+        s->cmd_executed++;
+        break;
+    case Auth: {
+        auth_cmd auth = cmd.data.auth;
+        int auth_res = execute_auth_command(s, c, &auth);
+        if (auth_res != 0) {
+            builder_add_err(&c->builder, "failed to authenticate", 22);
+            break;
+        }
+        builder_add_ok(&c->builder);
+    } break;
+    case Infoc: {
+        vstr time_secs;
+        struct timespec cur_time;
+        uint64_t uptime_secs;
+        builder_add_ht(&c->builder, 11);
+
+        builder_add_string(&c->builder, "process id", 10);
+        builder_add_int(&c->builder, s->pid);
+
+        builder_add_string(&c->builder, "executable", 10);
+        builder_add_string(&c->builder, s->executable_path,
+                           strlen(s->executable_path));
+
+        builder_add_string(&c->builder, "config file", 11);
+        builder_add_string(&c->builder, vstr_data(&s->conf_file_path),
+                           vstr_len(&s->conf_file_path));
+
+        builder_add_string(&c->builder, "OS", 2);
+        builder_add_string(&c->builder, vstr_data(&s->os_name),
+                           vstr_len(&s->os_name));
+
+        builder_add_string(&c->builder, "multiplexing api", 16);
+        builder_add_string(&c->builder, ev_api_name(), strlen(ev_api_name()));
+
+        builder_add_string(&c->builder, "host", 4);
+        builder_add_string(&c->builder, vstr_data(&s->addr),
+                           vstr_len(&s->addr));
+
+        builder_add_string(&c->builder, "port", 4);
+        builder_add_int(&c->builder, s->port);
+
+        builder_add_string(&c->builder, "commands processes", 18);
+        builder_add_int(&c->builder, s->cmd_executed);
+
+        builder_add_string(&c->builder, "num connections", 15);
+        builder_add_int(&c->builder, s->clients->len);
+
+        builder_add_string(&c->builder, "num databases", 13);
+        builder_add_int(&c->builder, s->num_databases);
+
+        cur_time = get_time();
+        uptime_secs = cur_time.tv_sec - s->start_time.tv_sec;
+        time_secs = vstr_format("%lu secs", uptime_secs);
+        builder_add_string(&c->builder, "uptime", 6);
+        builder_add_string(&c->builder, vstr_data(&time_secs),
+                           vstr_len(&time_secs));
+        vstr_free(&time_secs);
+
+        s->cmd_executed++;
+    } break;
+    case Select: {
+        int64_t db_num = cmd.data.select.value.data.num;
+        if (db_num >= s->num_databases) {
+            builder_add_err(&c->builder, err_dbrange.str, err_dbrange.str_len);
+        } else {
+            c->database_num = db_num;
+            builder_add_ok(&c->builder);
+        }
+        break;
+    } break;
+    case Keys: {
+        size_t len = s->db[c->database_num].dict.num_entries;
+        ht_iter iter;
+
+        if (len == 0) {
+            builder_add_none(&c->builder);
+            s->cmd_executed++;
+            break;
+        }
+        iter = ht_iter_new(&s->db->dict);
+        builder_add_array(&c->builder, len);
+        while (iter.cur) {
+            ht_entry* cur = iter.cur;
+            const object* key = ht_entry_get_key(cur);
+            builder_add_object(&c->builder, key);
+            ht_iter_next(&iter);
+        }
+        s->cmd_executed++;
+    } break;
+    case Set: {
+        ht_result set_res =
+            execute_set_command(s, &(cmd.data.set), c->database_num);
+        if (set_res != HT_OK) {
+            builder_add_err(&(c->builder), err_oom.str, err_oom.str_len);
+            break;
+        }
+        builder_add_ok(&(c->builder));
+        s->cmd_executed++;
+    } break;
+    case Get: {
+        object* obj = execute_get_command(s, &(cmd.data.get), c->database_num);
+        if (obj == NULL) {
+            builder_add_none(&(c->builder));
+            break;
+        }
+        builder_add_object(&(c->builder), obj);
+        s->cmd_executed++;
+    } break;
+    case Del: {
+        int del_res = execute_del_command(s, &(cmd.data.del), c->database_num);
+        if (del_res != HT_OK) {
+            builder_add_err(&(c->builder), err_invalid_key.str,
+                            err_invalid_key.str_len);
+            break;
+        }
+        builder_add_ok(&(c->builder));
+        s->cmd_executed++;
+    } break;
+    case Push: {
+        int push_res =
+            execute_push_command(s, &(cmd.data.push), c->database_num);
+        if (push_res == -1) {
+            builder_add_err(&(c->builder), "unable to push", 14);
+            break;
+        }
+        builder_add_ok(&(c->builder));
+        s->cmd_executed++;
+    } break;
+    case Pop: {
+        result(object) ro = execute_pop_command(s, c->database_num);
+        object obj;
+        if (ro.type == Err) {
+            builder_add_none(&(c->builder));
+            break;
+        }
+        obj = ro.data.ok;
+        builder_add_object(&(c->builder), &obj);
+        object_free(&obj);
+        s->cmd_executed++;
+    } break;
+    case Enque: {
+        int res = execute_enque_command(s, &cmd.data.enque, c->database_num);
+        if (res == -1) {
+            builder_add_err(&c->builder, "failed to enque data", 20);
+            break;
+        }
+        builder_add_ok(&c->builder);
+        s->cmd_executed++;
+    } break;
+    case Deque: {
+        result(object) ro = execute_deque_command(s, c->database_num);
+        object obj;
+        if (ro.type == Err) {
+            builder_add_none(&c->builder);
+            break;
+        }
+        obj = ro.data.ok;
+        builder_add_object(&c->builder, &obj);
+        object_free(&obj);
+        s->cmd_executed++;
+    } break;
+    case ZSet: {
+        set_result res =
+            execute_zset_command(s, &cmd.data.zset, c->database_num);
+        if (res != SET_OK) {
+            if (res == SET_OOM) {
+                builder_add_err(&c->builder, err_oom.str, err_oom.str_len);
+                break;
+            }
+        }
+        builder_add_ok(&c->builder);
+        s->cmd_executed++;
+    } break;
+    case ZHas: {
+        bool res = execute_zhas_command(s, &cmd.data.zhas, c->database_num);
+        if (res == false) {
+            builder_add_none(&c->builder);
+            break;
+        }
+        builder_add_int(&c->builder, 1);
+        s->cmd_executed++;
+    } break;
+    case ZDel: {
+        set_result res =
+            execute_zdel_command(s, &cmd.data.zdel, c->database_num);
+        if (res != SET_OK) {
+            builder_add_err(&c->builder, err_invalid_key.str,
+                            err_invalid_key.str_len);
+            break;
+        }
+        builder_add_ok(&c->builder);
+        s->cmd_executed++;
+    } break;
+    default:
+        builder_add_err(&(c->builder), err_invalid_command.str,
+                        err_invalid_command.str_len);
+        break;
+    }
+}
+
+static int execute_auth_command(server* s, client* client, auth_cmd* auth) {
+    user user = {0};
+    vstr username;
+    vstr password;
+    vstr hashed_password;
+    ssize_t found;
+    int cmp;
+    object username_obj = auth->username;
+    object password_obj = auth->password;
+    if (username_obj.type != String) {
+        object_free(&auth->username);
+        object_free(&auth->password);
+        return -1;
+    }
+    if (password_obj.type != String) {
+        object_free(&auth->username);
+        object_free(&auth->password);
         return -1;
     }
 
-    if (server->loglevel >= LL_INFO) {
-        LOG(LOG_INFO "server listening on %s:%u\n", addr_str, port);
+    username = username_obj.data.string;
+    password = password_obj.data.string;
+    found = vec_find(s->users, &username, &user, user_compare_by_username);
+    if (found == -1) {
+        vstr_free(&username);
+        vstr_free(&password);
+        return -1;
     }
 
-    de_await(de);
+    hashed_password = hash_password(vstr_data(&password), vstr_len(&password));
 
-    if (server->loglevel >= LL_INFO) {
-        LOG(LOG_INFO "server shutting down\n");
+    cmp = time_safe_compare(vstr_data(&hashed_password),
+                            vstr_data(&user.password),
+                            vstr_len(&hashed_password));
+
+    if (cmp == 0) {
+        client->user = user;
+        client->flags |= AUTHENTICATED;
     }
 
-    server_destroy(server);
-    de_free(de);
+    vstr_free(&hashed_password);
+    vstr_free(&username);
+    vstr_free(&password);
+    return cmp;
+}
 
+static ht_result execute_set_command(server* s, set_cmd* set,
+                                     size_t database_num) {
+    object key = set->key;
+    object value = set->value;
+    ht_result res = ht_insert(&(s->db[database_num].dict), &key, sizeof(object),
+                              &value, server_free_object, server_free_object);
+    return res;
+}
+
+static object* execute_get_command(server* s, get_cmd* get,
+                                   size_t database_num) {
+    object key = get->key;
+    object* res = ht_get(&(s->db[database_num].dict), &key, sizeof(object));
+    object_free(&key);
+    return res;
+}
+
+static ht_result execute_del_command(server* s, del_cmd* del,
+                                     size_t database_num) {
+    object key = del->key;
+    ht_result res = ht_delete(&(s->db[database_num].dict), &key, sizeof(object),
+                              server_free_object, server_free_object);
+    object_free(&key);
+    return res;
+}
+
+static int execute_push_command(server* s, push_cmd* push,
+                                size_t database_num) {
+    object value = push->value;
+    int res = vec_push(&(s->db[database_num].vec), &value);
+    return res;
+}
+
+static result(object) execute_pop_command(server* s, size_t database_num) {
+    result(object) ro = {0};
+    object out;
+    int pop_res = vec_pop(s->db[database_num].vec, &out);
+    if (pop_res == -1) {
+        ro.type = Err;
+        return ro;
+    }
+    ro.type = Ok;
+    ro.data.ok = out;
+    return ro;
+}
+
+static int execute_enque_command(server* s, enque_cmd* enque,
+                                 size_t database_num) {
+    object to_enque = enque->value;
+    return queue_enque(&s->db[database_num].queue, &to_enque);
+}
+
+static result(object) execute_deque_command(server* s, size_t database_num) {
+    result(object) ro = {0};
+    object obj;
+    int deque_res = queue_deque(&s->db[database_num].queue, &obj);
+    if (deque_res == -1) {
+        ro.type = Err;
+        return ro;
+    }
+    ro.type = Ok;
+    ro.data.ok = obj;
+    return ro;
+}
+
+static set_result execute_zset_command(server* s, zset_cmd* zset,
+                                       size_t database_num) {
+    return set_insert(&s->db[database_num].set, &zset->value,
+                      server_free_object);
+}
+
+static bool execute_zhas_command(server* s, zhas_cmd* zhas,
+                                 size_t database_num) {
+    bool res = set_has(&s->db[database_num].set, &zhas->value);
+    object_free(&zhas->value);
+    return res;
+}
+
+static set_result execute_zdel_command(server* s, zdel_cmd* zdel,
+                                       size_t databases_num) {
+    set_result res =
+        set_delete(&s->db[databases_num].set, &zdel->value, server_free_object);
+    object_free(&zdel->value);
+    return res;
+}
+
+static result(log_level) determine_loglevel(vstr* loglevel_s) {
+    result(log_level) res = {0};
+    size_t i, len = sizeof log_level_lookups / sizeof log_level_lookups[0];
+    const char* s = vstr_data(loglevel_s);
+    size_t s_len = vstr_len(loglevel_s);
+    for (i = 0; i < len; ++i) {
+        log_level_lookup lll = log_level_lookups[i];
+        size_t lookup_len = strlen(lll.str);
+        if (lookup_len != s_len) {
+            continue;
+        }
+        if (strncmp(s, lll.str, s_len) == 0) {
+            res.type = Ok;
+            res.data.ok = lll.ll;
+            return res;
+        }
+    }
+    res.type = Err;
+    res.data.err = vstr_from("invalid log level");
+    return res;
+}
+
+static int realloc_client_read_buf(client* c) {
+    void* tmp;
+    size_t new_cap = c->read_cap << 1;
+    tmp = realloc(c->read_buf, new_cap);
+    if (tmp == NULL) {
+        return -1;
+    }
+    c->read_buf = tmp;
+    memset(c->read_buf + c->read_pos, 0, new_cap - c->read_pos);
+    c->read_cap = new_cap;
     return 0;
+}
+
+static void cmd_free(cmd* cmd) {
+    switch (cmd->type) {
+    case Illegal:
+        break;
+    case Okc:
+        break;
+    case Help:
+        break;
+    case Auth:
+        object_free(&cmd->data.auth.username);
+        object_free(&cmd->data.auth.password);
+        break;
+    case Ping:
+        break;
+    case Infoc:
+        break;
+    case Keys:
+        break;
+    case Set:
+        object_free(&cmd->data.set.key);
+        object_free(&cmd->data.set.value);
+        break;
+    case Get:
+        object_free(&cmd->data.get.key);
+        break;
+    case Del:
+        object_free(&cmd->data.del.key);
+        break;
+    case Push:
+        object_free(&cmd->data.push.value);
+        break;
+    case Pop:
+        break;
+    case Enque:
+        object_free(&cmd->data.enque.value);
+        break;
+    case Deque:
+        break;
+    case ZSet:
+        object_free(&cmd->data.zset.value);
+        break;
+    case ZHas:
+        object_free(&cmd->data.zhas.value);
+        break;
+    case ZDel:
+        object_free(&cmd->data.zdel.value);
+        break;
+    case Select:
+        object_free(&cmd->data.select.value);
+        break;
+    }
+}
+
+static int server_compare_objects(void* a, void* b) {
+    object* ao = a;
+    object* bo = b;
+    return object_cmp(ao, bo);
+}
+
+static int client_compare(void* fdp, void* clientp) {
+    int fd = *((int*)fdp);
+    client* c = *((client**)clientp);
+    return fd - c->fd;
+}
+
+static int user_compare(void* a, void* b) {
+    user* ua = a;
+    user* ub = b;
+    return vstr_cmp(&ua->name, &ub->name);
+}
+
+static int user_compare_by_username(void* a, void* b) {
+    vstr* username = a;
+    user* user = b;
+    return vstr_cmp(username, &user->name);
+}
+
+static void server_free_object(void* ptr) {
+    object* o = ptr;
+    object_free(o);
+}
+
+static void client_free(client* client) {
+    close(client->fd);
+    builder_free(&(client->builder));
+    free(client->read_buf);
+    free(client);
+}
+
+static void client_in_vec_free(void* ptr) {
+    client* c = *((client**)ptr);
+    client_free(c);
+}
+
+static void user_in_vec_free(void* ptr) {
+    user* u = ptr;
+    vstr_free(&u->name);
+    vstr_free(&u->password);
 }

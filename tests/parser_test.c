@@ -1,501 +1,452 @@
 #include "../src/builder.h"
 #include "../src/cmd.h"
-#include "../src/lexer.h"
+#include "../src/object.h"
 #include "../src/parser.h"
-#include "../src/token.h"
-#include <assert.h>
 #include <check.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void assert_array_len(Statement* stmt, size_t len) {
-    ck_assert_uint_eq(stmt->type, SARR);
-    ck_assert_uint_eq(stmt->statement.arr.len, len);
-}
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    cmd exp;
+} array_cmd_test;
 
-void assert_bulk(Statement* stmt, char* exp, size_t len) {
-    ck_assert_uint_eq(stmt->type, SBULK);
-    ck_assert_mem_eq(stmt->statement.bulk.str, exp, len);
-}
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    cmd exp;
+} simple_cmd_test;
 
-static void assert_replication_ht(Cmd* cmd) {
-    size_t i, len;
-    ck_assert_uint_eq(cmd->type, HT);
-    ck_assert_uint_eq(cmd->expression.multi.len, 3);
-    len = cmd->expression.multi.len;
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    const char* exp_string;
+} string_from_server_test;
+
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    double exp;
+} double_test;
+
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+    cmd exp;
+} help_cmd_test;
+
+typedef struct {
+    const char* input;
+    int exp;
+} bool_test;
+
+#define test_object_eq(exp, got)                                               \
+    do {                                                                       \
+        int cmp = object_cmp(&exp, &got);                                      \
+        ck_assert_int_eq(cmp, 0);                                              \
+    } while (0)
+
+#define test_set_cmd(exp, cmd)                                                 \
+    do {                                                                       \
+        ck_assert(cmd.type == Set);                                            \
+        test_object_eq(exp.data.set.key, cmd.data.set.key);                    \
+        test_object_eq(exp.data.set.value, cmd.data.set.value);                \
+    } while (0)
+
+#define test_get_cmd(exp, cmd)                                                 \
+    do {                                                                       \
+        ck_assert(cmd.type == Get);                                            \
+        test_object_eq(exp.data.get.key, cmd.data.get.key);                    \
+    } while (0)
+
+#define test_del_cmd(exp, cmd)                                                 \
+    do {                                                                       \
+        ck_assert(cmd.type == Del);                                            \
+        test_object_eq(exp.data.get.key, cmd.data.get.key);                    \
+    } while (0)
+
+#define test_ping_cmd(cmd)                                                     \
+    do {                                                                       \
+        ck_assert(cmd.type == Ping);                                           \
+    } while (0)
+
+#define test_cmd(exp, cmd)                                                     \
+    do {                                                                       \
+        switch (exp.type) {                                                    \
+        case Okc:                                                              \
+            ck_assert(cmd.type == Okc);                                        \
+            break;                                                             \
+        case Set:                                                              \
+            test_set_cmd(exp, cmd);                                            \
+            break;                                                             \
+        case Get:                                                              \
+            test_get_cmd(exp, cmd);                                            \
+            break;                                                             \
+        case Del:                                                              \
+            test_del_cmd(exp, cmd);                                            \
+            break;                                                             \
+        case Ping:                                                             \
+            test_ping_cmd(cmd);                                                \
+            break;                                                             \
+        default:                                                               \
+            ck_assert(0 && "invalid cmd");                                     \
+        }                                                                      \
+    } while (0)
+
+#define arr_size(arr) sizeof arr / sizeof arr[0]
+
+START_TEST(test_array_cmd) {
+    vstr k1 = vstr_from("foo");
+    vstr v1 = vstr_from("bar");
+    vstr k2 = vstr_from("foo123");
+    vstr k3 = vstr_from("foo1234567");
+    vstr k4 = vstr_from("foo\r\n");
+    array_cmd_test tests[] = {
+        {
+            (const uint8_t*)"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n",
+            strlen("*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"),
+            {
+                Set,
+                {
+                    object_new(String, &k1),
+                    object_new(String, &v1),
+                },
+            },
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n",
+            strlen("*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n"),
+            {
+                Get,
+                {
+                    object_new(String, &k1),
+                },
+            },
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nDEL\r\n$3\r\nfoo\r\n",
+            strlen("*2\r\n$3\r\nDEL\r\n$3\r\nfoo\r\n"),
+            {
+                Del,
+                {
+                    object_new(String, &k1),
+                },
+            },
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nGET\r\n$6\r\nfoo123\r\n",
+            strlen("*2\r\n$3\r\nGET\r\n$6\r\nfoo123\r\n"),
+            {
+                Get,
+                {
+                    object_new(String, &k2),
+                },
+            },
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nGET\r\n$10\r\nfoo1234567\r\n",
+            strlen("*2\r\n$3\r\nGET\r\n$10\r\nfoo1234567\r\n"),
+            {
+                Get,
+                {
+                    object_new(String, &k3),
+                },
+            },
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nGET\r\n$5\r\nfoo\r\n\r\n",
+            strlen("*2\r\n$3\r\nGET\r\n$5\r\nfoo\r\n\r\n"),
+            {
+                Get,
+                {
+                    object_new(String, &k4),
+                },
+            },
+        },
+    };
+
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        array_cmd_test t = tests[i];
+        cmd c = parse(t.input, t.input_len);
+        test_cmd(t.exp, c);
+    }
+}
+END_TEST
+
+START_TEST(test_simple_string_cmd) {
+    simple_cmd_test tests[] = {
+        {
+            (const uint8_t*)"+PING\r\n",
+            strlen("+PING\r\n"),
+            {Ping},
+        },
+        {
+            (const uint8_t*)"+OK\r\n",
+            strlen("+OK\r\n"),
+            {Okc},
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        simple_cmd_test t = tests[i];
+        cmd cmd = parse(t.input, t.input_len);
+        test_cmd(t.exp, cmd);
+    }
+}
+END_TEST
+
+START_TEST(test_parse_string_from_server) {
+    string_from_server_test tests[] = {
+        {
+            (const uint8_t*)"$3\r\nfoo\r\n",
+            strlen("$3\r\nfoo\r\n"),
+            "foo",
+        },
+        {
+            (const uint8_t*)"+PONG\r\n",
+            strlen("+PONG\r\n"),
+            "PONG",
+        },
+        {
+            (const uint8_t*)"+OK\r\n",
+            strlen("+OK\r\n"),
+            "OK",
+        },
+        {
+            (const uint8_t*)"$5\r\nfoo\r\n\r\n",
+            strlen("$3\r\nfoo\r\n\r\n"),
+            "foo\r\n",
+        },
+    };
+    size_t i, len = arr_size(tests);
 
     for (i = 0; i < len; ++i) {
-        Cmd cur = cmd->expression.multi.commands[i];
-        ck_assert_uint_eq(cur.type, SET);
+        string_from_server_test t = tests[i];
+        object obj = parse_from_server(t.input, t.input_len);
+        ck_assert(obj.type == String);
+        vstr d = obj.data.string;
+        ck_assert_str_eq(t.exp_string, vstr_data(&d));
+    }
+}
+END_TEST
+
+START_TEST(test_parse_int_from_server) {
+    int64_t tests[] = {
+        1337,
+        -1337,
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        int64_t t = tests[i];
+        builder b = builder_new();
+        const uint8_t* out;
+        size_t out_len;
+        object parsed;
+        int64_t got;
+        builder_add_int(&b, t);
+
+        out = builder_out(&b);
+        out_len = builder_len(&b);
+        parsed = parse_from_server(out, out_len);
+        ck_assert(parsed.type == Int);
+
+        got = parsed.data.num;
+        ck_assert_int_eq(got, t);
+    }
+}
+END_TEST
+
+START_TEST(test_parse_array) {
+    uint8_t* input = (uint8_t*)"*2\r\n*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n*2\r\n$"
+                               "3\r\nbaz\r\n$6\r\nfoobar\r\n";
+    size_t len = strlen((char*)input);
+    object parsed = parse_from_server(input, len);
+    vec *arr, *a0_vec, *a1_vec;
+    object *a0, *a1, *a01, *a02, *a11, *a12;
+    ck_assert(parsed.type == Array);
+    arr = parsed.data.vec;
+    ck_assert_uint_eq(arr->len, 2);
+
+    a0 = vec_get_at(arr, 0);
+    ck_assert(a0->type == Array);
+    a0_vec = a0->data.vec;
+    ck_assert_uint_eq(a0_vec->len, 2);
+    a01 = vec_get_at(a0_vec, 0);
+    ck_assert(a01->type == String);
+    ck_assert_str_eq(vstr_data(&a01->data.string), "foo");
+    a02 = vec_get_at(a0_vec, 1);
+    ck_assert(a02->type == String);
+    ck_assert_str_eq(vstr_data(&a02->data.string), "bar");
+
+    a1 = vec_get_at(arr, 1);
+    ck_assert(a1->type == Array);
+    a1_vec = a1->data.vec;
+    ck_assert_uint_eq(a1_vec->len, 2);
+    a11 = vec_get_at(a1_vec, 0);
+    ck_assert(a11->type == String);
+    ck_assert_str_eq(vstr_data(&a11->data.string), "baz");
+    a12 = vec_get_at(a1_vec, 1);
+    ck_assert(a12->type == String);
+    ck_assert_str_eq(vstr_data(&a12->data.string), "foobar");
+
+    object_free(&parsed);
+}
+END_TEST
+
+START_TEST(test_parse_double) {
+    double_test tests[] = {
+        {
+            (const uint8_t*)",123.123\r\n",
+            strlen(",123.123\r\n"),
+            123.123,
+        },
+        {
+            (const uint8_t*)",123e10\r\n",
+            strlen(",123e10\r\n"),
+            1230000000000,
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        double_test t = tests[i];
+        object parsed = parse_from_server(t.input, t.input_len);
+        ck_assert_uint_eq(parsed.type, Double);
+        ck_assert_double_eq(parsed.data.dbl, t.exp);
+    }
+}
+END_TEST
+
+START_TEST(test_parse_help_cmd) {
+    help_cmd_test tests[] = {
+        {(const uint8_t*)"*2\r\n$4\r\nHELP\r\n$3\r\nSET\r\n",
+         strlen("*2\r\n$4\r\nHELP\r\n$3\r\nSET\r\n"),
+         {
+             Help,
+             {
+                 1,
+                 Set,
+             },
+         }},
+        {(const uint8_t*)"$4\r\nHELP\r\n",
+         strlen("$4\r\nHELP\r\n"),
+         {
+             Help,
+             {0},
+         }},
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        help_cmd_test t = tests[i];
+        cmd parsed = parse(t.input, t.input_len);
+        cmd exp = t.exp;
+        ck_assert_int_eq(parsed.type, exp.type);
+        ck_assert_int_eq(parsed.data.help.wants_cmd_help,
+                         exp.data.help.wants_cmd_help);
+        if (exp.data.help.wants_cmd_help) {
+            ck_assert_int_eq(parsed.data.help.wants_cmd_help,
+                             exp.data.help.wants_cmd_help);
+        }
     }
 }
 
-static void assert_replication_stack(Cmd* cmd) {
-    size_t i, len;
-    ck_assert_uint_eq(cmd->type, STACK);
-    ck_assert_uint_eq(cmd->expression.multi.len, 2);
-    len = cmd->expression.multi.len;
+START_TEST(test_parse_ht) {
+    const uint8_t* input = (const uint8_t*)"\
+%3\r\n\
+$3\r\nfoo\r\n$3\r\nbar\r\n\
+$3\r\nbar\r\n$3\r\nfoo\r\n\
+$6\r\nfoobar\r\n$6\r\nbarbaz\r\n\
+";
+    size_t input_len = 64;
+    object parsed = parse_from_server(input, input_len);
+    object k1, k2, k3, v1exp, v2exp, v3exp;
+    vstr k1s, k2s, k3s, v1sexp, v2sexp, v3sexp;
+    object *v1, *v2, *v3;
+    ht ht;
+    ck_assert_int_eq(parsed.type, Ht);
 
+    ht = parsed.data.ht;
+
+    ck_assert_uint_eq(ht.num_entries, 3);
+    k1s = vstr_from("foo");
+    k1 = object_new(String, &k1s);
+    k2s = vstr_from("bar");
+    k2 = object_new(String, &k2s);
+    k3s = vstr_from("foobar");
+    k3 = object_new(String, &k3s);
+
+    v1sexp = vstr_from("bar");
+    v1exp = object_new(String, &v1sexp);
+    v2sexp = vstr_from("foo");
+    v2exp = object_new(String, &v2sexp);
+    v3sexp = vstr_from("barbaz");
+    v3exp = object_new(String, &v3sexp);
+
+    v1 = ht_get(&ht, &k1, sizeof(object));
+    ck_assert_ptr_nonnull(v1);
+    ck_assert_int_eq(object_cmp(&v1exp, v1), 0);
+
+    v2 = ht_get(&ht, &k2, sizeof(object));
+    ck_assert_ptr_nonnull(v2);
+    ck_assert_int_eq(object_cmp(&v2exp, v2), 0);
+
+    v3 = ht_get(&ht, &k3, sizeof(object));
+    ck_assert_ptr_nonnull(v3);
+    ck_assert_int_eq(object_cmp(&v3exp, v3), 0);
+
+    object_free(&parsed);
+}
+
+START_TEST(test_parse_booleans) {
+    bool_test tests[] = {
+        {
+            "#t\r\n",
+            1,
+        },
+        {
+            "#f\r\n",
+            0,
+        },
+    };
+    size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
-        Cmd cur = cmd->expression.multi.commands[i];
-        ck_assert_uint_eq(cur.type, PUSH);
+        bool_test t = tests[i];
+        object parsed = parse_from_server((const uint8_t*)t.input, strlen(t.input));
+        ck_assert_int_eq(parsed.type, Bool);
+        ck_assert_int_eq(parsed.data.boolean, t.exp);
     }
 }
-
-static void assert_replication_queue(Cmd* cmd) {
-    size_t i, len;
-    ck_assert_uint_eq(cmd->type, QUEUE);
-    ck_assert_uint_eq(cmd->expression.multi.len, 1);
-    len = cmd->expression.multi.len;
-
-    for (i = 0; i < len; ++i) {
-        Cmd cur = cmd->expression.multi.commands[i];
-        ck_assert_uint_eq(cur.type, ENQUE);
-    }
-}
-
-static void assert_replication_cluster(Cmd* cmd) {
-    size_t i, len;
-    ck_assert_uint_eq(cmd->type, CLUSTER);
-    ck_assert_uint_eq(cmd->expression.multi.len, 2);
-
-    len = cmd->expression.multi.len;
-
-    for (i = 0; i < len; ++i) {
-        Cmd cur = cmd->expression.multi.commands[i];
-        ck_assert_uint_eq(cur.type, MULTI_CMD);
-        ck_assert_uint_eq(cur.expression.multi.len, 2);
-    }
-}
-
-void create_replication_buf(Builder* b) {
-    builder_add_arr(b, 2);
-    builder_add_string(b, "REPLICATION", 11);
-    builder_add_arr(b, 4);
-
-    builder_add_arr(b, 2);
-    builder_add_string(b, "HT", 2);
-    builder_add_arr(b, 3);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "vince", 5);
-    builder_add_string(b, "is cool", 7);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "vince1", 6);
-    builder_add_string(b, "is cool", 7);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "vince2", 6);
-    builder_add_string(b, "is cool", 7);
-
-    builder_add_arr(b, 2);
-    builder_add_string(b, "STACK", 5);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "foo", 3);
-    builder_add_string(b, "bar", 3);
-
-    builder_add_arr(b, 2);
-    builder_add_string(b, "QUEUE", 5);
-    builder_add_arr(b, 1);
-    builder_add_string(b, "baz", 3);
-
-    builder_add_arr(b, 2);
-    builder_add_string(b, "CLUSTER", 7);
-
-    builder_add_arr(b, 2);
-
-    builder_add_arr(b, 3);
-    builder_add_string(b, "fam", 3);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "HT", 2);
-    builder_add_arr(b, 1);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "vince", 5);
-    builder_add_string(b, "is cool", 7);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "STACK", 5);
-    builder_add_arr(b, 0);
-
-    builder_add_arr(b, 3);
-    builder_add_string(b, "fam1", 4);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "HT", 2);
-    builder_add_arr(b, 0);
-    builder_add_arr(b, 2);
-    builder_add_string(b, "STACK", 5);
-    builder_add_arr(b, 1);
-    builder_add_string(b, "foobar", 6);
-}
-
-START_TEST(test_it_works) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    ArrayStatement astmt;
-
-    uint8_t* input =
-        ((uint8_t*)"*2\r\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
-                   "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    assert(cmd_ir.stmt.type == SARR);
-
-    astmt = cmd_ir.stmt.statement.arr;
-    assert(astmt.len == 2);
-
-    Statement stmt0 = astmt.statements[0];
-    Cmd cmd0 = cmd_from_statement(&stmt0);
-    ck_assert(cmd0.type == SET);
-    ck_assert(cmd0.expression.set.key.len == 5);
-    ck_assert(cmd0.expression.set.value.size == 7);
-
-    Statement stmt1 = astmt.statements[1];
-    Cmd cmd1 = cmd_from_statement(&stmt1);
-    ck_assert(cmd1.type == GET);
-    ck_assert(cmd0.expression.get.key.len == 5);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
 END_TEST
 
-START_TEST(test_simple_string) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    size_t e_len;
-
-    uint8_t* input =
-        ((uint8_t*)"*2\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
-                   "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    e_len = parser_errors_len(&p);
-
-    ck_assert(e_len == 1);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_integers) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    size_t e_len;
-
-    uint8_t* input =
-        ((uint8_t*)"*2\r*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
-                   "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    e_len = parser_errors_len(&p);
-
-    ck_assert(e_len == 1);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_missing_arr_len) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    size_t e_len;
-
-    uint8_t* input =
-        ((uint8_t*)"*\r\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
-                   "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    e_len = parser_errors_len(&p);
-
-    ck_assert(e_len == 1);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_missing_arr_type) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    size_t e_len;
-
-    uint8_t* input =
-        ((uint8_t*)"3\r\n*3\r\n$3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis "
-                   "cool\r\n*2\r\n$3\r\nGET\r\n$5\r\nvince\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    e_len = parser_errors_len(&p);
-
-    ck_assert(e_len == 1);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_simple_ping) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    Cmd cmd;
-
-    uint8_t* input = ((uint8_t*)"+PING\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    ck_assert(cmd_ir.stmt.type == SPING);
-    ck_assert(cmd_ir.stmt.statement.sst == SST_PING);
-
-    cmd = cmd_from_statement(&(cmd_ir.stmt));
-    ck_assert(cmd.type == CPING);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_missing_str_type) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    size_t e_len;
-
-    uint8_t* input =
-        ((uint8_t*)"*3\r\n3\r\nSET\r\n$5\r\nvince\r\n$7\r\nis cool\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    e_len = parser_errors_len(&p);
-
-    ck_assert(e_len > 0); // e_len should equal 3 for some reason
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_missing_str_len) {
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    size_t e_len;
-
-    uint8_t* input =
-        ((uint8_t*)"*3\r\n$\r\nSET\r\n$5\r\nvince\r\n$7\r\nis cool\r\n");
-    size_t inp_len = strlen(((char*)input));
-
-    parser_toggle_debug(0);
-    l = lexer_new(input, inp_len);
-    p = parser_new(&l);
-
-    cmd_ir = parse_cmd(&p);
-
-    e_len = parser_errors_len(&p);
-
-    ck_assert(e_len > 0); // e_len = 3
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_integers_two) {
-    Builder b = builder_create(32);
-    size_t buf_len;
-    uint8_t* buf;
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    Cmd cmd;
-    int64_t v;
-    parser_toggle_debug(0);
-    builder_add_arr(&b, 3);
-    builder_add_string(&b, "SET", 3);
-    builder_add_string(&b, "vince", 5);
-    builder_add_int(&b, 42069);
-
-    buf_len = b.ins;
-    buf = builder_out(&b);
-
-    l = lexer_new(buf, buf_len);
-    p = parser_new(&l);
-    cmd_ir = parse_cmd(&p);
-
-    ck_assert(cmd_ir.stmt.type == SARR);
-
-    cmd = cmd_from_statement(&(cmd_ir.stmt));
-    ck_assert(cmd.expression.set.value.type == VTINT);
-    v = ((int64_t)(cmd.expression.set.value.ptr));
-    ck_assert(v == 42069);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_negative_integers) {
-    Builder b = builder_create(32);
-    size_t buf_len;
-    uint8_t* buf;
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    Cmd cmd;
-    int64_t v;
-    builder_add_arr(&b, 3);
-    builder_add_string(&b, "SET", 3);
-    builder_add_string(&b, "vince", 5);
-    builder_add_int(&b, -20);
-
-    buf_len = b.ins;
-    buf = builder_out(&b);
-
-    parser_toggle_debug(0);
-    l = lexer_new(buf, buf_len);
-    p = parser_new(&l);
-    cmd_ir = parse_cmd(&p);
-
-    ck_assert(cmd_ir.stmt.type == SARR);
-
-    cmd = cmd_from_statement(&(cmd_ir.stmt));
-    ck_assert(cmd.expression.set.value.type == VTINT);
-    v = ((int64_t)(cmd.expression.set.value.ptr));
-    ck_assert(v == -20);
-
-    cmdir_free(&cmd_ir);
-    parser_free_errors(&p);
-}
-END_TEST
-
-START_TEST(test_array_zero_len) {
-    uint8_t* input = (uint8_t*)"*0\r\n";
-    parser_toggle_debug(0);
-    Lexer l = lexer_new(input, strlen((char*)input));
-    Parser p = parser_new(&l);
-    CmdIR ir = parse_cmd(&p);
-    ck_assert_uint_eq(ir.stmt.type, SARR);
-    ck_assert_uint_eq(ir.stmt.statement.arr.len, 0);
-    cmdir_free(&ir);
-}
-END_TEST
-
-START_TEST(test_ok) {
-    uint8_t* buf = (uint8_t*)"+OK\r\n";
-    parser_toggle_debug(0);
-    Lexer l = lexer_new(buf, strlen((char*)buf));
-    Parser p = parser_new(&l);
-    CmdIR ir = parse_cmd(&p);
-    ck_assert_uint_eq(ir.stmt.type, SOK);
-    cmdir_free(&ir);
-}
-END_TEST
-
-START_TEST(test_replication_from_master) {
-    Builder b = builder_create(32);
-    Lexer l;
-    Parser p;
-    CmdIR cmd_ir;
-    Cmd cmd, ht_cmd, stack_cmd, queue_cmd, cluster_cmd;
-
-    create_replication_buf(&b);
-
-    parser_toggle_debug(0);
-    l = lexer_new(builder_out(&b), b.ins);
-    p = parser_new(&l);
-    cmd_ir = parse_cmd(&p);
-    cmd = cmd_from_statement(&(cmd_ir.stmt));
-
-    ck_assert_uint_eq(cmd.type, REPLICATION);
-    ck_assert_uint_eq(cmd.expression.multi.len, 4);
-
-    ht_cmd = cmd.expression.multi.commands[0];
-    assert_replication_ht(&ht_cmd);
-    stack_cmd = cmd.expression.multi.commands[1];
-    assert_replication_stack(&stack_cmd);
-    queue_cmd = cmd.expression.multi.commands[2];
-    assert_replication_queue(&queue_cmd);
-    cluster_cmd = cmd.expression.multi.commands[3];
-    assert_replication_cluster(&cluster_cmd);
-
-    builder_free(&b);
-    cmdir_free(&cmd_ir);
-}
-END_TEST
-
-Suite* suite() {
+Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
-    s = suite_create("parser_test");
+    s = suite_create("parser");
     tc_core = tcase_create("Core");
-    tcase_add_test(tc_core, test_it_works);
-    tcase_add_test(tc_core, test_simple_string);
-    tcase_add_test(tc_core, test_integers);
-    tcase_add_test(tc_core, test_missing_arr_len);
-    tcase_add_test(tc_core, test_missing_arr_type);
-    tcase_add_test(tc_core, test_simple_ping);
-    tcase_add_test(tc_core, test_missing_str_type);
-    tcase_add_test(tc_core, test_missing_str_len);
-    tcase_add_test(tc_core, test_integers_two);
-    tcase_add_test(tc_core, test_negative_integers);
-    tcase_add_test(tc_core, test_array_zero_len);
-    tcase_add_test(tc_core, test_ok);
-    tcase_add_test(tc_core, test_replication_from_master);
+    tcase_add_test(tc_core, test_array_cmd);
+    tcase_add_test(tc_core, test_simple_string_cmd);
+    tcase_add_test(tc_core, test_parse_string_from_server);
+    tcase_add_test(tc_core, test_parse_int_from_server);
+    tcase_add_test(tc_core, test_parse_array);
+    tcase_add_test(tc_core, test_parse_double);
+    tcase_add_test(tc_core, test_parse_help_cmd);
+    tcase_add_test(tc_core, test_parse_ht);
+    tcase_add_test(tc_core, test_parse_booleans);
     suite_add_tcase(s, tc_core);
     return s;
 }
 
-int main() {
-    int number_failed;
+int main(void) {
+    int num_failed;
     Suite* s;
     SRunner* sr;
     s = suite();
     sr = srunner_create(s);
     srunner_run_all(sr, CK_NORMAL);
-    number_failed = srunner_ntests_failed(sr);
+    num_failed = srunner_ntests_failed(sr);
     srunner_free(sr);
-    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return (num_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

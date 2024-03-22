@@ -3,123 +3,43 @@
 #define __HI_LEXI_H__
 
 #include "builder.h"
-#include "objects.h"
-#include "vec.h"
-#include "vstring.h"
-#include <stddef.h>
-#include <stdint.h>
+#include "object.h"
+#include "result.h"
+#include "vstr.h"
 
 typedef struct {
     int sfd;
     uint32_t addr;
     uint16_t port;
-    uint16_t flags; // first bit is used to check if client is connected
+    uint16_t flags;
+    builder builder;
     uint8_t* read_buf;
     size_t read_pos;
     size_t read_cap;
-    uint8_t* write_buf;
-    size_t write_pos;
-    size_t write_len;
-    Builder builder;
-} HiLexi;
+} hilexi;
 
-typedef enum {
-    HL_IO,
-    HL_NO_MEM,
-    HL_INV_DATA,
-} HiLexiErr;
+result_t(hilexi, vstr);
+result_t(object, vstr);
 
-typedef enum {
-    HL_ERR,
-    HL_ARR,
-    HL_BULK_STRING,
-    HL_SIMPLE_STRING,
-    HL_INT,
-    HL_INV,
-    HL_ERR_STR,
-} HiLexiDataType;
+result(hilexi) hilexi_new(const char* addr, uint16_t port);
+int hilexi_authenticate(hilexi* l, const char* username, const char* password);
+int hilexi_connect(hilexi* l);
 
-typedef enum {
-    HL_INVSS,
-    HL_PONG,
-    HL_NONE,
-    HL_OK,
-} HiLexiSimpleString;
+result(object) hilexi_ping(hilexi* l);
+result(object) hilexi_info(hilexi* l);
+result(object) hilexi_select(hilexi* l, size_t db_num);
+result(object) hilexi_keys(hilexi* l);
+result(object) hilexi_set(hilexi* l, object* key, object* value);
+result(object) hilexi_get(hilexi* l, object* key);
+result(object) hilexi_del(hilexi* l, object* key);
+result(object) hilexi_push(hilexi* l, object* value);
+result(object) hilexi_pop(hilexi* l);
+result(object) hilexi_enque(hilexi* l, object* value);
+result(object) hilexi_deque(hilexi* l);
+result(object) hilexi_zset(hilexi* l, object* value);
+result(object) hilexi_zhas(hilexi* l, object* value);
+result(object) hilexi_zdel(hilexi* l, object* value);
 
-typedef union {
-    HiLexiErr hl_err;
-    Vec* arr;
-    vstr string;
-    int64_t integer;
-    HiLexiSimpleString simple;
-} HiLexiDataD;
+void hilexi_close(hilexi* l);
 
-typedef struct {
-    HiLexiDataType type;
-    HiLexiDataD val;
-} HiLexiData;
-
-/* set up */
-HiLexi* hilexi_new(const char* addr, uint16_t port);
-int hilexi_connect(HiLexi* l);
-
-/* ping */
-HiLexiData hilexi_ping(HiLexi* l);
-
-/* regular */
-HiLexiData hilexi_set(HiLexi* l, const char* key, size_t key_len,
-                      const char* value, size_t val_len);
-HiLexiData hilexi_set_int(HiLexi* l, const char* key, size_t key_len,
-                          int64_t val);
-HiLexiData hilexi_get(HiLexi* l, const char* key, size_t key_len);
-HiLexiData hilexi_del(HiLexi* l, const char* key, size_t key_len);
-HiLexiData hilexi_keys(HiLexi* l);
-HiLexiData hilexi_values(HiLexi* l);
-HiLexiData hilexi_entries(HiLexi* l);
-HiLexiData hilexi_push(HiLexi* l, const char* val, size_t val_len);
-HiLexiData hilexi_push_int(HiLexi* l, int64_t val);
-HiLexiData hilexi_pop(HiLexi* l);
-HiLexiData hilexi_enque(HiLexi* l, const char* val, size_t val_len);
-HiLexiData hilexi_enque_int(HiLexi* l, int64_t val);
-HiLexiData hilexi_deque(HiLexi* l);
-
-/* clusters */
-HiLexiData hilexi_cluster_new(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len);
-HiLexiData hilexi_cluster_drop(HiLexi* l, const char* cluster_name,
-                               size_t cluster_name_len);
-HiLexiData hilexi_cluster_set(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len, const char* key,
-                              size_t key_len, const char* val, size_t val_len);
-HiLexiData hilexi_cluster_set_int(HiLexi* l, const char* cluster_name,
-                                  size_t cluster_name_len, const char* key,
-                                  size_t key_len, int64_t val);
-HiLexiData hilexi_cluster_get(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len, const char* key,
-                              size_t key_len);
-HiLexiData hilexi_cluster_del(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len, const char* key,
-                              size_t key_len);
-HiLexiData hilexi_cluster_push(HiLexi* l, const char* cluster_name,
-                               size_t cluster_name_len, const char* val,
-                               size_t val_len);
-HiLexiData hilexi_cluster_push_int(HiLexi* l, const char* cluster_name,
-                                   size_t cluster_name_len, int64_t val);
-HiLexiData hilexi_cluster_pop(HiLexi* l, const char* cluster_name,
-                              size_t cluster_name_len);
-HiLexiData hilexi_cluster_keys(HiLexi* l, const char* cluster_name,
-                               size_t cluster_name_len);
-HiLexiData hilexi_cluster_values(HiLexi* l, const char* cluster_name,
-                                 size_t cluster_name_len);
-HiLexiData hilexi_cluster_entries(HiLexi* l, const char* cluster_name,
-                                  size_t cluster_name_len);
-
-/* stats */
-HiLexiData hilexi_stats_cycles(HiLexi* l);
-
-/* teardown */
-void hilexi_disconnect(HiLexi* l);
-void hilexi_destory(HiLexi* l);
-void hilexi_data_free(HiLexiData* data);
-
-#endif
+#endif /* __HI_LEXI_H__ */

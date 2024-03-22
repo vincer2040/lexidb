@@ -2,36 +2,26 @@
 
 #define __BUILDER_H__
 
-#include <stddef.h>
-#include <stdint.h>
+#include "object.h"
+#include "vstr.h"
 
-typedef struct {
-    size_t ins;
-    size_t cap;
-    uint8_t* buf;
-} Builder;
+typedef vstr builder;
 
-#define dbgbuf(builder)                                                        \
-    {                                                                          \
-        size_t i;                                                              \
-        for (i = 0; i < builder.ins; ++i) {                                    \
-            printf("%x ", builder.buf[i]);                                     \
-        }                                                                      \
-        printf("\n");                                                          \
-    }
+builder builder_new(void);
+const uint8_t* builder_out(builder* b);
+size_t builder_len(builder* b);
+int builder_add_ok(builder* b);
+int builder_add_ping(builder* b);
+int builder_add_pong(builder* b);
+int builder_add_none(builder* b);
+int builder_add_array(builder* b, size_t arr_len);
+int builder_add_ht(builder* b, size_t len);
+int builder_add_err(builder* b, const char* str, size_t len);
+int builder_add_string(builder* b, const char* str, size_t str_len);
+int builder_add_int(builder* b, int64_t val);
+int builder_add_double(builder* b, double val);
+int builder_add_object(builder* b, const object* obj);
+void builder_reset(builder* b);
+void builder_free(builder* builder);
 
-Builder builder_create(size_t initial_cap);
-void builder_free(Builder* builder);
-int builder_add_pong(Builder* builder);
-int builder_add_ping(Builder* builder);
-int builder_add_ok(Builder* builder);
-int builder_add_none(Builder* builder);
-int builder_add_err(Builder* builder, uint8_t* e, size_t e_len);
-int builder_add_arr(Builder* builder, size_t arr_len);
-int builder_add_string(Builder* builder, char* str, size_t str_len);
-int builder_add_int(Builder* builder, int64_t val);
-uint8_t* builder_out(Builder* builder);
-void builder_reset(Builder* builder);
-int builder_copy_from(Builder* builder, uint8_t* source, size_t needed_len);
-
-#endif
+#endif /* __BUILDER_H__ */

@@ -2,77 +2,80 @@
 
 #define __SERVER_H__
 
+#define _XOPEN_SOURCE 600
 #include "builder.h"
-#include "cluster.h"
-#include "config.h"
+#include "cmd.h"
+#include "ev.h"
 #include "ht.h"
-#include "objects.h"
 #include "queue.h"
+#include "reply.h"
+#include "set.h"
 #include "vec.h"
-#include <sys/resource.h>
+#include "vstr.h"
+#include <stdint.h>
+#include <time.h>
+
+#define AUTHENTICATED (1 << 0)
 
 typedef struct {
-    Ht* ht;
-    Cluster* cluster;
-    Vec* stack;
-    Queue* queue;
-} LexiDB;
+    ht dict;
+    set set;
+    queue queue;
+    vec* vec;
+} lexidb;
+
+typedef enum {
+    None = 0,
+    Info = 1,
+    Debug = 2,
+    Verbose = 3,
+} log_level;
 
 typedef struct {
-    uint64_t seconds;
-    uint64_t microseconds;
-} CmdTime;
+    pid_t pid;                  /* the pid of the process */
+    int sfd;                    /* the socket file descriptor */
+    log_level log_level;        /* the amount to log */
+    uint16_t flags;             /* no use as of now */
+    uint16_t port;              /* the port the server is listening on*/
+    char* executable_path;      /* the path of the executable */
+    vstr os_name;               /* name of the host's operating system */
+    vstr addr;                  /* the host address as a vstr */
+    vstr conf_file_path;        /* the path of the configuration file */
+    size_t num_databases;       /* the number of databases */
+    lexidb* db;                 /* the database */
+    ev* ev;                     /* multiplexing api */
+    vec* clients;               /* vector of clients connected to the server */
+    vec* users;                 /* vector of users */
+    struct cmd_help* help_cmds; /* array to all help comand structs */
+    size_t help_cmds_len;       /* number of help cmds structs */
+    uint64_t cmd_executed; /* the number of commands the server has processed */
+    struct timespec start_time; /* the time the server started */
+} server;
 
 typedef struct {
-    uint64_t num_requests;
-    Vec* cycles;
-    Vec* times;
-} ServerStats;
+    vstr name;      /* username */
+    vstr password;  /* password - hashed */
+    uint32_t flags; /* flags for the user */
+} user;
 
 typedef struct {
-    int sfd;
-    uint32_t addr;
-    uint16_t port;
-    uint16_t flags; /* mainly for padding, no use as of now */
-    uint32_t ismaster;
-    uint32_t isslave;
-    LogLevel loglevel;
-    ServerStats stats;
-    LexiDB* db;
-    Vec* clients;
-} Server;
+    int fd;              /* file descriptor */
+    uint32_t addr;       /* address */
+    uint16_t port;       /* port */
+    uint16_t flags;      /* flags */
+    uint8_t* read_buf;   /* the buffer used in read() */
+    size_t read_pos;     /* the position in the buffer to read to */
+    size_t read_cap;     /* the allocation size of read_buf */
+    uint8_t* write_buf;  /* pointer to buffer to write to client */
+    size_t write_size;   /* the amount to write */
+    size_t database_num; /* the database this connection uses */
+    builder builder;     /* builder struct for constructing replies */
+    user user;           /* the user associated with this connection */
+    struct timespec time_connected; /* time this user connected */
+} client;
 
-typedef struct {
-    uint32_t addr;
-    uint16_t port;
-    uint16_t flags;
-    uint8_t* read_buf;
-    size_t read_pos;
-    size_t read_cap;
-    uint8_t* write_buf;
-    size_t write_size;
-} Connection;
+int server_run(int argc, char* argv[]);
+int time_safe_compare(const char* a, const char* b, size_t len);
+vstr hash_password(const char* p, size_t len);
 
-typedef struct {
-    int fd;
-    uint32_t isauthed;
-    uint32_t ismaster;
-    uint32_t isslave;
-    uint64_t cycle_start;
-    Connection* conn;
-    LexiDB* db;
-    Builder builder;
-    struct timeval time_start;
-} Client;
-
-int server(char* addr_str, uint16_t port, LogLevel loglevel, int isreplica);
-void replicate(LexiDB* db, Client* slave);
-
-uint64_t rdtsc(void);
-struct rusage get_cur_usage(void);
-struct timeval add_user_and_sys_time(struct timeval usr, struct timeval sys);
-CmdTime cmd_time(struct timeval start, struct timeval end);
-int update_stats(ServerStats* stats, CmdTime* last_time, uint64_t cycles);
-ServerStats stats_new(void);
-
-#endif
+#endif /* __SERVER_H__ */

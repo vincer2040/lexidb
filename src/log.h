@@ -1,31 +1,57 @@
-#ifndef __LOGGER_H__
+#ifndef __LOG_H__
 
-#define __LOGGER_H__
+#define __LOG_H__
 
-#include "cmd.h"
-#include <stddef.h>
-#include <stdint.h>
+#define _XOPEN_SOURCE 600
+#include "util.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
-#define LOG_INFO "INFO] "
-#define LOG_ERROR "ERROR] "
-#define LOG_CONNECTION "CONNECTION] "
-#define LOG_CLOSE "CLOSE] "
-#define LOG_MSG "MSG] "
-#define LOG_CMD "CMD] "
-
-#define LOG(...)                                                               \
-    {                                                                          \
-        time_t t = time(NULL);                                                 \
-        struct tm tm = *localtime(&t);                                         \
-        printf("[%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900,             \
-               tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);   \
+#define info(...)                                                              \
+    do {                                                                       \
+        struct timespec time = get_time();                                     \
+        struct tm* tm = localtime(&time.tv_sec);                               \
+        printf("%d-%d-%d %02d:%02d:%02d", tm->tm_mon + 1, tm->tm_mday,         \
+               tm->tm_year + 1900, tm->tm_hour, tm->tm_min, tm->tm_sec);       \
+        printf("\033[32m INFO  \033[39m");                                     \
         printf(__VA_ARGS__);                                                   \
         fflush(stdout);                                                        \
-    }
+    } while (0)
 
-void slowlog(uint8_t* buf, size_t len);
-void log_cmd(Cmd* cmd);
+#define warn(...)                                                              \
+    do {                                                                       \
+        struct timespec time = get_time();                                     \
+        struct tm* tm = localtime(&time.tv_sec);                               \
+        printf("%d-%d-%d %02d:%02d:%02d", tm->tm_mon + 1, tm->tm_mday,         \
+               tm->tm_year + 1900, tm->tm_hour, tm->tm_min, tm->tm_sec);       \
+        printf("\033[33m WARN  \033[39m");                                     \
+        printf(__VA_ARGS__);                                                   \
+        fflush(stdout);                                                        \
+    } while (0)
 
-#endif
+#define error(...)                                                             \
+    do {                                                                       \
+        struct timespec time = get_time();                                     \
+        struct tm* tm = localtime(&time.tv_sec);                               \
+        fprintf(stderr, "%d-%d-%d %02d:%02d:%02d", tm->tm_mon + 1,             \
+                tm->tm_mday, tm->tm_year + 1900, tm->tm_hour, tm->tm_min,      \
+                tm->tm_sec);                                                   \
+        fprintf(stderr, "\033[31m ERROR \033[39m");                            \
+        fprintf(stderr, __VA_ARGS__);                                          \
+        fflush(stderr);                                                        \
+    } while (0)
+
+#define debug(...)                                                             \
+    do {                                                                       \
+        struct timespec time = get_time();                                     \
+        struct tm* tm = localtime(&time.tv_sec);                               \
+        printf("%d-%d-%d %02d:%02d:%02d", tm->tm_mon + 1, tm->tm_mday,         \
+               tm->tm_year + 1900, tm->tm_hour, tm->tm_min, tm->tm_sec);       \
+        printf("\033[34m DEBUG \033[39m");                                     \
+        printf("%s:%d ", __FILE__, __LINE__);                                  \
+        printf(__VA_ARGS__);                                                   \
+        fflush(stdout);                                                        \
+    } while (0)
+
+#endif /* __LOG_H__ */

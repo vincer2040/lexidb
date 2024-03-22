@@ -48,6 +48,10 @@ class Client:
         self.s.connect((self.addr, self.port))
         return self
 
+    def auth(self):
+        self.s.send(ProtocolBuilder().add_arr(3).add_str("AUTH", 4).add_str("root", 4).add_str("root", 4).get())
+        print(self.s.recv(4096).decode())
+
     def send(self, buf):
         self.s.send(buf)
         print(self.s.recv(8192).decode())
@@ -128,6 +132,26 @@ class Client:
         self.s.send(ProtocolBuilder().add_str("POP", 3).get())
         print(self.s.recv(9182).decode())
 
+    def enque(self, v):
+        self.s.send(ProtocolBuilder().add_arr(2).add_str("ENQUE", 5).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
+    def deque(self):
+        self.s.send(ProtocolBuilder().add_str("DEQUE", 5).get())
+        print(self.s.recv(9182).decode())
+
+    def zset(self, v):
+        self.s.send(ProtocolBuilder().add_str("ZSET", 4).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
+    def zhas(self, v):
+        self.s.send(ProtocolBuilder().add_str("ZHAS", 4).add_str(v, len(v)).get())
+        print(self.s.recv(9182))
+
+    def zdel(self, v):
+        self.s.send(ProtocolBuilder().add_str("ZDEL", 4).add_str(v, len(v)).get())
+        print(self.s.recv(9182).decode())
+
     def cl(self):
         self.s.close()
 
@@ -138,38 +162,26 @@ def rand_str(N):
 
 c = Client("127.0.0.1", 6969).conn()
 
+c.auth()
+
 c.ping()
 
 c.set_str("vince", "is cool")
-for i in range(0, 50):
-    c.db_push(rand_str(20))
-    c.set_str(rand_str(20), rand_str(25))
 
-c.create_cluster("fam")
-c.set_cluster("fam", "vince", "is cool")
-c.set_cluster("fam", "dom", "is brother")
-c.set_cluster("fam", "madi", "is sister")
-c.set_cluster("fam", "frank", "is dog")
-c.set_cluster("fam", "lomein", "is kitty")
-c.set_cluster("fam", "kitty", "is cat")
+c.get("vince")
 
-c.get_cluster("fam", "vince")
+c.delete("vince")
 
-buf = ProtocolBuilder()\
-        .add_arr(2)\
-        .add_arr(3)\
-        .add_str("SET", 3)\
-        .add_str("vince", 5)\
-        .add_str("is cool", 7)\
-        .add_arr(2)\
-        .add_str("GET", 3)\
-        .add_str("vince", 5)\
-        .get()
+c.enque("vince")
+c.enque("is cool")
 
-c.send(buf)
+c.deque()
+c.deque()
 
-# c.get(rand_str(4074))
-
+c.zset("vince")
+c.zhas("vince")
+c.zdel("vince")
+c.zhas("vince")
 
 c.cl()
 

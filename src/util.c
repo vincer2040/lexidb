@@ -1,33 +1,22 @@
-#define _POSIX_C_SOURCE 1
+#define _XOPEN_SOURCE 600
 #include "util.h"
+#include "result.h"
 #include "sha256.h"
+#include "vstr.h"
+#include <assert.h>
+#include <errno.h>
+#include <memory.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
+#include <time.h>
 #include <unistd.h>
 
-// used to check if sigint has been sent to process
-// used to properly shut down the server,
-// wait for child processes, etc
 volatile sig_atomic_t sig_int_received = 0;
-
-void handler(int mode) {
-    sig_int_received = 1;
-    UNUSED(mode);
-}
-
-int create_sigint_handler(void) {
-    struct sigaction sa = {0};
-    sa.sa_handler = &handler;
-    if (sigaction(SIGINT, &sa, NULL) == -1) {
-        return -1;
-    }
-    return 0;
-}
 
 void get_random_bytes(uint8_t* p, size_t len) {
     /* global */
@@ -84,4 +73,75 @@ void get_random_bytes(uint8_t* p, size_t len) {
         len -= copylen;
         p += copylen;
     }
+}
+
+struct timespec get_time(void) {
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+    return time;
+}
+
+void handler(int mode) {
+    ((void)mode);
+    sig_int_received = 1;
+}
+
+int create_sigint_handler(void) {
+    struct sigaction sa = {0};
+    sa.sa_handler = &handler;
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        return -1;
+    }
+    return 0;
+}
+
+char* get_execuable_path(void) {
+    char* path;
+    char buf[1024];
+    ssize_t res = readlink("/proc/self/exe", buf, (sizeof buf) - 1);
+    if (res == -1) {
+        return NULL;
+    }
+    path = malloc(res + 1);
+    if (path == NULL) {
+        return NULL;
+    }
+    memset(path, 0, res + 1);
+    memcpy(path, buf, res);
+    return path;
+}
+
+vstr get_os_name(void) {
+    struct utsname n = {0};
+    int r = uname(&n);
+    assert(r >= 0);
+    vstr s = vstr_format("%s %s %s", n.sysname, n.release, n.machine);
+    return s;
+}
+
+result(vstr) read_file(const char* path) {
+    result(vstr) res = {0};
+    vstr s = vstr_new();
+    char ch;
+    FILE* f = fopen(path, "r");
+    if (f == NULL) {
+        res.type = Err;
+        res.data.err = vstr_format("failed to open path %s (errno: %d) %s",
+                                   path, errno, strerror(errno));
+        return res;
+    }
+    while ((ch = fgetc(f)) != EOF) {
+        int push_res = vstr_push_char(&s, ch);
+        if (push_res == -1) {
+            vstr_free(&s);
+            res.type = Err;
+            res.data.err = vstr_from("failed to read full file");
+            fclose(f);
+            return res;
+        }
+    }
+    fclose(f);
+    res.type = Ok;
+    res.data.ok = s;
+    return res;
 }

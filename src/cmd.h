@@ -2,155 +2,87 @@
 
 #define __CMD_H__
 
-#include "parser.h"
-#include "token.h"
+#include "object.h"
 #include <stddef.h>
 
-struct Cmd;
+struct cmd_help;
+
+typedef struct {
+    const char* name;
+    size_t types_len;
+    const char* type[4];
+    int optional;
+} cmd_help_argument;
 
 typedef enum {
-    INV,
-    COK,
-    CPING,
-    SET,
-    GET,
-    DEL,
-    KEYS,
-    VALUES,
-    ENTRIES,
-    PUSH,
-    POP,
-    ENQUE,
-    DEQUE,
-    CLUSTER_NEW,
-    CLUSTER_DROP,
-    CLUSTER_SET,
-    CLUSTER_GET,
-    CLUSTER_DEL,
-    CLUSTER_PUSH,
-    CLUSTER_POP,
-    CLUSTER_KEYS,
-    CLUSTER_VALUES,
-    CLUSTER_ENTRIES,
-    MULTI_CMD,
-    REPLICATE,
-    REPLICATION,
-    HT,
-    STACK,
-    QUEUE,
-    CLUSTER,
-    STATS_CYCLES,
-} CmdT;
+    Illegal,
+    Okc,
+    Auth,
+    Ping,
+    Infoc,
+    Select,
+    Help,
+    Keys,
+    Set,
+    Get,
+    Del,
+    Push,
+    Pop,
+    Enque,
+    Deque,
+    ZSet,
+    ZHas,
+    ZDel,
+} cmdt;
 
 typedef struct {
-    size_t len;
-    uint8_t* value;
-} Key;
-
-typedef enum { VTSTRING, VTINT, VTNULL } ValueT;
+    object key;
+    object value;
+} kv_cmd;
 
 typedef struct {
-    ValueT type;
-    size_t size;
-    void* ptr;
-} Value;
+    object key;
+} k_cmd;
 
 typedef struct {
-    Key key;
-    Value value;
-} SetCmd;
+    object value;
+} v_cmd;
 
 typedef struct {
-    Key key;
-} GetCmd;
+    object username;
+    object password;
+} auth_cmd;
 
 typedef struct {
-    Key key;
-} DelCmd;
+    int wants_cmd_help;
+    cmdt cmd_to_help;
+} help_cmd;
+
+typedef kv_cmd set_cmd;
+typedef k_cmd get_cmd;
+typedef k_cmd del_cmd;
+typedef v_cmd push_cmd;
+typedef v_cmd enque_cmd;
+typedef v_cmd zset_cmd;
+typedef v_cmd zhas_cmd;
+typedef v_cmd zdel_cmd;
+typedef v_cmd select_cmd;
 
 typedef struct {
-    Value value;
-} PushCmd;
+    cmdt type;
+    union {
+        auth_cmd auth;
+        set_cmd set;
+        get_cmd get;
+        del_cmd del;
+        push_cmd push;
+        enque_cmd enque;
+        zset_cmd zset;
+        zhas_cmd zhas;
+        zdel_cmd zdel;
+        help_cmd help;
+        select_cmd select;
+    } data;
+} cmd;
 
-typedef struct {
-    Value value;
-} EnqueCmd;
-
-typedef struct {
-    Key cluster_name;
-} ClusterNewCmd;
-
-typedef struct {
-    Key cluster_name;
-} ClusterDropCmd;
-
-typedef struct {
-    Key cluster_name;
-    SetCmd set;
-} ClusterSetCmd;
-
-typedef struct {
-    Key cluster_name;
-    GetCmd get;
-} ClusterGetCmd;
-
-typedef struct {
-    Key cluster_name;
-    DelCmd del;
-} ClusterDelCmd;
-
-typedef struct {
-    Key cluster_name;
-    PushCmd push;
-} ClusterPushCmd;
-
-typedef struct {
-    Key cluster_name;
-} ClusterPopCmd;
-
-typedef struct {
-    Key cluster_name;
-} ClusterKeysCmd;
-
-typedef struct {
-    Key cluster_name;
-} ClusterValuesCmd;
-
-typedef struct {
-    Key cluster_name;
-} ClusterEntriesCmd;
-
-typedef struct {
-    size_t len;
-    struct Cmd* commands;
-} MultiCmd;
-
-typedef union {
-    SetCmd set;
-    GetCmd get;
-    DelCmd del;
-    PushCmd push;
-    EnqueCmd enque;
-    ClusterNewCmd cluster_new;
-    ClusterDropCmd cluster_drop;
-    ClusterSetCmd cluster_set;
-    ClusterGetCmd cluster_get;
-    ClusterDelCmd cluster_del;
-    ClusterPushCmd cluster_push;
-    ClusterPopCmd cluster_pop;
-    ClusterKeysCmd cluster_keys;
-    ClusterValuesCmd cluster_values;
-    ClusterEntriesCmd cluster_entries;
-    MultiCmd multi;
-} CmdExpression;
-
-typedef struct Cmd {
-    CmdT type;
-    CmdExpression expression;
-} Cmd;
-
-Cmd cmd_from_statement(Statement* stmt);
-void cmd_free(Cmd* cmd);
-int is_write_command(CmdT type);
-
-#endif
+#endif /* __CMD_H__ */

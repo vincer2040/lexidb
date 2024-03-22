@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+
+import json
+import glob
+
+print("generating cmd_help.c")
+
+paths = glob.glob("../cmds/*.json")
+
+cmds = []
+max_args = 0
+
+for path in paths:
+    file = open(path, "r")
+    contents = file.read()
+    parsed = json.loads(contents)
+    arguments = parsed["arguments"]
+    max_args = max(max_args, len(arguments))
+    cmds.append(parsed)
+
+struct = "\
+typedef struct cmd_help {{\n\
+    const char* name;\n\
+    const char* summary;\n\
+    const char* complexity;\n\
+    size_t num_args;\n\
+    cmd_help_argument arguments[{}];\n\
+}} cmd_help;".format(max_args)
+
+file = open("../src/cmd_help.c", "w")
+
+file.write("#include \"cmd.h\"\n#include <assert.h>\n#include <stdlib.h>\n\n")
+
+file.write(struct + "\n\n")
+
+global_all_cmds_help = "size_t all_helps_len = {};".format(len(cmds))
+file.write(global_all_cmds_help + "\n\n")
+
+for cmd in cmds:
+    name = cmd["name"]
+    summary = cmd["summary"].replace("\"", "'")
+    complexity = cmd["complexity"]
+    args = cmd["arguments"]
+    args_len = len(args)
+    if args_len == 0:
+        struct_value = "{{\n\t\"{name}\",\n\t\"{summary},\"\n\t\"{complexity}\",\n\t0,\n}};"\
+                .format(name=name, summary=summary, complexity=complexity)
+        struct_value = "cmd_help " + name + "_help" + " = " + struct_value
+        file.write(struct_value + "\n\n")
+    else:
+        struct_value = "{{\n\t\"{name}\",\n\t\"{summary}\",\n\t\"{complexity}\",\n\t{args_len},\n\t{{\n"\
+                .format(name=name, summary=summary, complexity=complexity, args_len=args_len)
+        for arg in args:
+            arg_name = arg["name"]
+            arg_types = arg["type"]
+            arg_types_len = len(arg_types)
+            arg_optional = 1 if arg["optional"] else 0
+            arg_types_value = "{"
+            for arg_type in arg_types:
+                arg_types_value = arg_types_value + "\"{}\"," .format(arg_type)
+            arg_types_value = arg_types_value + "}"
+            args_struct_value = "\t\t{{\n\t\t\t\"{name}\",\n\t\t\t{arg_types_len},\n\t\t\t{arg_types},\n\t\t\t{optional},\n\t\t}},\n"\
+                    .format(name=arg_name, arg_types_len=arg_types_len, arg_types=arg_types_value, optional=arg_optional)
+            struct_value = struct_value + args_struct_value
+        struct_value = struct_value + "\n\t}\n};"
+        struct_value = "cmd_help " + name + "_help" + " = " + struct_value
+        file.write(struct_value + "\n\n")
+
+def init_global_all_cmd_help_fn():
+    res = "cmd_help* init_all_cmd_helps(void) {\n\tcmd_help* all_helps = calloc(all_helps_len, sizeof(cmd_help));\n\tassert(all_helps != NULL);\n"
+    i = 0
+    for cmd in cmds:
+        name = cmd["name"] + "_help"
+        s = "\tall_helps[{}] = {};\n".format(i, name)
+        res = res + s
+        i += 1
+    res = res + "\treturn all_helps;\n}\n\n"
+    return res
+
+file.write(init_global_all_cmd_help_fn())
+
+get_global_all_cmd_helps_len = "size_t get_all_cmd_helps_len(void) {\n\
+    return all_helps_len;\n\
+}\n\n"
+
+file.write(get_global_all_cmd_helps_len)
+
+fn = "cmd_help cmd_help_get(cmdt cmd_type) {\n\
+    switch(cmd_type) {\n\
+    case Help:\n\
+        return help_help;\n\
+    case Auth:\n\
+        return auth_help;\n\
+    case Infoc:\n\
+        return info_help;\n\
+    case Set:\n\
+        return set_help;\n\
+    case Get:\n\
+        return get_help;\n\
+    case Del:\n\
+        return del_help;\n\
+    case Push:\n\
+        return push_help;\n\
+    case Pop:\n\
+        return pop_help;\n\
+    case Enque:\n\
+        return enque_help;\n\
+    case Deque:\n\
+        return deque_help;\n\
+    case ZSet:\n\
+        return zset_help;\n\
+    case ZHas:\n\
+        return zhas_help;\n\
+    case ZDel:\n\
+        return zdel_help;\n\
+    case Select:\n\
+        return select_help;\n\
+    default:\n\
+        break;\n\
+    }\n\
+    assert(0);\n\
+}\
+"
+
+file.write(fn)
+
+print("done generating cmd_help.c")
+

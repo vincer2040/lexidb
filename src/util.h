@@ -1,19 +1,28 @@
 #ifndef __UTIL_H__
+
 #define __UTIL_H__
 
-#include <stdint.h>
+#include "result.h"
+#include "vstr.h"
+#include <signal.h>
 #include <stddef.h>
+#include <stdint.h>
 
-#define SLOG_ERROR fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, errno, strerror(errno));
+result_t(vstr, vstr);
 
-#define fmt_error(...) \
-    fprintf(stderr, "%s:%d ", __FILE__, __LINE__); \
-    fprintf(stderr, __VA_ARGS__); \
-    fflush(stderr);
+typedef int cmp_fn(void* a, void* b);
 
-#define UNUSED(v) ((void)v)
+typedef void free_fn(void* ptr);
 
-void get_random_bytes(uint8_t *p, size_t len);
+void get_random_bytes(uint8_t* p, size_t len);
+
+struct timespec get_time(void);
+
 int create_sigint_handler(void);
 
-#endif
+char* get_execuable_path(void);
+vstr get_os_name(void);
+
+result(vstr) read_file(const char* path);
+
+#endif /* __UTIL_H__ */
