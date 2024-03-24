@@ -157,7 +157,6 @@ target_link_libraries(
 
 target_link_libraries(
     config_parser
-    ht
     vec
     vstr
     object
