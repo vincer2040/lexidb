@@ -24,5 +24,6 @@ result_t(config, vstr);
 
 result(config) parse_config(const char* input, size_t input_len);
 void config_free(config* config);
+void config_free_light(config* config);
 
 #endif /* __CONFIG_PARSER_H__ */
