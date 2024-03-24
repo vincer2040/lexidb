@@ -43,8 +43,7 @@ typedef struct {
     log_level ll;
 } log_level_lookup;
 
-static result(server) server_new(const char* addr, uint16_t port, log_level ll,
-                                 vstr* conf_file_path);
+static result(server) server_new(vstr* conf_file_path);
 static int add_users(vec** users_vec, vec* users_from_config);
 static lexidb* lexidb_new(size_t num_databases);
 static void server_free(server* s);
@@ -103,13 +102,7 @@ int server_run(int argc, char* argv[]) {
     server s;
     args args;
     cla cla;
-    object* addr_obj;
-    object* port_obj;
-    object* log_level_obj;
     object* conf_file_path_obj;
-    const char* addr;
-    uint16_t port;
-    log_level ll;
     vstr conf_file_path;
 
     if (create_sigint_handler() == -1) {
@@ -121,12 +114,6 @@ int server_run(int argc, char* argv[]) {
     args = args_new();
     args_add(&args, "config file path", "-c", "--config",
              "the path to the configuration file to configure lexidb", String);
-    args_add(&args, "address", "-a", "--address",
-             "the address the server should listen on", String);
-    args_add(&args, "port", "-p", "--port",
-             "the port the server should listen on", Int);
-    args_add(&args, "loglevel", "-ll", "--loglevel",
-             "the amount to log (none, info, debug, verbose)", String);
     cla = parse_cmd_line_args(args, argc, argv);
 
     if (clap_has_error(&cla)) {
@@ -180,37 +167,7 @@ int server_run(int argc, char* argv[]) {
         free(real_path);
     }
 
-    addr_obj = args_get(&cla, "address");
-    if (addr_obj != NULL) {
-        addr = vstr_data(&addr_obj->data.string);
-    } else {
-        addr = DEFAULT_ADDRESS;
-    }
-
-    port_obj = args_get(&cla, "port");
-    if (port_obj != NULL) {
-        port = port_obj->data.num;
-    } else {
-        port = DEFAULT_PORT;
-    }
-
-    log_level_obj = args_get(&cla, "loglevel");
-    if (log_level_obj != NULL) {
-        result(log_level) ll_res =
-            determine_loglevel(&(log_level_obj->data.string));
-        if (ll_res.type == Err) {
-            error("%s %s\n", vstr_data(&ll_res.data.err),
-                  vstr_data(&log_level_obj->data.string));
-            args_free(args);
-            clap_free(&cla);
-            return 1;
-        }
-        ll = ll_res.data.ok;
-    } else {
-        ll = Info;
-    }
-
-    rs = server_new(addr, port, ll, &conf_file_path);
+    rs = server_new(&conf_file_path);
 
     args_free(args);
     clap_free(&cla);
@@ -239,18 +196,20 @@ int server_run(int argc, char* argv[]) {
     return 0;
 }
 
-static result(server) server_new(const char* addr, uint16_t port, log_level ll,
-                                 vstr* conf_file_path) {
+static result(server) server_new(vstr* conf_file_path) {
     result(server) result = {0};
     server s = {0};
-    int sfd = create_tcp_socket(1);
+    int sfd;
     ev* ev;
     vstr addr_str;
     result(vstr) config_file_contents_res;
     result(config) config_res;
     config config;
     int add_users_res;
+    uint16_t port;
+    const char* addr;
 
+    sfd = create_tcp_socket(1);
     if (sfd < 0) {
         result.type = Err;
         result.data.err = vstr_format("failed to create socket (errno: %d) %s",
@@ -258,19 +217,9 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
         return result;
     }
 
-    if (tcp_bind(sfd, addr, port) < 0) {
+    if (set_reuse_addr(sfd) == -1) {
         result.type = Err;
-        result.data.err = vstr_format("failed to bind socket (errno: %d) %s",
-                                      errno, strerror(errno));
-        close(sfd);
-        return result;
-    }
-
-    if (tcp_listen(sfd, SERVER_BACKLOG) < 0) {
-        result.type = Err;
-        result.data.err =
-            vstr_format("failed to listen on socket (errno: %d) %s", errno,
-                        strerror(errno));
+        result.data.err = vstr_format("failed to set reuse addr on socket (errno %d) %s", errno, strerror(errno));
         close(sfd);
         return result;
     }
@@ -298,6 +247,49 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     config = config_res.data.ok;
 
     vstr_free(&config_file_contents_res.data.ok);
+
+    if (vstr_len(&config.address) == 0) {
+        addr = DEFAULT_ADDRESS;
+    } else {
+        addr = vstr_data(&config.address);
+    }
+
+    if (config.port == 0) {
+        port = DEFAULT_PORT;
+    } else {
+        port = config.port;
+    }
+
+    if (vstr_len(&config.loglevel) == 0) {
+        s.log_level = Info;
+    } else {
+        result(log_level) res_ll = determine_loglevel(&config.loglevel);
+        if (res_ll.type == Err) {
+            result.type = Err;
+            result.data.err = res_ll.data.err;
+            config_free(&config);
+            close(sfd);
+            return result;
+        }
+        s.log_level = res_ll.data.ok;
+    }
+
+    if (tcp_bind(sfd, addr, port) < 0) {
+        result.type = Err;
+        result.data.err = vstr_format("failed to bind socket (errno: %d) %s",
+                                      errno, strerror(errno));
+        close(sfd);
+        return result;
+    }
+
+    if (tcp_listen(sfd, SERVER_BACKLOG) < 0) {
+        result.type = Err;
+        result.data.err =
+            vstr_format("failed to listen on socket (errno: %d) %s", errno,
+                        strerror(errno));
+        close(sfd);
+        return result;
+    }
 
     s.users = vec_new(sizeof(user));
     if (s.users == NULL) {
@@ -390,7 +382,6 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     s.sfd = sfd;
     s.db = lexidb_new(s.num_databases);
     s.ev = ev;
-    s.log_level = ll;
     result.type = Ok;
     result.data.ok = s;
     return result;
