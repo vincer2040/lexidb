@@ -10,6 +10,7 @@ typedef enum {
     Address,
     Port,
     User,
+    LogLevel,
     Databases,
 } line_data_type;
 
@@ -18,6 +19,7 @@ typedef struct {
     size_t databases;
     vstr address;
     vec* users;
+    vstr loglevel;
 } config;
 
 result_t(config, vstr);

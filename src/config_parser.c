@@ -21,6 +21,7 @@ typedef struct {
     line_data_type type;
     union {
         vstr address;
+        vstr loglevel;
         uint16_t port;
         size_t databases;
         user user;
@@ -40,9 +41,8 @@ result_t(size_t, vstr);
 result_t(uint16_t, vstr);
 
 const line_data_type_lookup lookups[] = {
-    {"port", 4, Port},
-    {"user", 4, User},
-    {"address", 7, Address},
+    {"port", 4, Port},           {"user", 4, User},
+    {"address", 7, Address},     {"loglevel", 8, LogLevel},
     {"databases", 9, Databases},
 };
 
@@ -58,6 +58,7 @@ static result(user) config_parser_parse_user(config_parser* p);
 static result(size_t) config_parser_parse_num_databases(config_parser* p);
 static result(uint16_t) config_parser_parse_port(config_parser* p);
 static vstr config_parser_parse_address(config_parser* p);
+static vstr config_parser_parse_log_level(config_parser* p);
 static vstr config_parser_read_string(config_parser* p);
 static void config_parser_read_char(config_parser* p);
 static void config_parser_skip_empty_lines_and_comments(config_parser* p);
@@ -76,12 +77,18 @@ void config_free(config* config) {
     if (vstr_len(&config->address) > 0) {
         vstr_free(&config->address);
     }
+    if (vstr_len(&config->loglevel) > 0) {
+        vstr_free(&config->loglevel);
+    }
 }
 
 void config_free_light(config* config) {
     vec_free(config->users, NULL);
     if (vstr_len(&config->address) > 0) {
         vstr_free(&config->address);
+    }
+    if (vstr_len(&config->loglevel) > 0) {
+        vstr_free(&config->loglevel);
     }
 }
 
@@ -100,6 +107,7 @@ static config config_new(void) {
     c.users = vec_new(sizeof(user));
     assert(c.users != NULL);
     c.address = vstr_new();
+    c.loglevel = vstr_new();
     return c;
 }
 
@@ -130,6 +138,15 @@ static result(config) config_parser_parse(config_parser* p) {
                 return res;
             }
             config.address = line_data.data.address;
+            break;
+        case LogLevel:
+            if (vstr_len(&config.loglevel) != 0) {
+                config_free(&config);
+                res.type = Err;
+                res.data.err = vstr_from("loglevel set twice in config");
+                return res;
+            }
+            config.loglevel = line_data.data.loglevel;
             break;
         case Port:
             if (config.port != 0) {
@@ -175,6 +192,14 @@ static result(line_data) config_parser_parse_line(config_parser* p) {
         addr = config_parser_parse_address(p);
         res.type = Ok;
         res.data.ok.type = Address;
+        res.data.ok.data.address = addr;
+    } break;
+    case LogLevel: {
+        vstr addr;
+        config_parser_skip_spaces(p);
+        addr = config_parser_parse_log_level(p);
+        res.type = Ok;
+        res.data.ok.type = LogLevel;
         res.data.ok.data.address = addr;
     } break;
     case Port: {
@@ -321,6 +346,16 @@ static vstr config_parser_parse_address(config_parser* p) {
         vstr_push_char(&res, p->ch);
         config_parser_read_char(p);
     }
+    config_parser_skip_spaces(p);
+    if (p->ch != '\n' && p->ch != 0) {
+        vstr_free(&res);
+        return res;
+    }
+    return res;
+}
+
+static vstr config_parser_parse_log_level(config_parser* p) {
+    vstr res = config_parser_read_string(p);
     config_parser_skip_spaces(p);
     if (p->ch != '\n' && p->ch != 0) {
         vstr_free(&res);
