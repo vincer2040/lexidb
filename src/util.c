@@ -88,7 +88,7 @@ void handler(int mode) {
 
 int create_sigint_handler(void) {
     struct sigaction sa = {0};
-    sa.sa_handler = &handler;
+    sa.sa_handler = handler;
     if (sigaction(SIGINT, &sa, NULL) == -1) {
         return -1;
     }
