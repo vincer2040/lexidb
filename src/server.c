@@ -27,6 +27,7 @@
 
 #define DEFAULT_ADDRESS "127.0.0.1"
 #define DEFAULT_PORT 6969
+#define DEFAULT_DATABASES 16
 #define SERVER_BACKLOG 10
 #define CLIENT_READ_BUF_CAP 4096
 
@@ -246,11 +247,8 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
     ev* ev;
     vstr addr_str;
     result(vstr) config_file_contents_res;
-    result(ht) config_from_file_res;
-    object* users_from_config;
-    object* databases_from_config;
-    line_data_type user_type = User;
-    line_data_type databases_type = Databases;
+    result(config) config_res;
+    config config;
     int add_users_res;
 
     if (sfd < 0) {
@@ -287,16 +285,17 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
         return result;
     }
 
-    config_from_file_res =
-        parse_config(vstr_data(&config_file_contents_res.data.ok),
-                     vstr_len(&config_file_contents_res.data.ok));
-    if (config_from_file_res.type == Err) {
+    config_res = parse_config(vstr_data(&config_file_contents_res.data.ok),
+                              vstr_len(&config_file_contents_res.data.ok));
+    if (config_res.type == Err) {
+        vstr_free(&config_file_contents_res.data.ok);
         close(sfd);
         result.type = Err;
-        result.data.err = config_from_file_res.data.err;
-        vstr_free(&config_file_contents_res.data.ok);
+        result.data.err = config_res.data.err;
         return result;
     }
+
+    config = config_res.data.ok;
 
     vstr_free(&config_file_contents_res.data.ok);
 
@@ -306,31 +305,27 @@ static result(server) server_new(const char* addr, uint16_t port, log_level ll,
         result.data.err =
             vstr_from("failed to allocate memory for users vector");
         close(sfd);
+        config_free(&config);
         return result;
     }
 
-    users_from_config =
-        ht_get(&config_from_file_res.data.ok, &user_type, sizeof user_type);
-    assert(users_from_config != NULL);
-    assert(users_from_config->type == Array);
-
-    add_users_res = add_users(&s.users, users_from_config->data.vec);
+    add_users_res = add_users(&s.users, config.users);
     if (add_users_res == -1) {
-        config_free(&config_from_file_res.data.ok);
-        vec_free(s.users, user_in_vec_free);
+        config_free(&config);
+        vec_free(s.users, NULL);
         close(sfd);
         result.type = Err;
-        result.data.err = vstr_from("failed to add users to user array");
+        result.data.err = vstr_from("failed to push users to users vector");
         return result;
     }
 
-    databases_from_config = ht_get(&config_from_file_res.data.ok,
-                                   &databases_type, sizeof databases_type);
-    assert(databases_from_config != NULL);
-    assert(databases_from_config->type == Int);
-    s.num_databases = databases_from_config->data.num;
+    if (config.databases == 0) {
+        s.num_databases = DEFAULT_DATABASES;
+    } else {
+        s.num_databases = config.databases;
+    }
 
-    config_free(&config_from_file_res.data.ok);
+    config_free_light(&config);
 
     s.executable_path = get_execuable_path();
     if (s.executable_path == NULL) {
@@ -418,44 +413,22 @@ static lexidb* lexidb_new(size_t num_databases) {
 static int add_users(vec** users_vec, vec* users_from_config) {
     vec_iter iter = vec_iter_new(users_from_config);
     while (iter.cur) {
-        object* cur = iter.cur;
-        object* name_obj;
-        object* password_obj;
-        vstr name;
-        vstr password;
-        user user = {0};
+        user* user = iter.cur;
         int push_res;
-        vstr hash;
-
-        assert(cur->type == Array);
-
-        name_obj = vec_get_at(cur->data.vec, 0);
-        password_obj = vec_get_at(cur->data.vec, 1);
-
-        assert(name_obj->type == String);
-        assert(password_obj->type == String);
-
-        name = name_obj->data.string;
-        password = password_obj->data.string;
-
-        hash = hash_password(vstr_data(&password), vstr_len(&password));
-
-        user.name = vstr_from(vstr_data(&name));
-        user.password = hash;
-
-        if (vec_find(*users_vec, &user, NULL, user_compare) != -1) {
-            vstr_free(&user.name);
-            vstr_free(&user.password);
+        int contains = vec_find(*users_vec, user, NULL, user_compare);
+        vstr hashed_password;
+        if (contains != -1) {
+            printf("duplicate user in users vec %s\n", vstr_data(&user->name));
             return -1;
         }
-
-        push_res = vec_push(users_vec, &user);
+        hashed_password = hash_password(vstr_data(&user->password),
+                                        vstr_len(&user->password));
+        vstr_free(&user->password);
+        user->password = hashed_password;
+        push_res = vec_push(users_vec, user);
         if (push_res == -1) {
-            vstr_free(&user.name);
-            vstr_free(&user.password);
             return -1;
         }
-
         vec_iter_next(&iter);
     }
     return 0;

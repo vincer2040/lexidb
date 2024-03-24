@@ -71,7 +71,19 @@ result(config) parse_config(const char* input, size_t input_len) {
     return config_parser_parse(&p);
 }
 
-void config_free(config* config) { vec_free(config->users, config_free_user); }
+void config_free(config* config) {
+    vec_free(config->users, config_free_user);
+    if (vstr_len(&config->address) > 0) {
+        vstr_free(&config->address);
+    }
+}
+
+void config_free_light(config* config) {
+    vec_free(config->users, NULL);
+    if (vstr_len(&config->address) > 0) {
+        vstr_free(&config->address);
+    }
+}
 
 static config_parser config_parser_new(const char* input, size_t input_len) {
     config_parser p = {0};
