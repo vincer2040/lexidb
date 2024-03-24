@@ -73,6 +73,21 @@ address 127.0.0.1\n\
 }
 END_TEST
 
+START_TEST(test_loglevel) {
+    const char* input = "\
+# loglevel\n\
+loglevel info\n\
+\n\
+";
+    result(config) config_res = parse_config(input, strlen(input));
+    config config;
+    check_error(&config_res);
+    config = config_res.data.ok;
+    ck_assert_str_eq(vstr_data(&config.loglevel), "info");
+    config_free(&config);
+}
+END_TEST
+
 START_TEST(test_port) {
     const char* input = "\
 # port\n\
@@ -139,6 +154,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_users);
     tcase_add_test(tc_core, test_databases);
     tcase_add_test(tc_core, test_address);
+    tcase_add_test(tc_core, test_loglevel);
     tcase_add_test(tc_core, test_port);
     tcase_add_test(tc_core, test_all);
     suite_add_tcase(s, tc_core);
