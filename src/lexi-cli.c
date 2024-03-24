@@ -33,7 +33,7 @@ int main(void) {
     }
 
     auth_res = hilexi_authenticate(&l, "root", "root");
-    if (auth_res == -1) {
+    if (auth_res != 0) {
         error("failed to authenticate\n");
         hilexi_close(&l);
         return 1;
