@@ -3,6 +3,7 @@
 #include "vstr.h"
 #include <assert.h>
 #include <ctype.h>
+#include <math.h>
 #include <memory.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -67,20 +68,30 @@ static vjson_object* json_parser_parse_boolean(json_parser* p);
 static vjson_object* json_parser_parse_string(json_parser* p);
 static vjson_object* json_parser_parse_array(json_parser* p);
 static vjson_object* json_parser_parse_object(json_parser* p);
+
 static int json_parser_peek_token_is(json_parser* p, json_token_t type);
 static int json_parser_expect_peek(json_parser* p, json_token_t type);
 static void json_parser_next_token(json_parser* p);
+
+static int is_start_of_json_number(json_lexer* l);
+static int is_valid_json_number_byte(json_lexer* l);
+
 static json_lexer json_lexer_new(const unsigned char* input, size_t input_len);
 static json_token json_lexer_next_token(json_lexer* l);
 static json_token json_lexer_read_string(json_lexer* l);
 static json_token json_lexer_read_number(json_lexer* l);
 static json_token json_lexer_read_json_token(json_lexer* l);
-static int is_start_of_json_number(json_lexer* l);
-static int is_valid_json_number_byte(json_lexer* l);
+
 static void json_lexer_read_char(json_lexer* l);
 static int is_json_whitespace(unsigned char byte);
 static void json_lexer_skip_whitespace(json_lexer* l);
 static void json_object_free_in_structure(void* ptr);
+static vstr json_parser_parse_string_value(json_parser* p, int* success);
+
+static vstr object_to_string(const vjson_object* obj);
+static vstr json_string_to_string(const vstr* s);
+static vstr json_vec_to_string(const vec* obj);
+static vstr json_object_to_string(const ht* obj);
 
 vjson_object* vjson_parse(const unsigned char* input, size_t input_len) {
     json_lexer l = json_lexer_new(input, input_len);
@@ -108,6 +119,132 @@ void vjson_object_free(vjson_object* obj) {
         break;
     }
     free(obj);
+}
+
+vstr vjson_object_to_string(vjson_object* obj) { return object_to_string(obj); }
+
+static vstr object_to_string(const vjson_object* obj) {
+    vstr s;
+    switch (obj->type) {
+    case JOT_Null:
+        s = vstr_from("null");
+        break;
+    case JOT_Number:
+        s = vstr_format("%g", obj->data.number);
+        break;
+    case JOT_Bool:
+        s = vstr_from(obj->data.boolean ? "true" : "false");
+        break;
+    case JOT_String:
+        s = json_string_to_string(&obj->data.string);
+        break;
+    case JOT_Array:
+        s = json_vec_to_string(obj->data.array);
+        break;
+    case JOT_Object:
+        s = json_object_to_string(&obj->data.object);
+        break;
+    }
+    return s;
+}
+
+static vstr json_string_to_string(const vstr* s) {
+    vstr res = vstr_new();
+    size_t i, len = vstr_len((vstr*)s);
+    const char* cstr = vstr_data((vstr*)s);
+    vstr_push_char(&res, '"');
+    for (i = 0; i < len; ++i) {
+        char ch = cstr[i];
+        switch (ch) {
+        case '\\':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, '\\');
+            break;
+        case '"':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, '"');
+            break;
+        case '/':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, '/');
+            break;
+        case '\b':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, 'b');
+            break;
+        case '\f':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, 'f');
+            break;
+        case '\n':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, 'n');
+            break;
+        case '\r':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, 'r');
+            break;
+        case '\t':
+            vstr_push_char(&res, '\\');
+            vstr_push_char(&res, 't');
+            break;
+        // TODO: \u then 4 hex digits
+        default:
+            vstr_push_char(&res, ch);
+            break;
+        }
+    }
+    vstr_push_char(&res, '"');
+    return res;
+}
+
+static vstr json_vec_to_string(const vec* obj) {
+    vstr res = vstr_new();
+    size_t i = 0, len = obj->len;
+    vec_iter iter = vec_iter_new((vec*)obj);
+    vstr_push_char(&res, '[');
+    while (iter.cur) {
+        vjson_object** cur = iter.cur;
+        vstr s = object_to_string(*cur);
+        vstr_push_string_len(&res, vstr_data(&s), vstr_len(&s));
+        vstr_free(&s);
+        if (i != len - 1) {
+            vstr_push_char(&res, ',');
+        }
+        vec_iter_next(&iter);
+        i++;
+    }
+    vstr_push_char(&res, ']');
+    return res;
+}
+
+static vstr json_object_to_string(const ht* obj) {
+    vstr res = vstr_new();
+    ht_iter iter = ht_iter_new((ht*)obj);
+    size_t i = 0, len = obj->num_entries;
+    vstr_push_char(&res, '{');
+    while (iter.cur) {
+        ht_entry* cur = iter.cur;
+        const char* key = ht_entry_get_key(cur);
+        const vjson_object** value =
+            (const vjson_object**)ht_entry_get_value(cur);
+        vstr value_str = object_to_string(*value);
+
+        vstr_push_char(&res, '"');
+        vstr_push_string_len(&res, key, cur->key_size);
+        vstr_push_char(&res, '"');
+        vstr_push_char(&res, ':');
+        vstr_push_string_len(&res, vstr_data(&value_str), vstr_len(&value_str));
+        vstr_free(&value_str);
+
+        if (i != len - 1) {
+            vstr_push_char(&res, ',');
+        }
+        ht_iter_next(&iter);
+        i++;
+    }
+    vstr_push_char(&res, '}');
+    return res;
 }
 
 static json_parser json_parser_new(json_lexer* l) {
@@ -193,67 +330,24 @@ static vjson_object* json_parser_parse_boolean(json_parser* p) {
 }
 
 static vjson_object* json_parser_parse_string(json_parser* p) {
-    vstr s = vstr_new();
     size_t i, len = p->cur.end - p->cur.start;
     vjson_object* obj = calloc(1, sizeof *obj);
+    vstr s;
+    int success = 0;
     if (obj == NULL) {
         return NULL;
     }
-    for (i = 0; i < len; ++i) {
-        char ch = p->cur.start[i];
-        if (ch == '\\') {
-            char next_ch;
-            i += 1;
-            if (i > len) {
-                // TODO: emit invaid '\'
-                vstr_free(&s);
-                free(obj);
-                return NULL;
-            }
-            next_ch = p->cur.start[i];
-            switch (next_ch) {
-            case '"':
-                vstr_push_char(&s, '"');
-                break;
-            case '\\':
-                vstr_push_char(&s, '\\');
-                break;
-            case '/':
-                vstr_push_char(&s, '/');
-                break;
-            case 'n':
-                vstr_push_char(&s, '\n');
-                break;
-            case 'r':
-                vstr_push_char(&s, '\r');
-                break;
-            case 't':
-                vstr_push_char(&s, '\t');
-                break;
-            case 'f':
-                vstr_push_char(&s, '\f');
-                break;
-            case 'b':
-                vstr_push_char(&s, '\b');
-                break;
-            // TODO:
-            // - 4 hex digits after \u
-            default:
-                // TODO: emmit bad control
-                free(obj);
-                vstr_free(&s);
-                return NULL;
-            }
-            continue;
-        }
-        vstr_push_char(&s, p->cur.start[i]);
+    s = json_parser_parse_string_value(p, &success);
+    if (success != 0) {
+        free(obj);
+        return NULL;
     }
     obj->type = JOT_String;
     obj->data.string = s;
     return obj;
 }
 
-static vstr json_parser_parse_string_value(json_parser* p) {
+static vstr json_parser_parse_string_value(json_parser* p, int* success) {
     vstr s = vstr_new();
     size_t i, len = p->cur.end - p->cur.start;
     for (i = 0; i < len; ++i) {
@@ -264,6 +358,7 @@ static vstr json_parser_parse_string_value(json_parser* p) {
             if (i > len) {
                 // TODO: emit invaid '\'
                 vstr_free(&s);
+                *success = -1;
                 return s;
             }
             next_ch = p->cur.start[i];
@@ -296,6 +391,7 @@ static vstr json_parser_parse_string_value(json_parser* p) {
             default:
                 // TODO: emmit bad control
                 vstr_free(&s);
+                *success = -1;
                 return s;
             }
             continue;
@@ -360,6 +456,7 @@ static vjson_object* json_parser_parse_object(json_parser* p) {
     vjson_object* item;
     vstr key;
     ht_result insert_res;
+    int success = 0;
     if (obj == NULL) {
         return NULL;
     }
@@ -376,7 +473,7 @@ static vjson_object* json_parser_parse_object(json_parser* p) {
         return NULL;
     }
 
-    key = json_parser_parse_string_value(p);
+    key = json_parser_parse_string_value(p, &success);
 
     if (!json_parser_expect_peek(p, JT_Colon)) {
         ht_free(&ht, NULL, json_object_free_in_structure);
@@ -415,7 +512,7 @@ static vjson_object* json_parser_parse_object(json_parser* p) {
             return NULL;
         }
 
-        key = json_parser_parse_string_value(p);
+        key = json_parser_parse_string_value(p, &success);
 
         if (!json_parser_expect_peek(p, JT_Colon)) {
             ht_free(&ht, NULL, json_object_free_in_structure);

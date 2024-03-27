@@ -43,6 +43,11 @@ typedef struct {
     kv_pair exps[10];
 } object_test;
 
+typedef struct {
+    const char* input;
+    const char* exp;
+} to_string_test;
+
 void test_object(vjson_object* got, vjson_object* exp) {
     ck_assert_int_eq(got->type, exp->type);
     switch (exp->type) {
@@ -316,6 +321,89 @@ START_TEST(test_parse_object) {
 }
 END_TEST
 
+START_TEST(test_vjson_object_to_string) {
+    to_string_test tests[] = {
+        {
+            "null",
+            "null",
+        },
+        {
+            "true",
+            "true",
+        },
+        {
+            "false",
+            "false",
+        },
+        {
+            "123",
+            "123",
+        },
+        {
+            "123.123",
+            "123.123",
+        },
+        {
+            "123e10",
+            "1.23e+12",
+        },
+        {
+            "123e-10",
+            "1.23e-08",
+        },
+        {
+            "\"foo\"",
+            "\"foo\"",
+        },
+        {
+            "\"foo\\n\"",
+            "\"foo\\n\"",
+        },
+        {
+            "\"foo\\r\"",
+            "\"foo\\r\"",
+        },
+        {
+            "\"\\\"foo\\\"\"",
+            "\"\\\"foo\\\"\"",
+        },
+        {
+            "\"foo\\\\\"",
+            "\"foo\\\\\"",
+        },
+        {
+            "\"foo\\f\"",
+            "\"foo\\f\"",
+        },
+        {
+            "\"foo\\b\"",
+            "\"foo\\b\"",
+        },
+        {
+            "[\"foo\",123.123,true,false,null]",
+            "[\"foo\",123.123,true,false,null]",
+        },
+        {
+            "[\"foo\", 123.123, true, false, null, [true, false, null]]",
+            "[\"foo\",123.123,true,false,null,[true,false,null]]",
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        to_string_test test = tests[i];
+        vjson_object* parsed =
+            vjson_parse((const unsigned char*)test.input, strlen(test.input));
+        vstr got;
+        ck_assert_ptr_nonnull(parsed);
+
+        got = vjson_object_to_string(parsed);
+        ck_assert_str_eq(vstr_data(&got), test.exp);
+        vjson_object_free(parsed);
+        vstr_free(&got);
+    }
+}
+END_TEST
+
 Suite* suite() {
     Suite* s;
     TCase* tc_core;
@@ -328,6 +416,7 @@ Suite* suite() {
     tcase_add_test(tc_core, test_parse_boolean);
     tcase_add_test(tc_core, test_parse_array);
     tcase_add_test(tc_core, test_parse_object);
+    tcase_add_test(tc_core, test_vjson_object_to_string);
     suite_add_tcase(s, tc_core);
     return s;
 }

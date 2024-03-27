@@ -30,4 +30,6 @@ vjson_object* vjson_parse(const unsigned char* input, size_t input_len);
 
 void vjson_object_free(vjson_object* obj);
 
+vstr vjson_object_to_string(vjson_object* obj);
+
 #endif
