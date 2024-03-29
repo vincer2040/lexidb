@@ -6,6 +6,10 @@
 #define STRING_TYPE_BYTE '$'
 #define ARRAY_TYPE_BYTE '*'
 #define INT_TYPE_BYTE ':'
+#define DOUBLE_TYPE_BYTE ','
+#define SIMPLE_ERR_TYPE_BYTE '-'
+#define BOOLEAN_TYPE_BYTE '#'
+#define HT_TYPE_BYTE '%'
 
 static int builder_add_end(builder* b);
 
@@ -62,7 +66,7 @@ int builder_add_array(builder* b, size_t arr_len) {
 int builder_add_err(builder* b, const char* str, size_t len) {
     int res = 0;
 
-    res = vstr_push_char(b, '-');
+    res = vstr_push_char(b, SIMPLE_ERR_TYPE_BYTE);
     if (res == -1) {
         return -1;
     }
@@ -133,7 +137,7 @@ int builder_add_int(builder* b, int64_t val) {
 }
 
 int builder_add_boolean(builder* b, int boolean) {
-    int res = vstr_push_char(b, '#');
+    int res = vstr_push_char(b, BOOLEAN_TYPE_BYTE);
     if (res == -1) {
         return -1;
     }
@@ -146,10 +150,10 @@ int builder_add_boolean(builder* b, int boolean) {
 }
 
 int builder_add_double(builder* b, double val) {
-    vstr tmp = vstr_format("%f", val);
+    vstr tmp = vstr_format("%g", val);
     const char* tmp_data = vstr_data(&tmp);
     size_t tmp_len = vstr_len(&tmp);
-    int res = vstr_push_char(b, ',');
+    int res = vstr_push_char(b, DOUBLE_TYPE_BYTE);
     if (res == -1) {
         vstr_free(&tmp);
         return -1;
@@ -169,7 +173,7 @@ int builder_add_ht(builder* b, size_t len) {
     vstr len_str = vstr_format("%lu", len);
     const char* len_str_s = vstr_data(&len_str);
     size_t len_str_len = vstr_len(&len_str);
-    add_res = vstr_push_char(b, '%');
+    add_res = vstr_push_char(b, HT_TYPE_BYTE);
     if (add_res == -1) {
         vstr_free(&len_str);
         return -1;
