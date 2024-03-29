@@ -99,21 +99,21 @@ vstr vstr_format(const char* fmt, ...) {
     return s;
 }
 
-size_t vstr_len(vstr* s) {
+size_t vstr_len(const vstr* s) {
     if (s->is_large) {
         return s->str_data.lg.len;
     }
     return VSTR_MAX_SMALL_SIZE - s->small_avail;
 }
 
-const char* vstr_data(vstr* s) {
+const char* vstr_data(const vstr* s) {
     if (s->is_large) {
         return s->str_data.lg.data;
     }
     return s->str_data.sm.data;
 }
 
-int vstr_cmp(vstr* a, vstr* b) {
+int vstr_cmp(const vstr* a, const vstr* b) {
     size_t alen = vstr_len(a);
     size_t blen = vstr_len(b);
     const char* astr = vstr_data(a);

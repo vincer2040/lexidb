@@ -101,20 +101,20 @@ vstr vstr_format(const char* fmt, ...);
  * @param s pointer to the vstr
  * @returns length of the vstr
  */
-size_t vstr_len(vstr* s);
+size_t vstr_len(const vstr* s);
 /**
  * @brief return the buffer contained in a vstr
  * @param s pointer to the vstr
  * @returns the buffer contained in the vstr
  */
-const char* vstr_data(vstr* s);
+const char* vstr_data(const vstr* s);
 /**
  * @brief compare two vstr's
  * @param a vstr to compare
  * @param b vstr to compare
  * @returns 0 if they are equal, non zero if they are not
  */
-int vstr_cmp(vstr* a, vstr* b);
+int vstr_cmp(const vstr* a, const vstr* b);
 /**
  * @brief append a char to a vstr
  * @param s the vstr to append to
