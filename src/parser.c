@@ -173,6 +173,10 @@ static cmd parse_array_cmd(parser* p) {
             return cmd;
         }
         value = parse_object(p);
+        if (value.type == Null) {
+            object_free(&key);
+            return cmd;
+        }
         set.key = key;
         set.value = value;
         cmd.type = Set;

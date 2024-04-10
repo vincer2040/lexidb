@@ -43,6 +43,11 @@ typedef struct {
     int exp;
 } bool_test;
 
+typedef struct {
+    const uint8_t* input;
+    size_t input_len;
+} inv_cmd_test;
+
 #define test_object_eq(exp, got)                                               \
     do {                                                                       \
         int cmp = object_cmp(&exp, &got);                                      \
@@ -414,9 +419,34 @@ START_TEST(test_parse_booleans) {
     size_t i, len = arr_size(tests);
     for (i = 0; i < len; ++i) {
         bool_test t = tests[i];
-        object parsed = parse_from_server((const uint8_t*)t.input, strlen(t.input));
+        object parsed =
+            parse_from_server((const uint8_t*)t.input, strlen(t.input));
         ck_assert_int_eq(parsed.type, Bool);
         ck_assert_int_eq(parsed.data.boolean, t.exp);
+    }
+}
+END_TEST
+
+START_TEST(test_parse_array_to_short) {
+    inv_cmd_test tests[] = {
+        {
+            (const uint8_t*)"*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n",
+            strlen("$3\r\nSET\r\n$3\r\nfoo\r\n"),
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nGET\r\n",
+            strlen("*2\r\n$3\r\nGET\r\n"),
+        },
+        {
+            (const uint8_t*)"*2\r\n$3\r\nDEL\r\n",
+            strlen("*2\r\n$3\r\nDEL\r\n"),
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        inv_cmd_test t = tests[i];
+        cmd parsed = parse(t.input, t.input_len);
+        ck_assert_int_eq(parsed.type, Illegal);
     }
 }
 END_TEST
@@ -435,6 +465,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_parse_help_cmd);
     tcase_add_test(tc_core, test_parse_ht);
     tcase_add_test(tc_core, test_parse_booleans);
+    tcase_add_test(tc_core, test_parse_array_to_short);
     suite_add_tcase(s, tc_core);
     return s;
 }
