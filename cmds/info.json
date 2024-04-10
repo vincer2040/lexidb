@@ -1,6 +1,0 @@
-{
-    "name": "info",
-    "summary": "Get information about the server as well as information about the hardware the server is running on",
-    "complexity": "O(1)",
-    "arguments": []
-}

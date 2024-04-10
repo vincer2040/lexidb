@@ -1,6 +1,0 @@
-{
-    "name": "pop",
-    "summary": "Pop an item off of the stack.",
-    "complexity": "O(1)",
-    "arguments": []
-}

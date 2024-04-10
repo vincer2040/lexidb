@@ -1,6 +1,0 @@
-{
-    "name": "help",
-    "summary": "Get help on how to interact with the server.",
-    "complexity": "O(1)",
-    "arguments": []
-}
