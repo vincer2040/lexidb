@@ -29,3 +29,8 @@ add_library(
     ev
     src/ev.c
 )
+
+add_executable(
+    lexidb
+    src/lexidb.c
+)
