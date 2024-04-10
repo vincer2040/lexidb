@@ -1,3 +1,4 @@
+#include "../src/cmd.h"
 #include "../src/object.h"
 #include "../src/parser.h"
 #include "../src/vstr.h"
@@ -26,6 +27,16 @@ typedef struct {
     const char* input;
     int exp;
 } boolean_test;
+
+typedef struct {
+    const char* input;
+    cmd_type exp;
+} string_cmd_test;
+
+typedef struct {
+    const char* input;
+    cmd exp;
+} array_cmd_test;
 
 void check_error(parser* p) {
     if (parser_has_error(p)) {
@@ -57,6 +68,29 @@ void assert_object_double(object* got, double exp) {
 void assert_object_boolean(object* got, int exp) {
     ck_assert_int_eq(got->type, OT_Boolean);
     ck_assert_int_eq(got->data.integer, exp);
+}
+
+void assert_cmd_type(cmd* cmd, cmd_type exp) {
+    ck_assert_int_eq(cmd->type, exp);
+}
+
+void assert_cmd_eq(cmd* got, cmd* exp) {
+    ck_assert_int_eq(got->type, exp->type);
+    switch (exp->type) {
+    case CT_Set:
+        ck_assert_int_eq(object_cmp(&got->data.set.key, &exp->data.set.key), 0);
+        ck_assert_int_eq(object_cmp(&got->data.set.value, &exp->data.set.value),
+                         0);
+        break;
+    case CT_Get:
+        ck_assert_int_eq(object_cmp(&got->data.get, &exp->data.get), 0);
+        break;
+    case CT_Del:
+        ck_assert_int_eq(object_cmp(&got->data.del, &exp->data.del), 0);
+        break;
+    default:
+        break;
+    }
 }
 
 void assert_object_null(object* got) { ck_assert_int_eq(got->type, OT_Null); }
@@ -275,6 +309,105 @@ START_TEST(test_bulk_errors) {
 }
 END_TEST
 
+START_TEST(test_string_commands) {
+    string_cmd_test tests[] = {
+        {
+            "+INFO\r\n",
+            CT_Info,
+        },
+        {
+            "$4\r\nINFO\r\n",
+            CT_Info,
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        string_cmd_test test = tests[i];
+        parser p =
+            parser_new((const uint8_t*)test.input, strlen(test.input), 1);
+        cmd parsed = parse_cmd(&p);
+        check_error(&p);
+        assert_cmd_type(&parsed, test.exp);
+    }
+}
+END_TEST
+
+START_TEST(test_array_command) {
+    object k1 = {OT_String, .data = {.string = vstr_from("foo")}};
+    object v1 = {OT_String, .data = {.string = vstr_from("bar")}};
+    object v2 = {OT_Int, .data = {.integer = 123}};
+    object v3 = {OT_Double, .data = {.dbl = 123.123}};
+    array_cmd_test tests[] = {
+        {
+            "*3\r\n+SET\r\n+foo\r\n+bar\r\n",
+            {
+                .type = CT_Set,
+                .data = {.set = {k1, v1}},
+            },
+        },
+        {
+            "*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n",
+            {
+                .type = CT_Set,
+                .data = {.set = {k1, v1}},
+            },
+        },
+        {
+            "*3\r\n+SET\r\n+foo\r\n:123\r\n",
+            {
+                .type = CT_Set,
+                .data = {.set = {k1, v2}},
+            },
+        },
+        {
+            "*3\r\n+SET\r\n+foo\r\n,123.123\r\n",
+            {
+                .type = CT_Set,
+                .data = {.set = {k1, v3}},
+            },
+        },
+        {
+            "*2\r\n+GET\r\n+foo\r\n",
+            {
+                .type = CT_Get,
+                .data = {.get = k1},
+            },
+        },
+        {
+            "*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n",
+            {
+                .type = CT_Get,
+                .data = {.get = k1},
+            },
+        },
+        {
+            "*2\r\n+DEL\r\n+foo\r\n",
+            {
+                .type = CT_Del,
+                .data = {.del = k1},
+            },
+        },
+        {
+            "*2\r\n$3\r\nDEL\r\n$3\r\nfoo\r\n",
+            {
+                .type = CT_Del,
+                .data = {.del = k1},
+            },
+        },
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        array_cmd_test test = tests[i];
+        parser p =
+            parser_new((const uint8_t*)test.input, strlen(test.input), 1);
+        cmd parsed = parse_cmd(&p);
+        check_error(&p);
+        assert_cmd_eq(&parsed, &test.exp);
+        cmd_free(&parsed);
+    }
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -288,6 +421,8 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_simple_error);
     tcase_add_test(tc_core, test_bulk_strings);
     tcase_add_test(tc_core, test_bulk_errors);
+    tcase_add_test(tc_core, test_string_commands);
+    tcase_add_test(tc_core, test_array_command);
     suite_add_tcase(s, tc_core);
     return s;
 }

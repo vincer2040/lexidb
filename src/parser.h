@@ -2,11 +2,13 @@
 
 #define __PARSER_H__
 
+#include "cmd.h"
 #include "object.h"
 
 typedef struct parser parser;
 
 parser parser_new(const uint8_t* input, size_t input_len, int version);
+cmd parse_cmd(parser* p);
 object parse_object(parser* p);
 int parser_has_error(parser* p);
 vstr parser_get_error(parser* p);
