@@ -2,11 +2,11 @@
 
 #define __VSTR_H__
 
-#define VSTR_MAX_SMALL_SIZE 23
-#define VSTR_MAX_LARGE_SIZE ((((uint64_t)(1)) << 56) - 1)
-
 #include <stddef.h>
 #include <stdint.h>
+
+#define VSTR_MAX_SMALL_SIZE 23
+#define VSTR_MAX_LARGE_SIZE ((((uint64_t)(1)) << 56) - 1)
 
 /**
  * @brief an optimized small string representation
@@ -45,7 +45,7 @@ typedef struct __attribute__((__packed__)) {
  * When the string is small, it's length must be less than or equal to
  * VSTR_MAX_SMALL_SIZE, which is 23. Note that the null terminator will not be
  * stored in the buffer in the vstr_sm struct when the buffer is full - it will
- * be represented in memory in the last byte of this struct. This is possible
+ * be represented in memory in the last bit of this struct. This is possible
  * because the is_large field will be 0 when it is a small string, and
  * small_avail will be 0 when the buffer is full. Because the is_large and
  * small_avail fields make up one total byte, this will act as the null
@@ -101,20 +101,20 @@ vstr vstr_format(const char* fmt, ...);
  * @param s pointer to the vstr
  * @returns length of the vstr
  */
-size_t vstr_len(const vstr* s);
+size_t vstr_len(vstr* s);
 /**
  * @brief return the buffer contained in a vstr
  * @param s pointer to the vstr
  * @returns the buffer contained in the vstr
  */
-const char* vstr_data(const vstr* s);
+const char* vstr_data(vstr* s);
 /**
  * @brief compare two vstr's
  * @param a vstr to compare
  * @param b vstr to compare
  * @returns 0 if they are equal, non zero if they are not
  */
-int vstr_cmp(const vstr* a, const vstr* b);
+int vstr_cmp(vstr* a, vstr* b);
 /**
  * @brief append a char to a vstr
  * @param s the vstr to append to
@@ -129,19 +129,6 @@ int vstr_push_char(vstr* s, char c);
  * @returns 0 on success, -1 on failure
  */
 int vstr_push_string(vstr* s, const char* str);
-/**
- * @brief append a string of str_len to a vstr
- * @param s the vstr to append to
- * @param str the string to append
- * @param str_len the length of the string to append
- * @returns 0 on success, -1 on failure
- */
-int vstr_push_string_len(vstr* s, const char* str, size_t str_len);
-/**
- * @brief reset the vstr
- * @param s the vstr to reset
- */
-void vstr_reset(vstr* s);
 /**
  * @brief free a vstr
  * @param s the vstr to free
