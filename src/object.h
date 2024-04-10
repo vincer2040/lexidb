@@ -5,12 +5,12 @@
 #include "vstr.h"
 
 typedef enum {
-    Null,
-    Int,
-    Double,
-    Boolean,
-    String,
-    Error,
+    OT_Null,
+    OT_Int,
+    OT_Double,
+    OT_Boolean,
+    OT_String,
+    OT_Error,
 } object_type;
 
 typedef struct {

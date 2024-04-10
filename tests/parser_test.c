@@ -35,31 +35,31 @@ void check_error(parser* p) {
 }
 
 void assert_object_string(object* got, const char* exp) {
-    ck_assert_int_eq(got->type, String);
+    ck_assert_int_eq(got->type, OT_String);
     ck_assert_str_eq(vstr_data(&got->data.string), exp);
 }
 
 void assert_object_error(object* got, const char* exp) {
-    ck_assert_int_eq(got->type, Error);
+    ck_assert_int_eq(got->type, OT_Error);
     ck_assert_str_eq(vstr_data(&got->data.string), exp);
 }
 
 void assert_object_int(object* got, int64_t exp) {
-    ck_assert_int_eq(got->type, Int);
+    ck_assert_int_eq(got->type, OT_Int);
     ck_assert_int_eq(got->data.integer, exp);
 }
 
 void assert_object_double(object* got, double exp) {
-    ck_assert_int_eq(got->type, Double);
+    ck_assert_int_eq(got->type, OT_Double);
     ck_assert_double_eq(got->data.dbl, exp);
 }
 
 void assert_object_boolean(object* got, int exp) {
-    ck_assert_int_eq(got->type, Boolean);
+    ck_assert_int_eq(got->type, OT_Boolean);
     ck_assert_int_eq(got->data.integer, exp);
 }
 
-void assert_object_null(object* got) { ck_assert_int_eq(got->type, Null); }
+void assert_object_null(object* got) { ck_assert_int_eq(got->type, OT_Null); }
 
 START_TEST(test_simple_string) {
     string_test tests[] = {

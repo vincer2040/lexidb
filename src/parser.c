@@ -117,7 +117,7 @@ static object parser_parse_simple_string(parser* p) {
         vstr_free(&s);
         return null_obj;
     }
-    obj.type = String;
+    obj.type = OT_String;
     obj.data.string = s;
     parser_read_byte(p);
     return obj;
@@ -168,7 +168,7 @@ static object parser_parse_bulk_string(parser* p) {
         vstr_free(&s);
         return null_obj;
     }
-    obj.type = String;
+    obj.type = OT_String;
     obj.data.string = s;
     return obj;
 }
@@ -218,7 +218,7 @@ static object parser_parse_bulk_error(parser* p) {
         vstr_free(&s);
         return null_obj;
     }
-    obj.type = Error;
+    obj.type = OT_Error;
     obj.data.string = s;
     return obj;
 }
@@ -245,7 +245,7 @@ static object parser_parse_simple_error(parser* p) {
         vstr_free(&s);
         return null_obj;
     }
-    obj.type = Error;
+    obj.type = OT_Error;
     obj.data.string = s;
     parser_read_byte(p);
     return obj;
@@ -279,7 +279,7 @@ static object parser_parse_int(parser* p) {
     if (is_negative) {
         num = -num;
     }
-    obj.type = Int;
+    obj.type = OT_Int;
     obj.data.integer = num;
     parser_read_byte(p);
     return obj;
@@ -317,7 +317,7 @@ static object parser_parse_double(parser* p) {
         p->has_error = 1;
         return null_obj;
     }
-    obj.type = Double;
+    obj.type = OT_Double;
     obj.data.dbl = val;
     parser_read_byte(p);
     return obj;
