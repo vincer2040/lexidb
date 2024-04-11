@@ -30,7 +30,38 @@ add_library(
     src/ev.c
 )
 
+add_library(
+    object
+    src/object.c
+)
+
+add_library(
+    parser
+    src/parser.c
+)
+
+add_library(
+    cmd
+    src/cmd.c
+)
+
+add_library(
+    vec
+    src/vec.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c
+)
+
+target_link_libraries(
+    object
+    vstr
+)
+
+target_link_libraries(
+    parser
+    object
+    m
 )
