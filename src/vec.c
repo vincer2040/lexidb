@@ -46,10 +46,24 @@ int vec_pop(vec* v, void* out) {
     }
     data_size = v->data_size;
     pos = (v->len - 1) * data_size;
-    memcpy(out, v->data + pos, data_size);
+    if (out) {
+        memcpy(out, v->data + pos, data_size);
+    }
     memset(v->data + pos, 0, data_size);
     v->len--;
     return 0;
+}
+
+const void* vec_find(const vec* v, const void* el, int (*cmp_fn)(const void*, const void*)) {
+    size_t i, len = v->len, data_size = v->data_size;
+    for (i = 0; i < len; ++i) {
+        const void* cur = v->data + (i * data_size);
+        int cmp = cmp_fn(el, cur);
+        if (cmp == 0) {
+            return cur;
+        }
+    }
+    return NULL;
 }
 
 void vec_free(vec* v, void (*free_fn)(void*)) {
