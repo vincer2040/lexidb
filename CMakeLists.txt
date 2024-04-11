@@ -50,6 +50,26 @@ add_library(
     src/vec.c
 )
 
+add_library(
+    sha256
+    src/sha256.c
+)
+
+add_library(
+    siphash
+    src/siphash.c
+)
+
+add_library(
+    util
+    src/util.c
+)
+
+add_library(
+    vmap
+    src/vmap.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c
@@ -64,4 +84,9 @@ target_link_libraries(
     parser
     object
     m
+)
+
+target_link_libraries(
+    util
+    sha256
 )
