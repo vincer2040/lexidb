@@ -8,6 +8,43 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+char* read_file(const char* path, ssize_t* output_len) {
+    size_t len = 0, cap = 32;
+    char* res;
+    FILE* file;
+    char ch;
+    file = fopen(path, "r");
+    if (file == NULL) {
+        *output_len = -1;
+        return NULL;
+    }
+    res = calloc(cap, sizeof *res);
+    if (res == NULL) {
+        fclose(file);
+        *output_len = -1;
+        return NULL;
+    }
+    while ((ch = fgetc(file)) != EOF) {
+        if (len >= (cap - 1)) {
+            void* tmp;
+            cap <<= 1;
+            tmp = realloc(res, cap);
+            if (tmp == NULL) {
+                fclose(file);
+                free(res);
+                *output_len = -1;
+                return NULL;
+            }
+            res = tmp;
+            memset(res + len, 0, cap - len);
+        }
+        res[len] = ch;
+        len++;
+    }
+    *output_len = len;
+    return res;
+}
+
 void get_random_bytes(uint8_t* p, size_t len) {
     /* global */
     static int seed_initialized = 0;
