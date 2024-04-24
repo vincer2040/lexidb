@@ -70,7 +70,6 @@ static void config_parser_read_char(config_parser* p);
 static char config_parser_peek(config_parser* p);
 static void config_parser_skip_whitespace(config_parser* p);
 static void config_parser_skip_comment(config_parser* p);
-static vstr config_parser_parse_option(config_parser* p);
 
 const config_option_lookup option_lookups[] = {
     {"user", 4, CO_User},
