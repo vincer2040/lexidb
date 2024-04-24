@@ -12,7 +12,7 @@
 
 #define BIND_ADDR_MAX 16
 
-typedef struct server server;
+typedef struct lexi_server lexi_server;
 typedef struct client client;
 typedef struct connection connection;
 typedef struct user user;
@@ -25,7 +25,7 @@ typedef enum {
     LL_Debug = 4,
 } log_level;
 
-struct server {
+struct lexi_server {
     pid_t pid;              /* pid of the process */
     pthread_t thread_id;    /* main thread id */
     char* config_file;      /* absolute path to config file */
@@ -89,7 +89,7 @@ struct connection {
     connection_state state;
 };
 
-int configure_server(server* s, const char* input, size_t input_len,
+int configure_server(lexi_server* s, const char* input, size_t input_len,
                      vstr* error);
 
 #endif /* __SERVER_H__ */

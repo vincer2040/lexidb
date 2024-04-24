@@ -12,14 +12,14 @@ START_TEST(test_bind) {
 bind 127.0.0.1\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_str_eq(vstr_data(&s.bind_addr), "127.0.0.1");
     vec_free(s.users, NULL);
@@ -34,14 +34,14 @@ START_TEST(test_protected_mode) {
 protected-mode yes\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_int_eq(s.protected_mode, 1);
     vec_free(s.users, NULL);
@@ -54,14 +54,14 @@ START_TEST(test_port) {
 port 5173\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_uint_eq(s.port, 5173);
     vec_free(s.users, NULL);
@@ -75,14 +75,14 @@ START_TEST(test_tcp_backlog) {
 tcp-backlog 511\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_int_eq(s.tcp_backlog, 511);
     vec_free(s.users, NULL);
@@ -102,14 +102,14 @@ START_TEST(test_loglevel) {
 loglevel info\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_int_eq(s.loglevel, LL_Info);
     vec_free(s.users, NULL);
@@ -125,14 +125,14 @@ START_TEST(test_logfile) {
 logfile \"\"\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_ptr_null(s.logfile);
     vec_free(s.users, NULL);
@@ -146,14 +146,14 @@ START_TEST(test_databases) {
 databases 16\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     s.users = vec_new(sizeof(user));
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_int_eq(s.num_databases, 16);
     vec_free(s.users, NULL);
@@ -166,7 +166,7 @@ START_TEST(test_user) {
 user username on +$connection +set >password\n\
 ";
     size_t input_len = strlen(input);
-    server s = {0};
+    lexi_server s = {0};
     vstr err = {0};
     int res;
     const user* u;
@@ -177,7 +177,7 @@ user username on +$connection +set >password\n\
     res = configure_server(&s, input, input_len, &err);
     if (res == -1) {
         printf("error: %s\n", vstr_data(&err));
-        ck_assert(0 && "configure_server had error");
+        ck_assert(0 && "configure_lexi_server had error");
     }
     ck_assert_uint_eq(vec_len(s.users), 1);
     u = vec_get_at(s.users, 0);

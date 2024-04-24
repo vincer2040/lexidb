@@ -51,17 +51,17 @@ typedef struct {
     cmd_type cmd;
 } cmd_lookup;
 
-static void config_parser_configure_server(server* s, config_parser* p);
-static void config_parser_parse_line(server* s, config_parser* p);
+static void config_parser_configure_server(lexi_server* s, config_parser* p);
+static void config_parser_parse_line(lexi_server* s, config_parser* p);
 static config_option parse_config_option(config_parser* p);
-static void config_parser_parse_bind(server* s, config_parser* p);
-static void config_parser_parse_port(server* s, config_parser* p);
-static void config_parser_parse_protected_mode(server* s, config_parser* p);
-static void config_parser_parse_tcp_backlog(server* s, config_parser* p);
-static void config_parser_parse_loglevel(server* s, config_parser* p);
-static void config_parser_parse_logfile(server* s, config_parser* p);
-static void config_parser_parse_num_databases(server* s, config_parser* p);
-static void config_parser_parse_user(server* s, config_parser* p);
+static void config_parser_parse_bind(lexi_server* s, config_parser* p);
+static void config_parser_parse_port(lexi_server* s, config_parser* p);
+static void config_parser_parse_protected_mode(lexi_server* s, config_parser* p);
+static void config_parser_parse_tcp_backlog(lexi_server* s, config_parser* p);
+static void config_parser_parse_loglevel(lexi_server* s, config_parser* p);
+static void config_parser_parse_logfile(lexi_server* s, config_parser* p);
+static void config_parser_parse_num_databases(lexi_server* s, config_parser* p);
+static void config_parser_parse_user(lexi_server* s, config_parser* p);
 static category config_parser_parse_category(config_parser* p);
 static cmd_type config_parser_parse_cmd_type(config_parser* p);
 static vstr config_parser_read_basic_string(config_parser* p);
@@ -121,7 +121,7 @@ static config_parser config_parser_new(const char* input, size_t input_len) {
     return p;
 }
 
-int configure_server(server* s, const char* input, size_t input_len,
+int configure_server(lexi_server* s, const char* input, size_t input_len,
                      vstr* error) {
     config_parser p;
     if (s->users == NULL) {
@@ -141,7 +141,7 @@ int configure_server(server* s, const char* input, size_t input_len,
     return 0;
 }
 
-static void config_parser_configure_server(server* s, config_parser* p) {
+static void config_parser_configure_server(lexi_server* s, config_parser* p) {
     while (p->ch != 0) {
         config_parser_parse_line(s, p);
         if (p->has_error) {
@@ -151,7 +151,7 @@ static void config_parser_configure_server(server* s, config_parser* p) {
     }
 }
 
-static void config_parser_parse_line(server* s, config_parser* p) {
+static void config_parser_parse_line(lexi_server* s, config_parser* p) {
     config_option opt;
     config_parser_skip_whitespace(p);
     if (p->ch == '#') {
@@ -217,12 +217,12 @@ static config_option parse_config_option(config_parser* p) {
     return CO_Invalid;
 }
 
-static void config_parser_parse_bind(server* s, config_parser* p) {
+static void config_parser_parse_bind(lexi_server* s, config_parser* p) {
     vstr addr = config_parser_read_basic_string(p);
     s->bind_addr = addr;
 }
 
-static void config_parser_parse_port(server* s, config_parser* p) {
+static void config_parser_parse_port(lexi_server* s, config_parser* p) {
     uint16_t port = 0;
     while (p->ch != '\n' && p->ch != 0) {
         port = (port * 10) + (p->ch - '0');
@@ -231,7 +231,7 @@ static void config_parser_parse_port(server* s, config_parser* p) {
     s->port = port;
 }
 
-static void config_parser_parse_protected_mode(server* s, config_parser* p) {
+static void config_parser_parse_protected_mode(lexi_server* s, config_parser* p) {
     vstr str = vstr_new();
     const char* prot_str;
     size_t prot_str_len;
@@ -252,7 +252,7 @@ static void config_parser_parse_protected_mode(server* s, config_parser* p) {
     vstr_free(&str);
 }
 
-static void config_parser_parse_tcp_backlog(server* s, config_parser* p) {
+static void config_parser_parse_tcp_backlog(lexi_server* s, config_parser* p) {
     vstr backlog_vstr = config_parser_read_number_string(p);
     const char* backlog_str = vstr_data(&backlog_vstr);
     size_t i, backlog_str_len = vstr_len(&backlog_vstr);
@@ -264,7 +264,7 @@ static void config_parser_parse_tcp_backlog(server* s, config_parser* p) {
     s->tcp_backlog = res;
 }
 
-static void config_parser_parse_loglevel(server* s, config_parser* p) {
+static void config_parser_parse_loglevel(lexi_server* s, config_parser* p) {
     vstr ll_vstr = config_parser_read_basic_string(p);
     const char* ll_str = vstr_data(&ll_vstr);
     size_t ll_str_len = vstr_len(&ll_vstr);
@@ -286,7 +286,7 @@ static void config_parser_parse_loglevel(server* s, config_parser* p) {
     vstr_free(&ll_vstr);
 }
 
-static void config_parser_parse_logfile(server* s, config_parser* p) {
+static void config_parser_parse_logfile(lexi_server* s, config_parser* p) {
     vstr lf = config_parser_read_basic_string(p);
     const char* lf_str = vstr_data(&lf);
     size_t lf_str_len = vstr_len(&lf);
@@ -306,7 +306,7 @@ static void config_parser_parse_logfile(server* s, config_parser* p) {
     s->logfile = path;
 }
 
-static void config_parser_parse_num_databases(server* s, config_parser* p) {
+static void config_parser_parse_num_databases(lexi_server* s, config_parser* p) {
     vstr str = config_parser_read_number_string(p);
     size_t i, len = vstr_len(&str);
     const char* num_str = vstr_data(&str);
@@ -318,7 +318,7 @@ static void config_parser_parse_num_databases(server* s, config_parser* p) {
     vstr_free(&str);
 }
 
-static void config_parser_parse_user(server* s, config_parser* p) {
+static void config_parser_parse_user(lexi_server* s, config_parser* p) {
     user user = {0};
     vstr username = vstr_new();
     vec* categories;
