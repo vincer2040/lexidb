@@ -115,6 +115,7 @@ static int ev_api_poll(ev* ev, struct timeval* tvp) {
         }
     } else if (retval == -1 && errno != EINTR) {
         fprintf(stderr, "epoll_wait: %s", strerror(errno));
+        num_events = retval;
     }
     return num_events;
 }
