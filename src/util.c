@@ -10,7 +10,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <limits.h>
 
 char* read_file(const char* path, ssize_t* output_len) {
     size_t len = 0, cap = 32;
