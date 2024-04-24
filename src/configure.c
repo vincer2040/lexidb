@@ -294,13 +294,7 @@ static void config_parser_parse_logfile(lexi_server* s, config_parser* p) {
     if ((lf_str_len == 2) && (strncmp(lf_str, "\"\"", 2) == 0)) {
         path = NULL;
     } else {
-        path = calloc(lf_str_len + 1, sizeof *path);
-        if (path == NULL) {
-            p->has_error = 1;
-            p->error = vstr_from("oom");
-            return;
-        }
-        memcpy(path, lf_str, lf_str_len);
+        path = get_real_path(lf_str);
         vstr_free(&lf);
     }
     s->logfile = path;

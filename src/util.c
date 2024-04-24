@@ -1,5 +1,7 @@
+#define _XOPEN_SOURCE 500
 #include "sha256.h"
 #include "vstr.h"
+#include <linux/limits.h>
 #include <memory.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -8,6 +10,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
 
 char* read_file(const char* path, ssize_t* output_len) {
     size_t len = 0, cap = 32;
@@ -103,6 +106,38 @@ void get_random_bytes(uint8_t* p, size_t len) {
     }
 }
 
-void free_vstr_in_vec(void* ptr) {
-    vstr_free(ptr);
+void free_vstr_in_vec(void* ptr) { vstr_free(ptr); }
+
+char* get_executable_path(void) {
+    char buf[PATH_MAX + 1] = {0};
+    char* res;
+    size_t len;
+    ssize_t x = readlink("/proc/self/exe", buf, PATH_MAX);
+    if (x == -1) {
+        return NULL;
+    }
+    len = strlen(buf);
+    res = calloc(len + 1, sizeof *res);
+    if (res == NULL) {
+        return NULL;
+    }
+    memcpy(res, buf, len);
+    return res;
+}
+
+char* get_real_path(const char* path) {
+    char* res;
+    size_t len;
+    char buf[PATH_MAX + 1] = {0};
+    char* ptr = realpath(path, buf);
+    if (ptr == NULL) {
+        return NULL;
+    }
+    len = strlen(buf);
+    res = calloc(len + 1, sizeof *res);
+    if (res == NULL) {
+        return NULL;
+    }
+    memcpy(res, buf, len);
+    return res;
 }
