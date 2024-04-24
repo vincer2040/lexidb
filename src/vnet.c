@@ -59,7 +59,7 @@ static int vnet_listen(int socket, struct sockaddr* sa, socklen_t len,
     return VNET_OK;
 }
 
-static int vnet_generic_tcp_server(char* addr, uint16_t port, int family,
+static int vnet_generic_tcp_server(const char* addr, uint16_t port, int family,
                                    int backlog) {
     int res = -1, s;
     char port_str[6] = {0};
@@ -113,7 +113,7 @@ done:
     return res;
 }
 
-int vnet_tcp_server(char* addr, uint16_t port, int backlog) {
+int vnet_tcp_server(const char* addr, uint16_t port, int backlog) {
     return vnet_generic_tcp_server(addr, port, AF_INET, backlog);
 }
 
