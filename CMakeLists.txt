@@ -70,6 +70,11 @@ add_library(
     src/vmap.c
 )
 
+add_library(
+    vnet
+    src/vnet.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c
@@ -89,4 +94,5 @@ target_link_libraries(
 target_link_libraries(
     util
     sha256
+    vstr
 )

@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200112L
 #include "vnet.h"
 #include <arpa/inet.h>
 #include <errno.h>
@@ -12,9 +13,9 @@
 
 static int vnet_make_socket_nonblocking(int socket);
 
-static int vnet_create_socket(int domain) {
-    return socket(domain, SOCK_STREAM, 0);
-}
+// static int vnet_create_socket(int domain) {
+//     return socket(domain, SOCK_STREAM, 0);
+// }
 
 static int vnet_create_nonblocking_socket(int domain, int type, int protocol) {
     return socket(domain, type | SOCK_NONBLOCK, protocol);
@@ -99,6 +100,7 @@ static int vnet_generic_tcp_server(char* addr, uint16_t port, int family,
             freeaddrinfo(info);
             return VNET_ERR;
         }
+        goto done;
     }
 
     if (p == NULL) {
@@ -106,6 +108,7 @@ static int vnet_generic_tcp_server(char* addr, uint16_t port, int family,
         return VNET_ERR;
     }
 
+done:
     freeaddrinfo(info);
     return res;
 }
