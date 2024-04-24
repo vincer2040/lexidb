@@ -54,6 +54,13 @@ int vec_pop(vec* v, void* out) {
     return 0;
 }
 
+const void* vec_get_at(const vec* v, size_t idx) {
+    if (idx >= v->len) {
+        return NULL;
+    }
+    return v->data + (idx * v->data_size);
+}
+
 const void* vec_find(const vec* v, const void* el, int (*cmp_fn)(const void*, const void*)) {
     size_t i, len = v->len, data_size = v->data_size;
     for (i = 0; i < len; ++i) {
