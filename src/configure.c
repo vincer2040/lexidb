@@ -23,6 +23,7 @@ typedef enum {
     CO_TCP_Backlog,
     CO_LogLevel,
     CO_LogFile,
+    CO_MAX_CLIENTS,
     CO_Databases,
     CO_User,
 } config_option;
@@ -61,6 +62,7 @@ static void config_parser_parse_tcp_backlog(lexi_server* s, config_parser* p);
 static void config_parser_parse_loglevel(lexi_server* s, config_parser* p);
 static void config_parser_parse_logfile(lexi_server* s, config_parser* p);
 static void config_parser_parse_num_databases(lexi_server* s, config_parser* p);
+static void config_parser_parse_max_clients(lexi_server* s, config_parser* p);
 static void config_parser_parse_user(lexi_server* s, config_parser* p);
 static category config_parser_parse_category(config_parser* p);
 static cmd_type config_parser_parse_cmd_type(config_parser* p);
@@ -78,6 +80,7 @@ const config_option_lookup option_lookups[] = {
     {"logfile", 7, CO_LogFile},
     {"loglevel", 8, CO_LogLevel},
     {"databases", 9, CO_Databases},
+    {"max-clients", 11, CO_MAX_CLIENTS},
     {"tcp-backlog", 11, CO_TCP_Backlog},
     {"protected-mode", 14, CO_Protected_mode},
 };
@@ -182,6 +185,9 @@ static void config_parser_parse_line(lexi_server* s, config_parser* p) {
         break;
     case CO_Databases:
         config_parser_parse_num_databases(s, p);
+        break;
+    case CO_MAX_CLIENTS:
+        config_parser_parse_max_clients(s, p);
         break;
     case CO_User:
         config_parser_parse_user(s, p);
@@ -308,6 +314,18 @@ static void config_parser_parse_num_databases(lexi_server* s, config_parser* p) 
         num = (num * 10) + (num_str[i] - '0');
     }
     s->num_databases = num;
+    vstr_free(&str);
+}
+
+static void config_parser_parse_max_clients(lexi_server* s, config_parser* p) {
+    vstr str = config_parser_read_number_string(p);
+    size_t i, len = vstr_len(&str);
+    const char* num_str = vstr_data(&str);
+    uint64_t num = 0;
+    for (i = 0; i < len; ++i) {
+        num = (num * 10) + (num_str[i] - '0');
+    }
+    s->max_clients = num;
     vstr_free(&str);
 }
 

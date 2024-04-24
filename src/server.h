@@ -6,11 +6,16 @@
 #include "ev.h"
 #include "vec.h"
 #include "vstr.h"
+#include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 #define BIND_ADDR_MAX 16
+
+#define UNUSED(v) ((void)v)
 
 typedef struct lexi_server lexi_server;
 typedef struct client client;
@@ -35,6 +40,7 @@ struct lexi_server {
     ev* ev;                 /* event loop */
     uint16_t port;          /* the tcp port */
     vstr bind_addr;         /* the address to bind to */
+    uint64_t max_clients;   /* the maximum number of concurrent connections */
     vec* users;             /* list of configured users */
     vec* clients;           /* list of active clients */
     log_level loglevel;     /* the amount to log */
@@ -42,6 +48,7 @@ struct lexi_server {
     int protected_mode;     /* are we in protected mode? */
     int tcp_backlog;        /* backlog passed to listen() */
     uint64_t num_databases; /* the number of databases */
+    volatile sig_atomic_t shutdown;
 };
 
 struct client {
@@ -89,6 +96,9 @@ struct connection {
     connection_state state;
 };
 
+extern lexi_server server;
+
+int server_run(int argc, char** argv);
 int configure_server(lexi_server* s, const char* input, size_t input_len,
                      vstr* error);
 
