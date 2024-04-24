@@ -5,6 +5,14 @@
 #include "object.h"
 
 typedef enum {
+    C_Illegal,
+    C_Admin,
+    C_Read,
+    C_Write,
+    C_Connection,
+} category;
+
+typedef enum {
     CT_Illegal,
     CT_Info,
     CT_Set,

@@ -26,6 +26,12 @@ add_executable(
     vmap_test.c
 )
 
+add_executable(
+    config_test
+    config_test.c
+    ../src/configure.c
+)
+
 target_link_libraries(
     parser_test
     check
@@ -52,6 +58,15 @@ target_link_libraries(
     siphash
 )
 
+target_link_libraries(
+    config_test
+    check
+    pthread
+    vec
+    vstr
+    util
+)
+
 add_test(
     NAME parser_test
     COMMAND parser_test
@@ -70,8 +85,15 @@ add_test(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
 )
 
+add_test(
+    NAME config_test
+    COMMAND config_test
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
+)
+
 set_tests_properties(
     parser_test PROPERTIES TIMEOUT 30
     vec_test PROPERTIES TIMEOUT 30
     vmap_test PROPERTIES TIMEOUT 30
+    config_test PROPERTIES TIMEOUT 30
 )

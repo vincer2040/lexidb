@@ -1,4 +1,5 @@
 #include "sha256.h"
+#include "vstr.h"
 #include <memory.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -100,4 +101,8 @@ void get_random_bytes(uint8_t* p, size_t len) {
         len -= copylen;
         p += copylen;
     }
+}
+
+void free_vstr_in_vec(void* ptr) {
+    vstr_free(ptr);
 }
