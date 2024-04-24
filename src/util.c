@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 
 char* read_file(const char* path, ssize_t* output_len) {
     size_t len = 0, cap = 32;
@@ -45,6 +46,7 @@ char* read_file(const char* path, ssize_t* output_len) {
         len++;
     }
     *output_len = len;
+    fclose(file);
     return res;
 }
 
@@ -139,4 +141,13 @@ char* get_real_path(const char* path) {
     }
     memcpy(res, buf, len);
     return res;
+}
+
+int create_signal_handler(void (*handler)(int), int interupt) {
+    struct sigaction sa = {0};
+    sa.sa_handler = handler;
+    if (sigaction(interupt, &sa, NULL) == -1) {
+        return -1;
+    }
+    return 0;
 }
