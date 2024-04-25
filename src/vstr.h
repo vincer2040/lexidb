@@ -130,6 +130,14 @@ int vstr_push_char(vstr* s, char c);
  */
 int vstr_push_string(vstr* s, const char* str);
 /**
+ * @brief append a string of length str_len to a vstr
+ * @param s the vstr to append to
+ * @param str the string to append
+ * @param str_len the length of str to append
+ * @returns 0 on success, -1 on failure
+ */
+int vstr_push_string_len(vstr* s, const char* str, size_t str_len);
+/**
  * @brief free a vstr
  * @param s the vstr to free
  */
