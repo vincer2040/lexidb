@@ -23,6 +23,7 @@ typedef struct {
 vmap* vmap_new(vmap_type* type);
 int vmap_insert(vmap** map, void* key, void* value);
 const void* vmap_find(const vmap* map, const void* key);
+int vmap_has(const vmap* map, const void* key);
 int vmap_delete(vmap** map, const void* key);
 void vmap_free(vmap* map);
 

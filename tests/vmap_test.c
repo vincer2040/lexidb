@@ -56,6 +56,8 @@ START_TEST(test_it_works) {
         ck_assert_ptr_null(to);
         int res = vmap_insert(&map, &key, &value);
         ck_assert_int_eq(res, VMAP_OK);
+        res = vmap_has(map, &key);
+        ck_assert_int_eq(res, 1);
     }
     for (i = 0; i < len; ++i) {
         kv_test t = tests[i];
@@ -73,6 +75,8 @@ START_TEST(test_it_works) {
         int res = vmap_delete(&map, &key);
         ck_assert_int_eq(res, VMAP_OK);
         vstr_free(&key);
+        res = vmap_has(map, &key);
+        ck_assert_int_eq(res, 0);
     }
     for (i = 0; i < len; ++i) {
         kv_test t = tests[i];
@@ -86,6 +90,8 @@ START_TEST(test_it_works) {
         vstr key = vstr_from(t.key);
         const object* res = vmap_find(map, &key);
         ck_assert_ptr_null(res);
+        int x = vmap_has(map, &key);
+        ck_assert_int_eq(x, 0);
         vstr_free(&key);
     }
     for (i = 0; i < len; ++i) {
@@ -94,6 +100,8 @@ START_TEST(test_it_works) {
         object value = {OT_Int, .data = {.integer = t.value}};
         int res = vmap_insert(&map, &key, &value);
         ck_assert_int_eq(res, VMAP_OK);
+        res = vmap_has(map, &key);
+        ck_assert_int_eq(res, 1);
     }
     for (i = 0; i < len; ++i) {
         kv_test t = tests[i];
@@ -103,6 +111,8 @@ START_TEST(test_it_works) {
         ck_assert_ptr_nonnull(res);
         got = res->data.integer;
         ck_assert_int_eq(got, t.value);
+        int x = vmap_has(map, &key);
+        ck_assert_int_eq(x, 1);
         vstr_free(&key);
     }
     vmap_free(map);

@@ -167,6 +167,38 @@ const void* vmap_find(const vmap* map, const void* key) {
     return NULL;
 }
 
+int vmap_has(const vmap* map, const void* key) {
+    uint64_t hash = map->type->hash(key);
+    uint64_t h1 = vmap_h1(hash);
+    uint8_t h2 = vmap_h2_from_hash(hash);
+    uint64_t capacity = (1 << map->power);
+    uint64_t slot = h1 & (capacity - 1);
+    size_t entry_size = map->entry_size;
+    while (1) {
+        uint8_t data = map->metadata[slot];
+        uint8_t data_h2 = vmap_h2(data);
+        uint8_t flags = vmap_flags(data);
+        unsigned char* entry;
+        if (flags == VMAP_DELETED) {
+            slot = (slot + 1) & (capacity - 1);
+            continue;
+        }
+        if (flags == VMAP_FULL) {
+            entry = map->entries + (entry_size * slot);
+            if (h2 == data_h2) {
+                int cmp = vmap_key_cmp(map, entry, key);
+                if (cmp == 0) {
+                    return 1;
+                }
+            }
+            slot = (slot + 1) & (capacity - 1);
+            continue;
+        }
+        break;
+    }
+    return 0;
+}
+
 int vmap_delete(vmap** map, const void* key) {
     vmap* m = *map;
     uint64_t hash = m->type->hash(key);
@@ -197,7 +229,8 @@ int vmap_delete(vmap** map, const void* key) {
                     m->metadata[slot] = VMAP_DELETED;
                     m->numel--;
                     load = (double)m->numel / (double)capacity;
-                    if ((load < VMAP_MIN_LOAD) && (m->power > VMAP_INITIAL_POWER)) {
+                    if ((load < VMAP_MIN_LOAD) &&
+                        (m->power > VMAP_INITIAL_POWER)) {
                         return vmap_resize(map, m->power - 1);
                     }
                     return VMAP_OK;
@@ -263,7 +296,8 @@ static int vmap_resize(vmap** map, uint64_t new_power) {
             uint8_t new_data = new_map->metadata[slot];
             uint8_t new_flags = vmap_flags(new_data);
             if (new_flags == VMAP_EMPTY) {
-                memcpy(new_map->entries + (entry_size * slot), entry, entry_size);
+                memcpy(new_map->entries + (entry_size * slot), entry,
+                       entry_size);
                 new_map->metadata[slot] = (h2 << 2) | VMAP_FULL;
                 break;
             }
