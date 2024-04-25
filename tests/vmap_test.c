@@ -4,7 +4,6 @@
 #include "../src/vmap.h"
 #include "../src/vstr.h"
 #include <check.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define SEED_SIZE 16
