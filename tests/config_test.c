@@ -201,7 +201,7 @@ user username on +$connection +set >password\n\
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
-    s = suite_create("vmap");
+    s = suite_create("config");
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_bind);
     tcase_add_test(tc_core, test_protected_mode);
