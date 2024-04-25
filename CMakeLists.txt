@@ -78,6 +78,22 @@ add_library(
 add_executable(
     lexidb
     src/lexidb.c
+    src/server.c
+    src/configure.c
+    src/vmap_type.c
+)
+
+target_link_libraries(
+    lexidb
+    vmap
+    object
+    siphash
+    vstr
+    vec
+    util
+    pthread
+    ev
+    vnet
 )
 
 target_link_libraries(

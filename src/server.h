@@ -5,6 +5,7 @@
 #include "cmd.h"
 #include "ev.h"
 #include "vec.h"
+#include "vmap.h"
 #include "vstr.h"
 #include <pthread.h>
 #include <signal.h>
@@ -30,9 +31,15 @@ typedef enum {
     LL_Debug = 4,
 } log_level;
 
+typedef struct {
+    uint64_t id;
+    vmap* keys;
+} lexi_db;
+
 struct lexi_server {
     pid_t pid;              /* pid of the process */
     pthread_t thread_id;    /* main thread id */
+    int sfd;                /* the socket the server is listening on */
     char* config_file;      /* absolute path to config file */
     char* executable;       /* absolute path to this executable */
     int argc;               /* the number of args passed to executable */
@@ -48,6 +55,7 @@ struct lexi_server {
     int protected_mode;     /* are we in protected mode? */
     int tcp_backlog;        /* backlog passed to listen() */
     uint64_t num_databases; /* the number of databases */
+    lexi_db* databases;     /* array of databases, len = num_databases */
     volatile sig_atomic_t shutdown;
 };
 
@@ -58,6 +66,7 @@ struct client {
     user* user;               /* user associated with this connection */
     time_t creation_time;     /* time this client was created */
     int authenticated;        /* is this client authenticated */
+    int protocol_version;     /* the protocol version to use */
     size_t read_buf_pos;      /* position in buf */
     size_t read_buf_cap;      /* buf capacity */
     unsigned char* read_buf;  /* read buf */
@@ -94,6 +103,7 @@ typedef enum {
 struct connection {
     int fd;
     connection_state state;
+    int last_errno;
 };
 
 extern lexi_server server;
@@ -101,5 +111,7 @@ extern lexi_server server;
 int server_run(int argc, char** argv);
 int configure_server(lexi_server* s, const char* input, size_t input_len,
                      vstr* error);
+void init_vmap_type(void);
+vmap_type* get_vmap_type(void);
 
 #endif /* __SERVER_H__ */
