@@ -41,6 +41,11 @@ add_library(
 )
 
 add_library(
+    builder
+    src/builder.c
+)
+
+add_library(
     cmd
     src/cmd.c
 )
@@ -94,6 +99,11 @@ target_link_libraries(
     pthread
     ev
     vnet
+)
+
+target_link_libraries(
+    builder
+    vstr
 )
 
 target_link_libraries(

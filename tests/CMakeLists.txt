@@ -32,6 +32,11 @@ add_executable(
     ../src/configure.c
 )
 
+add_executable(
+    builder_test
+    builder_test.c
+)
+
 target_link_libraries(
     parser_test
     check
@@ -67,6 +72,13 @@ target_link_libraries(
     util
 )
 
+target_link_libraries(
+    builder_test
+    check
+    pthread
+    builder
+)
+
 add_test(
     NAME parser_test
     COMMAND parser_test
@@ -91,9 +103,16 @@ add_test(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
 )
 
+add_test(
+    NAME builder_test
+    COMMAND builder_test
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
+)
+
 set_tests_properties(
     parser_test PROPERTIES TIMEOUT 30
     vec_test PROPERTIES TIMEOUT 30
     vmap_test PROPERTIES TIMEOUT 30
     config_test PROPERTIES TIMEOUT 30
+    builder_test PROPERTIES TIMEOUT 30
 )
