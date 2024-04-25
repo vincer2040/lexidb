@@ -341,6 +341,9 @@ static void config_parser_parse_user(lexi_server* s, config_parser* p) {
         config_parser_read_char(p);
     }
     user.username = username;
+    if ((vstr_len(&username) == 7) && (strncmp(vstr_data(&username), "default", 7) == 0)) {
+        flags |= USER_DEFAULT;
+    }
     if (p->ch == 0 || p->ch == '\n') {
         vec_push(&s->users, &user);
         return;
