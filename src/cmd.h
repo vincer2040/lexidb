@@ -29,6 +29,7 @@ typedef object key_cmd;
 typedef object val_cmd;
 
 typedef struct {
+    category cat;
     cmd_type type;
     union {
         key_val_cmd set;

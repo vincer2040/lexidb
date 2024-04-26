@@ -8,7 +8,6 @@
 #include <memory.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -167,6 +166,7 @@ static cmd parser_parse_array_cmd(parser* p) {
             object_free(&key);
             object_free(&value);
         }
+        cmd.cat = C_Write;
         cmd.type = type;
         cmd.data.set.key = key;
         cmd.data.set.value = value;
@@ -188,6 +188,7 @@ static cmd parser_parse_array_cmd(parser* p) {
             p->has_error = 1;
             object_free(&key);
         }
+        cmd.cat = C_Read;
         cmd.type = type;
         cmd.data.get = key;
     } break;
@@ -208,6 +209,7 @@ static cmd parser_parse_array_cmd(parser* p) {
             p->has_error = 1;
             object_free(&key);
         }
+        cmd.cat = C_Write;
         cmd.type = type;
         cmd.data.del = key;
     } break;
