@@ -21,6 +21,12 @@ class ProtocolBuilder:
         self.__add_end()
         return self
 
+    def add_array(self, length):
+        self.__buf += b"*"
+        self.__add_len(length)
+        self.__add_end()
+        return self
+
     def get(self):
         return self.__buf
 
@@ -46,6 +52,14 @@ class Client:
         self.__send(ProtocolBuilder().add_simple("PING").get())
         print(self.__socket.recv(4096).decode())
 
+    def set(self, k, v):
+        self.__send(ProtocolBuilder().add_array(3).add_simple("SET").add_bulk(k).add_bulk(v).get())
+        print(self.__socket.recv(4096).decode())
+
+    def get(self, k):
+        self.__send(ProtocolBuilder().add_array(2).add_simple("GET").add_bulk(k).get())
+        print(self.__socket.recv(4096).decode())
+
     def __send(self, buf):
         self.__socket.send(buf)
 
@@ -54,5 +68,9 @@ client = Client("127.0.0.1", 5173)
 client.connect()
 
 client.ping()
+
+client.set("foo", "bar")
+
+client.get("foo")
 
 client.close()
