@@ -61,7 +61,8 @@ const void* vec_get_at(const vec* v, size_t idx) {
     return v->data + (idx * v->data_size);
 }
 
-const void* vec_find(const vec* v, const void* el, int (*cmp_fn)(const void*, const void*)) {
+const void* vec_find(const vec* v, const void* el,
+                     int (*cmp_fn)(const void*, const void*)) {
     size_t i, len = v->len, data_size = v->data_size;
     for (i = 0; i < len; ++i) {
         const void* cur = v->data + (i * data_size);
@@ -71,6 +72,32 @@ const void* vec_find(const vec* v, const void* el, int (*cmp_fn)(const void*, co
         }
     }
     return NULL;
+}
+
+int vec_remove(vec* v, const void* el, int (*cmp_fn)(const void*, const void*),
+               void (*free_fn)(void*)) {
+    size_t i, len = v->len, data_size = v->data_size;
+    for (i = 0; i < len; ++i) {
+        void* cur = v->data + (i * data_size);
+        int cmp = cmp_fn(el, cur);
+        if (cmp == 0) {
+            size_t off;
+            if (free_fn) {
+                free_fn(cur);
+            }
+            if (i == len - 1) {
+                memset(v->data + (i * data_size), 0, data_size);
+                v->len--;
+                return 0;
+            }
+            off = (i * 1) * data_size;
+            memmove(v->data + (i * data_size), v->data + off,
+                    (len - i - 1) * data_size);
+            v->len--;
+            return 0;
+        }
+    }
+    return -1;
 }
 
 void vec_free(vec* v, void (*free_fn)(void*)) {
