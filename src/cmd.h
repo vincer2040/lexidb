@@ -14,6 +14,7 @@ typedef enum {
 
 typedef enum {
     CT_Illegal,
+    CT_Ping,
     CT_Info,
     CT_Set,
     CT_Get,

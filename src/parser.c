@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "cmd.h"
 #include "object.h"
+#include "util.h"
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
@@ -302,6 +303,16 @@ static cmd parser_parse_bulk_string_cmd(parser* p) {
         }
         cmd.type = lookup.type;
         object_free(&obj);
+        switch (cmd.type) {
+        case CT_Ping:
+            cmd.cat = C_Connection;
+            break;
+        case CT_Info:
+            cmd.cat = C_Admin;
+            break;
+        default:
+            unreachable();
+        }
         return cmd;
     }
     object_free(&obj);
@@ -332,6 +343,16 @@ static cmd parser_parse_simple_string_cmd(parser* p) {
         }
         cmd.type = lookup.type;
         object_free(&obj);
+        switch (cmd.type) {
+        case CT_Ping:
+            cmd.cat = C_Connection;
+            break;
+        case CT_Info:
+            cmd.cat = C_Admin;
+            break;
+        default:
+            unreachable();
+        }
         return cmd;
     }
     object_free(&obj);
