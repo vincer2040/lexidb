@@ -208,7 +208,8 @@ static int client_can_execute_command(client* client, cmd_type type,
 }
 
 static void execute_command(client* client, cmd* cmd) {
-    if (!client_can_execute_command(client, cmd->type, cmd->cat) && server.protected_mode) {
+    if (!client_can_execute_command(client, cmd->type, cmd->cat) &&
+        server.protected_mode) {
         client_add_reply_no_access(client);
         return;
     }
@@ -275,6 +276,9 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
     server_log(LL_Info, (const char*)client->read_buf, client->read_buf_pos);
 
     handle_client_req(client);
+
+    memset(client->read_buf, 0, client->read_buf_pos);
+    client->read_buf_pos = 0;
 
     ev_add_event(ev, fd, EV_WRITE, write_to_client, client);
     UNUSED(mask);
