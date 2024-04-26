@@ -1,21 +1,22 @@
 #include "builder.h"
+#include "object.h"
 
 #define SIMPLE_STRING_BYTE '+'
 #define BULK_STRING_BYTE '$'
 #define INT_BYTE ':'
 #define DBL_BYTE ','
 #define ARRAY_BYTE '*'
+#define NULL_BYTE '_'
+#define BOOLEAN_BYTE '#'
+#define BULK_ERROR_BYTE '!'
+#define SIMPLE_ERROR_BYTE '-'
 
 static int builder_add_len(builder* b, size_t len);
 static int builder_add_end(builder* b);
 
-builder builder_new(void) {
-    return vstr_new();
-}
+builder builder_new(void) { return vstr_new(); }
 
-size_t builder_len(const builder* b) {
-    return vstr_len(b);
-}
+size_t builder_len(const builder* b) { return vstr_len(b); }
 
 const unsigned char* builder_out(const builder* b) {
     return (const unsigned char*)vstr_data(b);
@@ -117,6 +118,92 @@ int builder_add_array(builder* b, size_t len) {
     res = builder_add_end(b);
     return res;
 }
+
+int builder_add_null(builder* b) {
+    int res;
+    res = vstr_push_char(b, NULL_BYTE);
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_end(b);
+    return res;
+}
+
+int builder_add_boolean(builder* b, int value) {
+    int res;
+    res = vstr_push_char(b, BOOLEAN_BYTE);
+    if (res == -1) {
+        return -1;
+    }
+    if (value) {
+        res = vstr_push_char(b, 't');
+    } else {
+        res = vstr_push_char(b, 'f');
+    }
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_end(b);
+    return res;
+}
+
+int builder_add_simple_err(builder* b, const char* err, size_t err_len) {
+    int res;
+    res = vstr_push_char(b, SIMPLE_ERROR_BYTE);
+    if (res == -1) {
+        return -1;
+    }
+    res = vstr_push_string_len(b, err, err_len);
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_end(b);
+    return res;
+}
+
+int builder_add_bulk_error(builder* b, const char* err, size_t err_len) {
+    int res;
+    res = vstr_push_char(b, BULK_ERROR_BYTE);
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_len(b, err_len);
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_end(b);
+    if (res == -1) {
+        return -1;
+    }
+    res = vstr_push_string_len(b, err, err_len);
+    if (res == -1) {
+        return -1;
+    }
+    res = builder_add_end(b);
+    return res;
+}
+
+int builder_add_object(builder* b, const object* obj) {
+    switch (obj->type) {
+    case OT_Null:
+        return builder_add_null(b);
+    case OT_Int:
+        return builder_add_int(b, obj->data.integer);
+    case OT_Double:
+        return builder_add_double(b, obj->data.dbl);
+    case OT_Boolean:
+        return builder_add_boolean(b, obj->data.boolean);
+    case OT_String:
+        return builder_add_bulk_string(b, vstr_data(&obj->data.string),
+                                       vstr_len(&obj->data.string));
+    case OT_Error:
+        return builder_add_bulk_error(b, vstr_data(&obj->data.string),
+                                      vstr_len(&obj->data.string));
+    }
+    return -1;
+}
+
+void builder_free(builder* b) { vstr_free(b); }
 
 static int builder_add_len(builder* b, size_t len) {
     int res;
