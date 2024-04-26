@@ -86,6 +86,8 @@ add_executable(
     src/server.c
     src/configure.c
     src/vmap_type.c
+    src/connection.c
+    src/networking.c
 )
 
 target_link_libraries(
@@ -99,6 +101,7 @@ target_link_libraries(
     pthread
     ev
     vnet
+    builder
 )
 
 target_link_libraries(
