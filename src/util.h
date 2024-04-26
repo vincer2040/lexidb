@@ -6,6 +6,14 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define unreachable() do { \
+    printf("%s:%d ", __FILE__, __LINE__);\
+    printf("unreachable code reached\n");\
+    abort();\
+} while (0)
 
 char* read_file(const char* path, ssize_t* output_len);
 void get_random_bytes(uint8_t* p, size_t len);
