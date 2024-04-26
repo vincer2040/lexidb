@@ -18,8 +18,8 @@ builder builder_new(void) { return vstr_new(); }
 
 size_t builder_len(const builder* b) { return vstr_len(b); }
 
-const unsigned char* builder_out(const builder* b) {
-    return (const unsigned char*)vstr_data(b);
+unsigned char* builder_out(const builder* b) {
+    return (unsigned char*)vstr_data(b);
 }
 
 int builder_add_simple_string(builder* b, const char* str, size_t str_len) {
@@ -161,7 +161,7 @@ int builder_add_simple_err(builder* b, const char* err, size_t err_len) {
     return res;
 }
 
-int builder_add_bulk_error(builder* b, const char* err, size_t err_len) {
+int builder_add_bulk_err(builder* b, const char* err, size_t err_len) {
     int res;
     res = vstr_push_char(b, BULK_ERROR_BYTE);
     if (res == -1) {
@@ -197,7 +197,7 @@ int builder_add_object(builder* b, const object* obj) {
         return builder_add_bulk_string(b, vstr_data(&obj->data.string),
                                        vstr_len(&obj->data.string));
     case OT_Error:
-        return builder_add_bulk_error(b, vstr_data(&obj->data.string),
+        return builder_add_bulk_err(b, vstr_data(&obj->data.string),
                                       vstr_len(&obj->data.string));
     }
     return -1;
