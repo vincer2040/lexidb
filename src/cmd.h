@@ -3,6 +3,7 @@
 #define __CMD_H__
 
 #include "object.h"
+#include "server.h"
 
 typedef enum {
     C_Illegal,
@@ -29,9 +30,14 @@ typedef struct {
 typedef object key_cmd;
 typedef object val_cmd;
 
-typedef struct {
+struct cmd;
+
+typedef void cmd_fn(client* client, const struct cmd* cmd);
+
+typedef struct cmd {
     category cat;
     cmd_type type;
+    cmd_fn* proc;
     union {
         key_val_cmd set;
         key_cmd get;
@@ -39,6 +45,10 @@ typedef struct {
     } data;
 } cmd;
 
+void ping_cmd_fn(client* client, const cmd* cmd);
+void set_cmd_fn(client* client, const cmd* cmd);
+void get_cmd_fn(client* client, const cmd* cmd);
+void del_cmd_fn(client* client, const cmd* cmd);
 void cmd_free(cmd* cmd);
 
 #endif /* __CMD_H__ */

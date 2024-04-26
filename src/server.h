@@ -3,7 +3,6 @@
 #define __SERVER_H__
 
 #include "builder.h"
-#include "cmd.h"
 #include "ev.h"
 #include "vec.h"
 #include "vmap.h"
@@ -45,6 +44,9 @@ typedef struct {
     const char* pong;
     const char* none;
     const char* denied_cmd;
+    const char* null;
+    const char* zero;
+    const char* one;
 } shared_reply;
 
 struct lexi_server {
@@ -139,11 +141,20 @@ void client_add_reply_ok(client* client);
 void client_add_reply_pong(client* client);
 void client_add_reply_none(client* client);
 void client_add_reply_no_access(client* client);
+void client_add_reply_null(client* client);
+void client_add_reply_zero(client* client);
+void client_add_reply_one(client* client);
 int client_add_reply_simple_error(client* client, const vstr* error);
 int client_add_reply_bulk_error(client* client, const vstr* error);
+int client_add_reply_object(client* client, const object* obj);
 
 /* connection.c */
 connection* connection_new(int fd);
 void connection_close(connection* conn);
+
+/* db.c */
+int db_insert_key(lexi_db* db, vstr* key, object* value);
+const object* db_get_key(const lexi_db* db, const vstr* key);
+int db_delete_key(lexi_db* db, const vstr* key);
 
 #endif /* __SERVER_H__ */

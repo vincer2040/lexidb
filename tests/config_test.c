@@ -1,5 +1,6 @@
 #include "../src/server.h"
 #include "../src/vstr.h"
+#include "../src/cmd.h"
 #include <check.h>
 #include <stdio.h>
 #include <stdlib.h>

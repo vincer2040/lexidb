@@ -10,6 +10,9 @@ shared_reply shared_replies = {
     .pong = "+PONG\r\n",
     .none = "+NONE\r\n",
     .denied_cmd = "-ENOACCESS\r\n",
+    .null = "_\r\n",
+    .zero = ":0\r\n",
+    .one = ":1\r\n",
 };
 
 #define CLIENT_READ_BUF_INITIAL_CAP 4096
@@ -119,6 +122,21 @@ void client_add_reply_no_access(client* client) {
     client->write_len = 12;
 }
 
+void client_add_reply_null(client* client) {
+    client->write_buf = (unsigned char*)shared_replies.null;
+    client->write_len = 3;
+}
+
+void client_add_reply_zero(client* client) {
+    client->write_buf = (unsigned char*)shared_replies.zero;
+    client->write_len = 4;
+}
+
+void client_add_reply_one(client* client) {
+    client->write_buf = (unsigned char*)shared_replies.one;
+    client->write_len = 4;
+}
+
 int client_add_reply_simple_error(client* client, const vstr* error) {
     int res = builder_add_simple_err(&client->builder, vstr_data(error),
                                      vstr_len(error));
@@ -133,6 +151,16 @@ int client_add_reply_simple_error(client* client, const vstr* error) {
 int client_add_reply_bulk_error(client* client, const vstr* error) {
     int res = builder_add_bulk_err(&client->builder, vstr_data(error),
                                    vstr_len(error));
+    if (res == -1) {
+        return -1;
+    }
+    client->write_buf = builder_out(&client->builder);
+    client->write_len = builder_len(&client->builder);
+    return 0;
+}
+
+int client_add_reply_object(client* client, const object* obj) {
+    int res = builder_add_object(&client->builder, obj);
     if (res == -1) {
         return -1;
     }

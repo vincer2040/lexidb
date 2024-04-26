@@ -46,11 +46,6 @@ add_library(
 )
 
 add_library(
-    cmd
-    src/cmd.c
-)
-
-add_library(
     vec
     src/vec.c
 )
@@ -88,6 +83,8 @@ add_executable(
     src/vmap_type.c
     src/connection.c
     src/networking.c
+    src/cmd.c
+    src/db.c
 )
 
 target_link_libraries(
@@ -103,7 +100,6 @@ target_link_libraries(
     vnet
     builder
     parser
-    cmd
 )
 
 target_link_libraries(

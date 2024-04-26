@@ -170,6 +170,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.cat = C_Write;
         cmd.type = type;
+        cmd.proc = set_cmd_fn;
         cmd.data.set.key = key;
         cmd.data.set.value = value;
     } break;
@@ -192,6 +193,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.cat = C_Read;
         cmd.type = type;
+        cmd.proc = get_cmd_fn;
         cmd.data.get = key;
     } break;
     case CT_Del: {
@@ -213,6 +215,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.cat = C_Write;
         cmd.type = type;
+        cmd.proc = del_cmd_fn;
         cmd.data.del = key;
     } break;
     default:
@@ -306,6 +309,7 @@ static cmd parser_parse_bulk_string_cmd(parser* p) {
         switch (cmd.type) {
         case CT_Ping:
             cmd.cat = C_Connection;
+            cmd.proc = ping_cmd_fn;
             break;
         case CT_Info:
             cmd.cat = C_Admin;
@@ -346,6 +350,7 @@ static cmd parser_parse_simple_string_cmd(parser* p) {
         switch (cmd.type) {
         case CT_Ping:
             cmd.cat = C_Connection;
+            cmd.proc = ping_cmd_fn;
             break;
         case CT_Info:
             cmd.cat = C_Admin;

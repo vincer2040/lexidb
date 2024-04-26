@@ -11,9 +11,21 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(libcheck)
 
+# parser does not require all of these to work, but they are
+# needed to compile
 add_executable(
     parser_test
     parser_test.c
+    ../src/parser.c
+    ../src/cmd.c
+    ../src/networking.c
+    ../src/object.c
+    ../src/vstr.c
+    ../src/db.c
+    ../src/server.c
+    ../src/connection.c
+    ../src/vmap_type.c
+    ../src/configure.c
 )
 
 add_executable(
@@ -37,12 +49,19 @@ add_executable(
     builder_test.c
 )
 
+# parser does not require all of these to work, but they are
+# needed to compile
 target_link_libraries(
     parser_test
     check
     pthread
-    parser
-    cmd
+    builder
+    vec
+    util
+    vmap
+    ev
+    vnet
+    siphash
 )
 
 target_link_libraries(

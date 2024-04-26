@@ -208,25 +208,14 @@ static int client_can_execute_command(client* client, cmd_type type,
 }
 
 static void execute_command(client* client, cmd* cmd) {
-    if (!client_can_execute_command(client, cmd->type, cmd->cat)) {
+    if (!client_can_execute_command(client, cmd->type, cmd->cat) && server.protected_mode) {
         client_add_reply_no_access(client);
         return;
     }
-    switch (cmd->type) {
-    case CT_Illegal:
-        unreachable();
-    case CT_Ping:
-        client_add_reply_pong(client);
-        break;
-    case CT_Info:
-        break;
-    case CT_Set:
-        break;
-    case CT_Get:
-        break;
-    case CT_Del:
-        break;
+    if (cmd->proc) {
+        cmd->proc(client, cmd);
     }
+    cmd_free(cmd);
 }
 
 static void handle_client_req(client* client) {

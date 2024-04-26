@@ -27,6 +27,7 @@ extern object null_obj;
 extern object true_obj;
 extern object false_obj;
 
+const char* object_type_to_string(const object* obj);
 int object_cmp(const object* a, const object* b);
 void object_free(object* obj);
 
