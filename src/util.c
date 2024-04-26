@@ -151,3 +151,16 @@ int create_signal_handler(void (*handler)(int), int interupt) {
     }
     return 0;
 }
+
+int vstr_has_retcar_or_newline(vstr* vs) {
+    const char* s = vstr_data(vs);
+    size_t len = vstr_len(vs);
+    size_t i;
+    for (i = 0; i < len; ++i) {
+        char c = s[i];
+        if (c == '\r' || c == '\n') {
+            return 1;
+        }
+    }
+    return 0;
+}
