@@ -37,6 +37,7 @@ const cmd_type_lookup array_cmd_lookups[] = {
 };
 
 const cmd_type_lookup string_cmd_lookups[] = {
+    {4, "PING", CT_Ping},
     {4, "INFO", CT_Info},
 };
 
