@@ -44,6 +44,7 @@ typedef struct {
     const char* ok;
     const char* pong;
     const char* none;
+    const char* denied_cmd;
 } shared_reply;
 
 struct lexi_server {
@@ -137,6 +138,9 @@ void client_close(client* client);
 void client_add_reply_ok(client* client);
 void client_add_reply_pong(client* client);
 void client_add_reply_none(client* client);
+void client_add_reply_no_access(client* client);
+int client_add_reply_simple_error(client* client, const vstr* error);
+int client_add_reply_bulk_error(client* client, const vstr* error);
 
 /* connection.c */
 connection* connection_new(int fd);

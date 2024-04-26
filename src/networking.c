@@ -9,6 +9,7 @@ shared_reply shared_replies = {
     .ok = "+OK\r\n",
     .pong = "+PONG\r\n",
     .none = "+NONE\r\n",
+    .denied_cmd = "-ENOACCESS\r\n",
 };
 
 #define CLIENT_READ_BUF_INITIAL_CAP 4096
@@ -80,10 +81,12 @@ int client_write(client* client) {
         if (amt_written == -1) {
             client->conn->last_errno = errno;
             client->conn->state = CS_Error;
+            builder_reset(&client->builder);
             return -1;
         }
         bytes_sent += amt_written;
     }
+    builder_reset(&client->builder);
     return 0;
 }
 
@@ -109,6 +112,33 @@ void client_add_reply_pong(client* client) {
 void client_add_reply_none(client* client) {
     client->write_buf = (unsigned char*)shared_replies.none;
     client->write_len = 7;
+}
+
+void client_add_reply_no_access(client* client) {
+    client->write_buf = (unsigned char*)shared_replies.denied_cmd;
+    client->write_len = 12;
+}
+
+int client_add_reply_simple_error(client* client, const vstr* error) {
+    int res = builder_add_simple_err(&client->builder, vstr_data(error),
+                                     vstr_len(error));
+    if (res == -1) {
+        return -1;
+    }
+    client->write_buf = builder_out(&client->builder);
+    client->write_len = builder_len(&client->builder);
+    return 0;
+}
+
+int client_add_reply_bulk_error(client* client, const vstr* error) {
+    int res = builder_add_bulk_err(&client->builder, vstr_data(error),
+                                   vstr_len(error));
+    if (res == -1) {
+        return -1;
+    }
+    client->write_buf = builder_out(&client->builder);
+    client->write_len = builder_len(&client->builder);
+    return 0;
 }
 
 static int client_realloc_read_buf(client* client) {

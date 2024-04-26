@@ -102,6 +102,8 @@ target_link_libraries(
     ev
     vnet
     builder
+    parser
+    cmd
 )
 
 target_link_libraries(

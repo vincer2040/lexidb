@@ -1,5 +1,7 @@
 #include "server.h"
+#include "cmd.h"
 #include "ev.h"
+#include "parser.h"
 #include "util.h"
 #include "vnet.h"
 #include <errno.h>
@@ -182,6 +184,69 @@ int server_run(int argc, char** argv) {
     return 0;
 }
 
+static int client_can_execute_command(client* client, cmd_type type,
+                                      category cat) {
+    vec_iter category_iter, cmd_type_iter;
+    user* user = client->user;
+    category_iter = vec_iter_new(user->categories);
+    while (category_iter.cur) {
+        const category* cur_cat = category_iter.cur;
+        if (*cur_cat == cat) {
+            return 1;
+        }
+        vec_iter_next(&category_iter);
+    }
+    cmd_type_iter = vec_iter_new(user->commands);
+    while (cmd_type_iter.cur) {
+        const cmd_type* cur_type = cmd_type_iter.cur;
+        if (*cur_type == type) {
+            return 1;
+        }
+        vec_iter_next(&cmd_type_iter);
+    }
+    return 0;
+}
+
+static void execute_command(client* client, cmd* cmd) {
+    if (!client_can_execute_command(client, cmd->type, cmd->cat)) {
+        client_add_reply_no_access(client);
+        return;
+    }
+    switch (cmd->type) {
+    case CT_Illegal:
+        unreachable();
+    case CT_Ping:
+        client_add_reply_pong(client);
+        break;
+    case CT_Info:
+        break;
+    case CT_Set:
+        break;
+    case CT_Get:
+        break;
+    case CT_Del:
+        break;
+    }
+}
+
+static void handle_client_req(client* client) {
+    parser p = parser_new(client->read_buf, client->read_buf_pos,
+                          client->protocol_version);
+    cmd cmd = parse_cmd(&p);
+    if (parser_has_error(&p)) {
+        vstr err = parser_get_error(&p);
+        if (vstr_has_retcar_or_newline(&err)) {
+            client_add_reply_bulk_error(client, &err);
+        } else {
+            client_add_reply_simple_error(client, &err);
+        }
+        vstr_free(&err);
+        return;
+    }
+    execute_command(client, &cmd);
+    cmd_free(&cmd);
+}
+
 static void write_to_client(ev* ev, int fd, void* client_data, int mask) {
     client* client = client_data;
     int write_res = client_write(client);
@@ -220,7 +285,7 @@ static void read_from_client(ev* ev, int fd, void* client_data, int mask) {
 
     server_log(LL_Info, (const char*)client->read_buf, client->read_buf_pos);
 
-    client_add_reply_ok(client);
+    handle_client_req(client);
 
     ev_add_event(ev, fd, EV_WRITE, write_to_client, client);
     UNUSED(mask);
