@@ -167,6 +167,7 @@ static cmd parser_parse_array_cmd(parser* p) {
             p->has_error = 1;
             object_free(&key);
             object_free(&value);
+            return cmd;
         }
         cmd.cat = C_Write;
         cmd.type = type;
@@ -190,6 +191,7 @@ static cmd parser_parse_array_cmd(parser* p) {
                 "expected to be at end, have more data to parse than expected");
             p->has_error = 1;
             object_free(&key);
+            return cmd;
         }
         cmd.cat = C_Read;
         cmd.type = type;
@@ -212,6 +214,7 @@ static cmd parser_parse_array_cmd(parser* p) {
                 "expected to be at end, have more data to parse than expected");
             p->has_error = 1;
             object_free(&key);
+            return cmd;
         }
         cmd.cat = C_Write;
         cmd.type = type;
@@ -728,4 +731,6 @@ static vstr expected_lf(uint8_t got) {
     return vstr_format("expected \\n, got %c\n", got);
 }
 
-static int parser_at_end(parser* p) { return p->pos >= p->input_len; }
+static int parser_at_end(parser* p) {
+    return p->byte == 0;
+}
