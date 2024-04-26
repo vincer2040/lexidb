@@ -122,5 +122,29 @@ static int vec_resize(vec** v, size_t new_cap) {
     *v = tmp;
     memset((*v)->data + (data_size * cur_len), 0,
            ((new_cap - cur_len) * data_size));
+    (*v)->cap = new_cap;
     return 0;
+}
+
+vec_iter vec_iter_new(const vec* vec) {
+    vec_iter iter = {0};
+    iter.vec = vec;
+    iter.len = vec->len;
+    iter.data_size = vec->data_size;
+    vec_iter_next(&iter);
+    vec_iter_next(&iter);
+    return iter;
+}
+
+void vec_iter_next(vec_iter* iter) {
+    size_t data_size, pos;
+    iter->cur = iter->next;
+    pos = iter->pos;
+    data_size = iter->data_size;
+    if (pos >= iter->len) {
+        iter->next = NULL;
+        return;
+    }
+    iter->next = iter->vec->data + (pos * data_size);
+    iter->pos++;
 }

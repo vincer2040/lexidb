@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define arr_size(arr) sizeof arr / sizeof arr[0]
+
 int cmp(const void* a, const void* b) {
     int a1 = *(int*)a;
     int b1 = *(int*)b;
@@ -61,6 +63,30 @@ START_TEST(test_vec_find) {
 }
 END_TEST
 
+START_TEST(test_vec_iter) {
+    int vars[] = {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    };
+    size_t i, len = arr_size(vars);
+    vec* v = vec_new(sizeof(int));
+    vec_iter iter;
+    for (i = 0; i < len; ++i) {
+        int c = vars[i];
+        vec_push(&v, &c);
+    }
+    iter = vec_iter_new(v);
+    for (i = 0; i < len; ++i) {
+        const int* cur = iter.cur;
+        int t = vars[i];
+        ck_assert_ptr_nonnull(cur);
+
+        ck_assert_int_eq(*cur, t);
+        vec_iter_next(&iter);
+    }
+    ck_assert_ptr_null(iter.cur);
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -68,6 +94,7 @@ Suite* suite(void) {
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_it_works);
     tcase_add_test(tc_core, test_vec_find);
+    tcase_add_test(tc_core, test_vec_iter);
     suite_add_tcase(s, tc_core);
     return s;
 }
