@@ -203,6 +203,8 @@ int builder_add_object(builder* b, const object* obj) {
     return -1;
 }
 
+void builder_reset(builder* b) { vstr_reset(b); }
+
 void builder_free(builder* b) { vstr_free(b); }
 
 static int builder_add_len(builder* b, size_t len) {

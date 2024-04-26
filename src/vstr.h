@@ -138,6 +138,11 @@ int vstr_push_string(vstr* s, const char* str);
  */
 int vstr_push_string_len(vstr* s, const char* str, size_t str_len);
 /**
+ * @brief reset a vstr
+ * @param s the vstr to reset
+ */
+void vstr_reset(vstr* s);
+/**
  * @brief free a vstr
  * @param s the vstr to free
  */

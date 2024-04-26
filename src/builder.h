@@ -20,6 +20,7 @@ int builder_add_boolean(builder* b, int value);
 int builder_add_simple_err(builder* b, const char* err, size_t err_len);
 int builder_add_bulk_err(builder* b, const char* err, size_t err_len);
 int builder_add_object(builder* b, const object* obj);
+void builder_reset(builder* b);
 void builder_free(builder* b);
 
 #endif /* __BUILDER_H__ */
