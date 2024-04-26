@@ -1,187 +1,58 @@
 #!/usr/bin/env python3
 
 import socket
-import string
-import random
-import struct
 
 class ProtocolBuilder:
     def __init__(self):
-        self.buf = b""
+        self.__buf = b""
 
-    def add_ping(self):
-        self.buf += b"+PING\r\n"
+    def add_simple(self, string):
+        self.__buf += b"+"
+        self.__buf += string.encode()
+        self.__add_end()
         return self
 
-    def add_arr(self, arr_len):
-        self.buf += b"*"
-        self.buf += str(arr_len).encode()
-        self.buf += b"\r\n"
-        return self
-
-    def add_str(self, str_to_add, str_len):
-        self.buf += b"$"
-        len_to_str = str(str_len).encode()
-        self.buf += len_to_str
-        self.buf += b"\r\n"
-        self.buf += str_to_add.encode()
-        self.buf += b"\r\n"
-        return self
-
-    def add_int(self, n):
-        self.buf += b":";
-        packed = struct.pack('!q', n)
-        self.buf += packed;
-        self.buf += b"\r\n"
+    def add_bulk(self, string):
+        string_len = len(string)
+        self.__buf += b"$"
+        self.__add_len(string_len)
+        self.__add_end()
+        self.__buf += string.encode()
+        self.__add_end()
         return self
 
     def get(self):
-        return self.buf
+        return self.__buf
+
+    def __add_len(self, length):
+        self.__buf += str(length).encode()
+
+    def __add_end(self):
+        self.__buf += b"\r\n"
 
 class Client:
     def __init__(self, addr, port):
-        self.addr = addr
-        self.port = port
+        self.__addr = addr
+        self.__port = port
 
-    def conn(self):
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.connect((self.addr, self.port))
-        return self
+    def connect(self):
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.__socket.connect((self.__addr, self.__port))
 
-    def auth(self):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("AUTH", 4).add_str("root", 4).add_str("root", 4).get())
-        print(self.s.recv(4096).decode())
-
-    def send(self, buf):
-        self.s.send(buf)
-        print(self.s.recv(8192).decode())
+    def close(self):
+        self.__socket.close()
 
     def ping(self):
-        self.s.send(ProtocolBuilder().add_ping().get())
-        print(self.s.recv(9192).decode())
+        self.__send(ProtocolBuilder().add_simple("PING").get())
+        print(self.__socket.recv(4096).decode())
 
-    def set_str(self, k, v):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("SET", 3).add_str(k, len(k)).add_str(v, len(v)).get())
-        print(self.s.recv(9192).decode())
+    def __send(self, buf):
+        self.__socket.send(buf)
 
-    def set_int(self, k, v):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("SET", 3).add_str(k, len(k)).add_int(v).get())
-        print(self.s.recv(9192).decode())
+client = Client("127.0.0.1", 5173)
 
-    def get(self, k):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("GET", 3).add_str(k, len(k)).get())
-        data = self.s.recv(9192)
-        if (data[0] == 36):
-            print(data.decode())
-        elif (data[0] == 43):
-            print(data.decode())
-        else:
-            int_bytes = data[1:9]
-            int_me = int.from_bytes(int_bytes, byteorder='big', signed = True)
-            print(int_me)
+client.connect()
 
-    def keys(self):
-        self.s.send(ProtocolBuilder().add_str("KEYS", 4).get())
-        print(self.s.recv(9182).decode())
+client.ping()
 
-    def values(self):
-        self.s.send(ProtocolBuilder().add_str("VALUES", 6).get())
-        print(self.s.recv(9182).decode())
-
-    def entries(self):
-        self.s.send(ProtocolBuilder().add_str("ENTRIES", 7).get())
-        print(self.s.recv(9182).decode())
-
-    def delete(self, k):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("DEL", 3).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def create_cluster(self, k):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("CLUSTER.NEW", 11).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def set_cluster(self, c, k, v):
-        self.s.send(\
-                ProtocolBuilder()\
-                    .add_arr(4)\
-                    .add_str("CLUSTER.SET", 11)\
-                    .add_str(c, len(c))\
-                    .add_str(k, len(k))\
-                    .add_str(v, len(v))\
-                    .get()\
-                )
-        print(self.s.recv(9182).decode())
-
-    def get_cluster(self, c, k):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("CLUSTER.GET", 11).add_str(c, len(c)).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def del_cluster(self, c, k):
-        self.s.send(ProtocolBuilder().add_arr(3).add_str("CLUSTER.DEL", 11).add_str(c, len(c)).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def drop_cluster(self, c):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("CLUSTER.DROP", 12).add_str(c, len(c)).get())
-        print(self.s.recv(9182).decode())
-
-    def db_push(self, k):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("PUSH", 4).add_str(k, len(k)).get())
-        print(self.s.recv(9182).decode())
-
-    def db_pop(self):
-        self.s.send(ProtocolBuilder().add_str("POP", 3).get())
-        print(self.s.recv(9182).decode())
-
-    def enque(self, v):
-        self.s.send(ProtocolBuilder().add_arr(2).add_str("ENQUE", 5).add_str(v, len(v)).get())
-        print(self.s.recv(9182).decode())
-
-    def deque(self):
-        self.s.send(ProtocolBuilder().add_str("DEQUE", 5).get())
-        print(self.s.recv(9182).decode())
-
-    def zset(self, v):
-        self.s.send(ProtocolBuilder().add_str("ZSET", 4).add_str(v, len(v)).get())
-        print(self.s.recv(9182).decode())
-
-    def zhas(self, v):
-        self.s.send(ProtocolBuilder().add_str("ZHAS", 4).add_str(v, len(v)).get())
-        print(self.s.recv(9182))
-
-    def zdel(self, v):
-        self.s.send(ProtocolBuilder().add_str("ZDEL", 4).add_str(v, len(v)).get())
-        print(self.s.recv(9182).decode())
-
-    def cl(self):
-        self.s.close()
-
-
-def rand_str(N):
-    return str(''.join(random.choices(string.ascii_letters, k=N)))
-
-
-c = Client("127.0.0.1", 6969).conn()
-
-c.auth()
-
-c.ping()
-
-c.set_str("vince", "is cool")
-
-c.get("vince")
-
-c.delete("vince")
-
-c.enque("vince")
-c.enque("is cool")
-
-c.deque()
-c.deque()
-
-c.zset("vince")
-c.zhas("vince")
-c.zdel("vince")
-c.zhas("vince")
-
-c.cl()
-
+client.close()
