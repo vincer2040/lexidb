@@ -16,6 +16,32 @@ const char* object_type_to_string(const object* obj) {
     return object_type_strings[obj->type];
 }
 
+object object_to_string(const object* obj) {
+    object res = {0};
+    switch (obj->type) {
+    case OT_Null:
+        res.data.string = vstr_from("null");
+        break;
+    case OT_Int:
+        res.data.string = vstr_format("%ld", obj->data.integer);
+        break;
+    case OT_Double:
+        res.data.string = vstr_format("%g", obj->data.dbl);
+        break;
+    case OT_Boolean:
+        res.data.string = vstr_from(obj->data.boolean ? "true" : "false");
+        break;
+    case OT_String:
+        res.data.string = vstr_from_len(vstr_data(&obj->data.string), vstr_len(&obj->data.string));
+        break;
+    case OT_Error:
+        res.data.string = vstr_from_len(vstr_data(&obj->data.string), vstr_len(&obj->data.string));
+        break;
+    }
+    res.type = OT_String;
+    return res;
+}
+
 int object_cmp(const object* a, const object* b) {
     if (a->type != b->type) {
         return a->type - b->type;
