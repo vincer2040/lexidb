@@ -99,6 +99,7 @@ size_t loglevel_lookups_len =
     sizeof loglevel_lookups / sizeof loglevel_lookups[0];
 
 const category_lookup category_lookups[] = {
+    {"all", 3, C_All},
     {"read", 4, C_Read},
     {"write", 5, C_Write},
     {"admin", 5, C_Admin},

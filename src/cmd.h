@@ -7,6 +7,7 @@
 
 typedef enum {
     C_Illegal,
+    C_All,
     C_Admin,
     C_Read,
     C_Write,

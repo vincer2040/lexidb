@@ -191,7 +191,7 @@ static int client_can_execute_command(client* client, cmd_type type,
     category_iter = vec_iter_new(user->categories);
     while (category_iter.cur) {
         const category* cur_cat = category_iter.cur;
-        if (*cur_cat == cat) {
+        if (*cur_cat == cat || *cur_cat == C_All) {
             return 1;
         }
         vec_iter_next(&category_iter);
