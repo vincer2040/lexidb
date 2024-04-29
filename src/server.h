@@ -47,6 +47,7 @@ typedef struct {
     const char* null;
     const char* zero;
     const char* one;
+    const char* invalid_auth;
 } shared_reply;
 
 struct lexi_server {
@@ -144,6 +145,7 @@ void client_add_reply_no_access(client* client);
 void client_add_reply_null(client* client);
 void client_add_reply_zero(client* client);
 void client_add_reply_one(client* client);
+void client_add_reply_invalid_auth(client* client);
 int client_add_reply_simple_error(client* client, const vstr* error);
 int client_add_reply_bulk_error(client* client, const vstr* error);
 int client_add_reply_object(client* client, const object* obj);

@@ -208,13 +208,17 @@ static int client_can_execute_command(client* client, cmd_type type,
 }
 
 static void execute_command(client* client, cmd* cmd) {
+    int proc_res;
     if (!client_can_execute_command(client, cmd->type, cmd->cat) &&
         server.protected_mode) {
         client_add_reply_no_access(client);
+        cmd_free_full(cmd);
         return;
     }
-    if (cmd->proc) {
-        cmd->proc(client, cmd);
+    proc_res = cmd->proc(client, cmd);
+    if (proc_res == -1) {
+        cmd_free_full(cmd);
+        return;
     }
     cmd_free(cmd);
 }
@@ -234,7 +238,6 @@ static void handle_client_req(client* client) {
         return;
     }
     execute_command(client, &cmd);
-    cmd_free(&cmd);
 }
 
 static void write_to_client(ev* ev, int fd, void* client_data, int mask) {

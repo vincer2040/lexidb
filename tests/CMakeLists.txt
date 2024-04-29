@@ -26,6 +26,7 @@ add_executable(
     ../src/connection.c
     ../src/vmap_type.c
     ../src/configure.c
+    ../src/auth.c
 )
 
 add_executable(
@@ -41,7 +42,18 @@ add_executable(
 add_executable(
     config_test
     config_test.c
+    ../src/cmd.c
+    ../src/networking.c
+    ../src/object.c
+    ../src/vstr.c
+    ../src/db.c
+    ../src/server.c
+    ../src/connection.c
+    ../src/vmap_type.c
     ../src/configure.c
+    ../src/auth.c
+    ../src/configure.c
+    ../src/auth.c
 )
 
 add_executable(
@@ -89,6 +101,12 @@ target_link_libraries(
     vec
     vstr
     util
+    builder
+    vmap
+    ev
+    vnet
+    siphash
+    parser
 )
 
 target_link_libraries(

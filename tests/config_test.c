@@ -1,6 +1,7 @@
 #include "../src/server.h"
 #include "../src/vstr.h"
 #include "../src/cmd.h"
+#include "../src/auth.h"
 #include <check.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -188,7 +189,8 @@ user username on +$connection +set >password\n\
     ck_assert_uint_eq(vec_len(u->passwords), 1);
     password = vec_get_at(u->passwords, 0);
     ck_assert_ptr_nonnull(password);
-    ck_assert_str_eq(vstr_data(password), "password");
+    vstr x = hash_password("password", 8);
+    ck_assert_str_eq(vstr_data(password), vstr_data(&x));
     ck_assert_uint_eq(vec_len(u->categories), 1);
     cat = vec_get_at(u->categories, 0);
     ck_assert_ptr_nonnull(cat);

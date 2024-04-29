@@ -1,3 +1,4 @@
+#include "auth.h"
 #include "cmd.h"
 #include "server.h"
 #include "util.h"
@@ -57,7 +58,8 @@ static void config_parser_parse_line(lexi_server* s, config_parser* p);
 static config_option parse_config_option(config_parser* p);
 static void config_parser_parse_bind(lexi_server* s, config_parser* p);
 static void config_parser_parse_port(lexi_server* s, config_parser* p);
-static void config_parser_parse_protected_mode(lexi_server* s, config_parser* p);
+static void config_parser_parse_protected_mode(lexi_server* s,
+                                               config_parser* p);
 static void config_parser_parse_tcp_backlog(lexi_server* s, config_parser* p);
 static void config_parser_parse_loglevel(lexi_server* s, config_parser* p);
 static void config_parser_parse_logfile(lexi_server* s, config_parser* p);
@@ -236,7 +238,8 @@ static void config_parser_parse_port(lexi_server* s, config_parser* p) {
     s->port = port;
 }
 
-static void config_parser_parse_protected_mode(lexi_server* s, config_parser* p) {
+static void config_parser_parse_protected_mode(lexi_server* s,
+                                               config_parser* p) {
     vstr str = vstr_new();
     const char* prot_str;
     size_t prot_str_len;
@@ -305,7 +308,8 @@ static void config_parser_parse_logfile(lexi_server* s, config_parser* p) {
     s->logfile = path;
 }
 
-static void config_parser_parse_num_databases(lexi_server* s, config_parser* p) {
+static void config_parser_parse_num_databases(lexi_server* s,
+                                              config_parser* p) {
     vstr str = config_parser_read_number_string(p);
     size_t i, len = vstr_len(&str);
     const char* num_str = vstr_data(&str);
@@ -341,7 +345,8 @@ static void config_parser_parse_user(lexi_server* s, config_parser* p) {
         config_parser_read_char(p);
     }
     user.username = username;
-    if ((vstr_len(&username) == 7) && (strncmp(vstr_data(&username), "default", 7) == 0)) {
+    if ((vstr_len(&username) == 7) &&
+        (strncmp(vstr_data(&username), "default", 7) == 0)) {
         flags |= USER_DEFAULT;
     }
     if (p->ch == 0 || p->ch == '\n') {
@@ -405,14 +410,17 @@ static void config_parser_parse_user(lexi_server* s, config_parser* p) {
             break;
         case '>': {
             vstr password = vstr_new();
+            vstr hashed;
             config_parser_read_char(p);
             while (p->ch != ' ' && p->ch != '\n' && p->ch != 0) {
                 vstr_push_char(&password, p->ch);
                 config_parser_read_char(p);
             }
-            vec_push(&passwords, &password);
+            hashed = hash_password(vstr_data(&password), vstr_len(&password));
+            vstr_free(&password);
+            vec_push(&passwords, &hashed);
         } break;
-        default:{
+        default: {
             vstr opt = vstr_new();
             const char* opt_str;
             size_t opt_str_len;
@@ -424,10 +432,12 @@ static void config_parser_parse_user(lexi_server* s, config_parser* p) {
             opt_str_len = vstr_len(&opt);
             if ((opt_str_len == 2) && (strncmp(opt_str, "on", 2) == 0)) {
                 flags |= USER_ON;
-            } else if ((opt_str_len == 3) && (strncmp(opt_str, "off", 3) == 0)) {
+            } else if ((opt_str_len == 3) &&
+                       (strncmp(opt_str, "off", 3) == 0)) {
                 vstr_free(&opt);
                 continue;
-            } else if ((opt_str_len == 6) && (strncmp(opt_str, "nopass", 6) == 0)) {
+            } else if ((opt_str_len == 6) &&
+                       (strncmp(opt_str, "nopass", 6) == 0)) {
                 flags |= USER_NO_PASS;
             } else {
                 vstr_free(&username);
@@ -435,7 +445,8 @@ static void config_parser_parse_user(lexi_server* s, config_parser* p) {
                 vec_free(commands, NULL);
                 vec_free(passwords, free_vstr_in_vec);
                 p->has_error = 1;
-                p->error = vstr_format("unknown byte when parsing user: %c", p->ch);
+                p->error =
+                    vstr_format("unknown byte when parsing user: %c", p->ch);
                 return;
             }
             vstr_free(&opt);

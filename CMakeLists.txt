@@ -85,6 +85,7 @@ add_executable(
     src/networking.c
     src/cmd.c
     src/db.c
+    src/auth.c
 )
 
 target_link_libraries(
