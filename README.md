@@ -32,7 +32,7 @@ make test
 #### running the server
 
 ```bash
-./lexidb
+./lexidb /path/to/lexi.conf
 ```
 
 #### running the cli
