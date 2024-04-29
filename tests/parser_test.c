@@ -38,6 +38,12 @@ typedef struct {
     cmd exp;
 } array_cmd_test;
 
+typedef struct {
+    const char* input;
+    const char* username;
+    const char* password;
+} auth_cmd_test;
+
 void check_error(parser* p) {
     if (parser_has_error(p)) {
         printf("%s\n", vstr_data(&p->error));
@@ -408,6 +414,28 @@ START_TEST(test_array_command) {
 }
 END_TEST
 
+START_TEST(test_auth_cmd) {
+    auth_cmd_test tests[] = {
+        {
+            "*3\r\n+AUTH\r\n+default\r\n+default\r\n",
+            "default",
+            "default",
+        }
+    };
+    size_t i, len = arr_size(tests);
+    for (i = 0; i < len; ++i) {
+        auth_cmd_test test = tests[i];
+        parser p = parser_new((const uint8_t*)test.input, strlen(test.input), 1);
+        cmd parsed = parse_cmd(&p);
+        check_error(&p);
+        ck_assert_int_eq(parsed.type, CT_Auth);
+        ck_assert_str_eq(vstr_data(&parsed.data.auth.username), test.username);
+        ck_assert_str_eq(vstr_data(&parsed.data.auth.password), test.password);
+        cmd_free(&parsed);
+    }
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
@@ -423,6 +451,7 @@ Suite* suite(void) {
     tcase_add_test(tc_core, test_bulk_errors);
     tcase_add_test(tc_core, test_string_commands);
     tcase_add_test(tc_core, test_array_command);
+    tcase_add_test(tc_core, test_auth_cmd);
     suite_add_tcase(s, tc_core);
     return s;
 }

@@ -13,6 +13,7 @@ shared_reply shared_replies = {
     .null = "_\r\n",
     .zero = ":0\r\n",
     .one = ":1\r\n",
+    .invalid_auth = "-EINVALIDAUTH\r\n",
 };
 
 #define CLIENT_READ_BUF_INITIAL_CAP 4096
@@ -135,6 +136,11 @@ void client_add_reply_zero(client* client) {
 void client_add_reply_one(client* client) {
     client->write_buf = (unsigned char*)shared_replies.one;
     client->write_len = 4;
+}
+
+void client_add_reply_invalid_auth(client* client) {
+    client->write_buf = (unsigned char*)shared_replies.invalid_auth;
+    client->write_len = 15;
 }
 
 int client_add_reply_simple_error(client* client, const vstr* error) {

@@ -1,14 +1,16 @@
 #include "cmd.h"
+#include "auth.h"
 #include "object.h"
 #include "server.h"
 #include "vmap.h"
 
-void ping_cmd_fn(client* client, const cmd* cmd) {
+int ping_cmd_fn(client* client, const cmd* cmd) {
     UNUSED(cmd);
     client_add_reply_pong(client);
+    return 0;
 }
 
-void set_cmd_fn(client* client, const cmd* cmd) {
+int set_cmd_fn(client* client, const cmd* cmd) {
     object key_obj = cmd->data.set.key;
     object value = cmd->data.set.value;
     vstr key;
@@ -19,7 +21,7 @@ void set_cmd_fn(client* client, const cmd* cmd) {
                                object_type_to_string(&key_obj));
         client_add_reply_simple_error(client, &err);
         vstr_free(&err);
-        return;
+        return -1;
     }
 
     key = key_obj.data.string;
@@ -32,9 +34,10 @@ void set_cmd_fn(client* client, const cmd* cmd) {
         abort();
     }
     client_add_reply_ok(client);
+    return 0;
 }
 
-void get_cmd_fn(client* client, const cmd* cmd) {
+int get_cmd_fn(client* client, const cmd* cmd) {
     object key_obj = cmd->data.get;
     vstr key;
     const object* value;
@@ -44,7 +47,7 @@ void get_cmd_fn(client* client, const cmd* cmd) {
                                object_type_to_string(&key_obj));
         client_add_reply_simple_error(client, &err);
         vstr_free(&err);
-        return;
+        return -1;
     }
 
     key = key_obj.data.string;
@@ -53,13 +56,14 @@ void get_cmd_fn(client* client, const cmd* cmd) {
 
     if (value == NULL) {
         client_add_reply_null(client);
-        return;
+        return 0;
     }
 
     client_add_reply_object(client, value);
+    return 0;
 }
 
-void del_cmd_fn(client* client, const cmd* cmd) {
+int del_cmd_fn(client* client, const cmd* cmd) {
     object key_obj = cmd->data.get;
     vstr key;
     int res;
@@ -69,7 +73,7 @@ void del_cmd_fn(client* client, const cmd* cmd) {
                                object_type_to_string(&key_obj));
         client_add_reply_simple_error(client, &err);
         vstr_free(&err);
-        return;
+        return -1;
     }
 
     key = key_obj.data.string;
@@ -78,23 +82,57 @@ void del_cmd_fn(client* client, const cmd* cmd) {
 
     if (res == VMAP_NO_KEY) {
         client_add_reply_zero(client);
-        return;
+        return 0;
     }
 
     client_add_reply_one(client);
+    return 0;
+}
+
+int auth_cmd_fn(client* client, const cmd* cmd) {
+    vstr username = cmd->data.auth.username;
+    vstr password = cmd->data.auth.password;
+    user* user = authenicate_user(&username, &password);
+    if (user == NULL) {
+        client_add_reply_invalid_auth(client);
+        return 0;
+    }
+    client_add_reply_ok(client);
+    return 0;
 }
 
 void cmd_free(cmd* cmd) {
     switch (cmd->type) {
+    case CT_Get:
+        object_free(&cmd->data.get);
+        break;
+    case CT_Del:
+        object_free(&cmd->data.del);
+        break;
+    case CT_Auth:
+        vstr_free(&cmd->data.auth.username);
+        vstr_free(&cmd->data.auth.password);
+        break;
+    default:
+        break;
+    }
+}
+
+void cmd_free_full(cmd* cmd) {
+    switch (cmd->type) {
     case CT_Set:
-        // key and value are moved into vmap, so we
-        // do not free them.
+        object_free(&cmd->data.set.key);
+        object_free(&cmd->data.set.value);
         break;
     case CT_Get:
         object_free(&cmd->data.get);
         break;
     case CT_Del:
         object_free(&cmd->data.del);
+        break;
+    case CT_Auth:
+        vstr_free(&cmd->data.auth.username);
+        vstr_free(&cmd->data.auth.password);
         break;
     default:
         break;

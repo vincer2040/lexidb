@@ -35,6 +35,7 @@ const cmd_type_lookup array_cmd_lookups[] = {
     {3, "SET", CT_Set},
     {3, "GET", CT_Get},
     {3, "DEL", CT_Del},
+    {4, "AUTH", CT_Auth},
 };
 
 const cmd_type_lookup string_cmd_lookups[] = {
@@ -220,6 +221,43 @@ static cmd parser_parse_array_cmd(parser* p) {
         cmd.type = type;
         cmd.proc = del_cmd_fn;
         cmd.data.del = key;
+    } break;
+    case CT_Auth: {
+        object username;
+        object password;
+        if (len != 3) {
+            p->error =
+                vstr_format("auth expects 2 arguments. have %lu", len - 1);
+            p->has_error = 1;
+            return cmd;
+        }
+        username = parser_parse_object(p);
+        if (p->has_error) {
+            object_free(&username);
+            return cmd;
+        }
+        if (username.type != OT_String) {
+            p->error = vstr_from("username must be a string");
+            p->has_error = 1;
+            object_free(&username);
+            return cmd;
+        }
+        password = parser_parse_object(p);
+        if (p->has_error) {
+            object_free(&password);
+            return cmd;
+        }
+        if (password.type != OT_String) {
+            p->error = vstr_from("password must be a string");
+            p->has_error = 1;
+            object_free(&password);
+            return cmd;
+        }
+        cmd.type = CT_Auth;
+        cmd.cat = C_Connection;
+        cmd.proc = auth_cmd_fn;
+        cmd.data.auth.username = username.data.string;
+        cmd.data.auth.password = password.data.string;
     } break;
     default:
         return cmd;
@@ -731,6 +769,4 @@ static vstr expected_lf(uint8_t got) {
     return vstr_format("expected \\n, got %c\n", got);
 }
 
-static int parser_at_end(parser* p) {
-    return p->byte == 0;
-}
+static int parser_at_end(parser* p) { return p->byte == 0; }
