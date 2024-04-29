@@ -98,6 +98,7 @@ int auth_cmd_fn(client* client, const cmd* cmd) {
         return 0;
     }
     client_add_reply_ok(client);
+    client->authenticated = 1;
     return 0;
 }
 
