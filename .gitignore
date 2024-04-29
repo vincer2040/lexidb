@@ -1,3 +1,4 @@
 build
 src/config.h
 src/cmd_help.c
+lexi.dev.conf
