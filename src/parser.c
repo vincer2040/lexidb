@@ -162,6 +162,11 @@ static cmd parser_parse_array_cmd(parser* p) {
             object_free(&key);
             return cmd;
         }
+        if (value.type != OT_String) {
+            object to_string = object_to_string(&value);
+            object_free(&value);
+            value = to_string;
+        }
         if (!parser_at_end(p)) {
             p->error = vstr_from(
                 "expected to be at end, have more data to parse than expected");

@@ -341,8 +341,8 @@ END_TEST
 START_TEST(test_array_command) {
     object k1 = {OT_String, .data = {.string = vstr_from("foo")}};
     object v1 = {OT_String, .data = {.string = vstr_from("bar")}};
-    object v2 = {OT_Int, .data = {.integer = 123}};
-    object v3 = {OT_Double, .data = {.dbl = 123.123}};
+    object v2 = {OT_String, .data = {.string = vstr_from("123")}};
+    object v3 = {OT_String, .data = {.string = vstr_from("123.123")}};
     array_cmd_test tests[] = {
         {
             "*3\r\n+SET\r\n+foo\r\n+bar\r\n",

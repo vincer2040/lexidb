@@ -41,6 +41,7 @@ int get_cmd_fn(client* client, const cmd* cmd) {
     object key_obj = cmd->data.get;
     vstr key;
     const object* value;
+    object string_obj;
 
     if (key_obj.type != OT_String) {
         vstr err = vstr_format("invalid key type: %s. want: string",
@@ -59,7 +60,11 @@ int get_cmd_fn(client* client, const cmd* cmd) {
         return 0;
     }
 
-    client_add_reply_object(client, value);
+    string_obj = object_to_string(value);
+
+    client_add_reply_object(client, &string_obj);
+
+    object_free(&string_obj);
     return 0;
 }
 
