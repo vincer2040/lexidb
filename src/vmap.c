@@ -331,3 +331,45 @@ static vmap* vmap_new_with_capacity(vmap_type* type, uint64_t power,
     map->entry_padding = entry_padding;
     return map;
 }
+
+vmap_iter vmap_iter_new(const vmap* map) {
+    vmap_iter iter = {0};
+    iter.map = map;
+    iter.len = 1 << map->power;
+    vmap_iter_next(&iter);
+    vmap_iter_next(&iter);
+    return iter;
+}
+
+void vmap_iter_next(vmap_iter* iter) {
+    uint64_t pos, len;
+    size_t entry_size;
+    iter->cur = iter->next;
+    len = iter->len;
+    pos = iter->pos;
+    entry_size = iter->map->entry_size;
+    if (pos >= len) {
+        iter->next = NULL;
+        return;
+    }
+    while (pos < len) {
+        uint8_t data = iter->map->metadata[pos];
+        uint8_t flags = vmap_flags(data);
+        if (flags != VMAP_FULL) {
+            pos++;
+            continue;
+        }
+        iter->next = iter->map->entries + (pos * entry_size);
+        iter->pos = pos + 1;
+        return;
+    }
+    iter->next = NULL;
+}
+
+const void* vmap_entry_get_key(const vmap_entry* e) {
+    return e;
+}
+
+const void* vmap_entry_get_value(const vmap* map, const vmap_entry* e) {
+    return e + (map->type->key_size + map->entry_padding);
+}

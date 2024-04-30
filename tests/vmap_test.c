@@ -16,6 +16,12 @@ unsigned char seed[SEED_SIZE];
 
 uint64_t hash(const void* key) { return siphash(key, sizeof(vstr), seed); }
 
+uint64_t determinitistic_hash(const void* key) {
+    static uint64_t cur = 0;
+    ((void)key);
+    return cur++;
+}
+
 int key_cmp(const void* a, const void* b) { return vstr_cmp(a, b); }
 
 void key_free(void* key) { vstr_free(key); }
@@ -119,12 +125,48 @@ START_TEST(test_it_works) {
 }
 END_TEST
 
+START_TEST(test_vmap_iter) {
+    kv_test tests[] = {
+        {"foo", 1},     {"bar", 2},        {"baz", 3},        {"foobar", 4},
+        {"foobaz", 5},  {"foobarbaz", 6},  {"foobazbar", 7},  {"barfoo", 8},
+        {"barbaz", 9},  {"barfoobaz", 10}, {"barbazfoo", 11}, {"bazfoo", 12},
+        {"bazbar", 13}, {"bazfoobar", 14}, {"bazbarfoo", 15}, {"abc", 16},
+        {"xyz", 17},    {"cba", 18},       {"zyx", 19},       {"vmap", 20},
+        {"lexidb", 21}, {"abcd", 22},      {"dcba", 23},
+    };
+    size_t i, len = arr_size(tests);
+    vmap* map;
+    vmap_iter iter;
+    type.hash = determinitistic_hash;
+    map = vmap_new(&type);
+    for (i = 0; i < len; ++i) {
+        kv_test t = tests[i];
+        vstr key = vstr_from(t.key);
+        ck_assert_int_eq(vmap_insert(&map, &key, &t.value), VMAP_OK);
+    }
+    iter = vmap_iter_new(map);
+    for (i = 0; i < len; ++i) {
+        kv_test t = tests[i];
+        const vmap_entry* cur = iter.cur;
+        ck_assert_ptr_nonnull(cur);
+        const vstr* key = vmap_entry_get_key(cur);
+        const int* value = vmap_entry_get_value(map, cur);
+        ck_assert_str_eq(t.key, vstr_data(key));
+        ck_assert_int_eq(*value, t.value);
+        vmap_iter_next(&iter);
+    }
+
+    vmap_free(map);
+}
+END_TEST
+
 Suite* suite(void) {
     Suite* s;
     TCase* tc_core;
     s = suite_create("vmap");
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_it_works);
+    tcase_add_test(tc_core, test_vmap_iter);
     suite_add_tcase(s, tc_core);
     return s;
 }

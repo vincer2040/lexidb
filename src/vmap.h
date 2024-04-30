@@ -27,4 +27,20 @@ int vmap_has(const vmap* map, const void* key);
 int vmap_delete(vmap** map, const void* key);
 void vmap_free(vmap* map);
 
+typedef unsigned char vmap_entry;
+
+typedef struct {
+    const vmap* map;
+    const vmap_entry* cur;
+    const vmap_entry* next;
+    uint64_t pos;
+    uint64_t len;
+} vmap_iter;
+
+vmap_iter vmap_iter_new(const vmap* map);
+void vmap_iter_next(vmap_iter* iter);
+
+const void* vmap_entry_get_key(const vmap_entry* e);
+const void* vmap_entry_get_value(const vmap* map, const vmap_entry* e);
+
 #endif /* __MAP_H__ */
