@@ -149,6 +149,8 @@ void client_add_reply_invalid_auth(client* client);
 int client_add_reply_simple_error(client* client, const vstr* error);
 int client_add_reply_bulk_error(client* client, const vstr* error);
 int client_add_reply_object(client* client, const object* obj);
+int client_add_reply_array(client* client, size_t len);
+int client_add_reply_bulk_string(client* client, const vstr* string);
 
 /* connection.c */
 connection* connection_new(int fd);
@@ -158,5 +160,6 @@ void connection_close(connection* conn);
 int db_insert_key(lexi_db* db, vstr* key, object* value);
 const object* db_get_key(const lexi_db* db, const vstr* key);
 int db_delete_key(lexi_db* db, const vstr* key);
+uint64_t db_get_num_keys(const lexi_db* db);
 
 #endif /* __SERVER_H__ */

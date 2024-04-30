@@ -35,7 +35,11 @@ static int server_init(int argc, char** argv) {
     } else {
         server.config_file = get_real_path("../lexi.conf");
     }
-    if (server.config_file == NULL) {
+    if (server.config_file == NULL && argc > 1) {
+        fprintf(stderr, "could not find configuration file: %s\n", argv[1]);
+        return -1;
+    } else if (server.config_file == NULL) {
+        fprintf(stderr, "cannot find configuration file. please provide path to it by %s /path/to/lexi.conf\n", argv[0]);
         return -1;
     }
     server.executable = get_executable_path();
@@ -358,8 +362,12 @@ static void server_free(void) {
     free(server.config_file);
     free(server.executable);
     vstr_free(&server.bind_addr);
-    vec_free(server.users, free_user_in_vec);
-    vec_free(server.clients, free_client_in_vec);
+    if (server.users) {
+        vec_free(server.users, free_user_in_vec);
+    }
+    if (server.clients) {
+        vec_free(server.clients, free_client_in_vec);
+    }
     if (server.logfile) {
         free(server.logfile);
     }
