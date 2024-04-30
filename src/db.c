@@ -11,3 +11,7 @@ const object* db_get_key(const lexi_db* db, const vstr* key) {
 int db_delete_key(lexi_db* db, const vstr* key) {
     return vmap_delete(&db->keys, key);
 }
+
+uint64_t db_get_num_keys(const lexi_db* db) {
+    return vmap_num_keys(db->keys);
+}

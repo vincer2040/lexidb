@@ -83,6 +83,10 @@ vmap* vmap_new(vmap_type* type) {
     return map;
 }
 
+uint64_t vmap_num_keys(const vmap* map) {
+    return map->numel;
+}
+
 int vmap_insert(vmap** map, void* key, void* value) {
     vmap* m = *map;
     uint64_t hash = m->type->hash(key);

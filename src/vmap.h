@@ -21,6 +21,7 @@ typedef struct {
 } vmap_type;
 
 vmap* vmap_new(vmap_type* type);
+uint64_t vmap_num_keys(const vmap* map);
 int vmap_insert(vmap** map, void* key, void* value);
 const void* vmap_find(const vmap* map, const void* key);
 int vmap_has(const vmap* map, const void* key);
