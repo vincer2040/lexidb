@@ -30,6 +30,7 @@ extern object false_obj;
 const char* object_type_to_string(const object* obj);
 object object_to_string(const object* obj);
 int object_cmp(const object* a, const object* b);
+void print_object(const object* obj);
 void object_free(object* obj);
 
 #endif /* __OBJECT_H__ */

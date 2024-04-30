@@ -1,15 +1,12 @@
 #include "object.h"
+#include <stdio.h>
 
 object null_obj = {0};
 object true_obj = {.type = OT_Boolean, .data = {.boolean = 1}};
 object false_obj = {.type = OT_Boolean, .data = {.boolean = 0}};
 
 const char* object_type_strings[] = {
-    "Null",
-    "Int",
-    "Double",
-    "String",
-    "Error",
+    "Null", "Int", "Double", "String", "Error",
 };
 
 const char* object_type_to_string(const object* obj) {
@@ -32,10 +29,12 @@ object object_to_string(const object* obj) {
         res.data.string = vstr_from(obj->data.boolean ? "true" : "false");
         break;
     case OT_String:
-        res.data.string = vstr_from_len(vstr_data(&obj->data.string), vstr_len(&obj->data.string));
+        res.data.string = vstr_from_len(vstr_data(&obj->data.string),
+                                        vstr_len(&obj->data.string));
         break;
     case OT_Error:
-        res.data.string = vstr_from_len(vstr_data(&obj->data.string), vstr_len(&obj->data.string));
+        res.data.string = vstr_from_len(vstr_data(&obj->data.string),
+                                        vstr_len(&obj->data.string));
         break;
     }
     res.type = OT_String;
@@ -61,6 +60,29 @@ int object_cmp(const object* a, const object* b) {
         return vstr_cmp(&a->data.string, &b->data.string);
     }
     return -1;
+}
+
+void print_object(const object* obj) {
+    switch (obj->type) {
+    case OT_Null:
+        printf("(nil)\n");
+        break;
+    case OT_Int:
+        printf("(integer) %ld\n", obj->data.integer);
+        break;
+    case OT_Double:
+        printf("(double) %g\n", obj->data.dbl);
+        break;
+    case OT_Boolean:
+        printf("%s\n", obj->data.boolean ? "true" : "false");
+        break;
+    case OT_String:
+        printf("\"%s\"\n", vstr_data(&obj->data.string));
+        break;
+    case OT_Error:
+        printf("error: %s\n", vstr_data(&obj->data.string));
+        break;
+    }
 }
 
 void object_free(object* obj) {
