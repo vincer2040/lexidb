@@ -41,6 +41,7 @@ const cmd_type_lookup array_cmd_lookups[] = {
 const cmd_type_lookup string_cmd_lookups[] = {
     {4, "PING", CT_Ping},
     {4, "INFO", CT_Info},
+    {4, "KEYS", CT_Keys},
 };
 
 const size_t num_array_lookups =
@@ -360,6 +361,10 @@ static cmd parser_parse_bulk_string_cmd(parser* p) {
         case CT_Info:
             cmd.cat = C_Admin;
             break;
+        case CT_Keys:
+            cmd.cat = C_Read;
+            cmd.proc = keys_cmd_fn;
+            break;
         default:
             unreachable();
         }
@@ -400,6 +405,10 @@ static cmd parser_parse_simple_string_cmd(parser* p) {
             break;
         case CT_Info:
             cmd.cat = C_Admin;
+            break;
+        case CT_Keys:
+            cmd.cat = C_Read;
+            cmd.proc = keys_cmd_fn;
             break;
         default:
             unreachable();

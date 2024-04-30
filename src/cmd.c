@@ -107,6 +107,19 @@ int auth_cmd_fn(client* client, const cmd* cmd) {
     return 0;
 }
 
+int keys_cmd_fn(client* client, const cmd* cmd) {
+    uint64_t num_keys = db_get_num_keys(client->db);
+    vmap_iter iter = vmap_iter_new(client->db->keys);
+    client_add_reply_array(client, num_keys);
+    while (iter.cur) {
+        const vmap_entry* cur = iter.cur;
+        const vstr* key = vmap_entry_get_key(cur);
+        client_add_reply_bulk_string(client, key);
+        vmap_iter_next(&iter);
+    }
+    return 0;
+}
+
 void cmd_free(cmd* cmd) {
     switch (cmd->type) {
     case CT_Get:

@@ -175,6 +175,26 @@ int client_add_reply_object(client* client, const object* obj) {
     return 0;
 }
 
+int client_add_reply_array(client* client, size_t len) {
+    int res = builder_add_array(&client->builder, len);
+    if (res == -1) {
+        return -1;
+    }
+    client->write_buf = builder_out(&client->builder);
+    client->write_len = builder_len(&client->builder);
+    return 0;
+}
+
+int client_add_reply_bulk_string(client* client, const vstr* string) {
+    int res = builder_add_bulk_string(&client->builder, vstr_data(string), vstr_len(string));
+    if (res == -1) {
+        return -1;
+    }
+    client->write_buf = builder_out(&client->builder);
+    client->write_len = builder_len(&client->builder);
+    return 0;
+}
+
 static int client_realloc_read_buf(client* client) {
     size_t new_cap = client->read_buf_cap << 1;
     void* tmp = realloc(client->read_buf, new_cap);
