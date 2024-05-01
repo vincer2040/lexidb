@@ -75,6 +75,11 @@ add_library(
     src/vnet.c
 )
 
+add_library(
+    hilexi
+    src/hilexi.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c
@@ -86,6 +91,11 @@ add_executable(
     src/cmd.c
     src/db.c
     src/auth.c
+)
+
+add_executable(
+    lexicli
+    src/lexi-cli.c
 )
 
 target_link_libraries(
@@ -101,6 +111,11 @@ target_link_libraries(
     vnet
     builder
     parser
+)
+
+target_link_libraries(
+    lexicli
+    hilexi
 )
 
 target_link_libraries(
@@ -123,4 +138,9 @@ target_link_libraries(
     util
     sha256
     vstr
+)
+
+target_link_libraries(
+    hilexi
+    m
 )
