@@ -190,6 +190,12 @@ int vstr_push_string_len(vstr* s, const char* str, size_t str_len) {
     return vstr_lg_push_string(&(s->str_data.lg), str, str_len);
 }
 
+vstr vstr_dup(const vstr* s) {
+    const char* data = vstr_data(s);
+    size_t len = vstr_len(s);
+    return vstr_from_len(data, len);
+}
+
 void vstr_reset(vstr* s) {
     if (s->is_large) {
         free(s->str_data.lg.data);

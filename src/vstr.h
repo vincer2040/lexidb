@@ -138,6 +138,12 @@ int vstr_push_string(vstr* s, const char* str);
  */
 int vstr_push_string_len(vstr* s, const char* str, size_t str_len);
 /**
+ * @brief duplicate a vstr
+ * @param s the vstr to dup
+ * @returns the new vstr
+ */
+vstr vstr_dup(const vstr* s);
+/**
  * @brief reset a vstr
  * @param s the vstr to reset
  */
