@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import socket
+from typing import Protocol
 
 class ProtocolBuilder:
     def __init__(self):
@@ -68,6 +69,10 @@ class Client:
         self.__send(ProtocolBuilder().add_array(2).add_simple("TYPE").add_bulk(key).get())
         print(self.__socket.recv(4096).decode())
 
+    def incr(self, key):
+        self.__send(ProtocolBuilder().add_array(2).add_simple("INCR").add_bulk(key).get())
+        print(self.__socket.recv(4096).decode())
+
     def __send(self, buf):
         self.__socket.send(buf)
 
@@ -84,6 +89,9 @@ client.set("bar", "foo")
 client.set("baz", "foo")
 
 client.type("foo")
+
+client.incr("vince:123456789101112131415")
+client.incr("vince:123456789101112131415")
 
 client.keys()
 

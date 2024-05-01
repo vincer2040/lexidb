@@ -160,6 +160,49 @@ int type_cmd(client* client, const cmd* cmd) {
     return 0;
 }
 
+int incr_cmd(client* client, const cmd* cmd) {
+    object key_obj = cmd->data.incr;
+    vstr key;
+    const object* cur_value;
+    object new_obj = {0};
+    int64_t new_value;
+    int res;
+    if (key_obj.type != OT_String) {
+        vstr err = vstr_format("invalid key type: %s, want: string",
+                               object_type_to_string(&key_obj));
+        client_add_reply_simple_error(client, &err);
+        vstr_free(&err);
+        return -1;
+    }
+    key = key_obj.data.string;
+    cur_value = db_get_key(client->db, &key);
+    if (cur_value == NULL) {
+        new_value = 1;
+        new_obj.type = OT_Int;
+        new_obj.data.integer = new_value;
+        res = db_insert_key(client->db, &key, &new_obj);
+    } else if (cur_value->type != OT_Int) {
+        vstr err = vstr_format("invalid type: %s, want integer",
+                               object_type_to_string(cur_value));
+        client_add_reply_simple_error(client, &err);
+        vstr_free(&err);
+        return -1;
+    } else {
+        new_value = cur_value->data.integer + 1;
+        new_obj.type = OT_Int;
+        new_obj.data.integer = new_value;
+        res = db_insert_key(client->db, &key, &new_obj);
+    }
+    if (res != 0) {
+        vstr err = vstr_from("out of memory. shutting down\n");
+        server_log(LL_Info, vstr_data(&err), vstr_len(&err));
+        vstr_free(&err);
+        abort();
+    }
+    client_add_reply_integer(client, new_value);
+    return 0;
+}
+
 void cmd_free(cmd* cmd) {
     switch (cmd->type) {
     case CT_Get:
@@ -198,6 +241,9 @@ void cmd_free_full(cmd* cmd) {
         break;
     case CT_Type:
         object_free(&cmd->data.type);
+        break;
+    case CT_Incr:
+        object_free(&cmd->data.incr);
         break;
     default:
         break;

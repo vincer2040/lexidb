@@ -207,6 +207,16 @@ int client_add_reply_bulk_string(client* client, const vstr* string) {
     return 0;
 }
 
+int client_add_reply_integer(client* client, int64_t integer) {
+    int res = builder_add_int(&client->builder, integer);
+    if (res == -1) {
+        return -1;
+    }
+    client->write_buf = builder_out(&client->builder);
+    client->write_len = builder_len(&client->builder);
+    return 0;
+}
+
 static int client_realloc_read_buf(client* client) {
     size_t new_cap = client->read_buf_cap << 1;
     void* tmp = realloc(client->read_buf, new_cap);

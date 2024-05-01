@@ -152,6 +152,7 @@ int client_add_reply_object(client* client, const object* obj);
 int client_add_reply_array(client* client, size_t len);
 int client_add_reply_simple_string(client* client, const char* string, size_t len);
 int client_add_reply_bulk_string(client* client, const vstr* string);
+int client_add_reply_integer(client* client, int64_t integer);
 
 /* connection.c */
 connection* connection_new(int fd);
