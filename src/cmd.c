@@ -4,13 +4,13 @@
 #include "server.h"
 #include "vmap.h"
 
-int ping_cmd_fn(client* client, const cmd* cmd) {
+int ping_cmd(client* client, const cmd* cmd) {
     UNUSED(cmd);
     client_add_reply_pong(client);
     return 0;
 }
 
-int set_cmd_fn(client* client, const cmd* cmd) {
+int set_cmd(client* client, const cmd* cmd) {
     object key_obj = cmd->data.set.key;
     object value = cmd->data.set.value;
     vstr key;
@@ -37,7 +37,7 @@ int set_cmd_fn(client* client, const cmd* cmd) {
     return 0;
 }
 
-int get_cmd_fn(client* client, const cmd* cmd) {
+int get_cmd(client* client, const cmd* cmd) {
     object key_obj = cmd->data.get;
     vstr key;
     const object* value;
@@ -68,7 +68,7 @@ int get_cmd_fn(client* client, const cmd* cmd) {
     return 0;
 }
 
-int del_cmd_fn(client* client, const cmd* cmd) {
+int del_cmd(client* client, const cmd* cmd) {
     object key_obj = cmd->data.get;
     vstr key;
     int res;
@@ -94,7 +94,7 @@ int del_cmd_fn(client* client, const cmd* cmd) {
     return 0;
 }
 
-int auth_cmd_fn(client* client, const cmd* cmd) {
+int auth_cmd(client* client, const cmd* cmd) {
     vstr username = cmd->data.auth.username;
     vstr password = cmd->data.auth.password;
     user* user = authenicate_user(&username, &password);
@@ -107,7 +107,7 @@ int auth_cmd_fn(client* client, const cmd* cmd) {
     return 0;
 }
 
-int keys_cmd_fn(client* client, const cmd* cmd) {
+int keys_cmd(client* client, const cmd* cmd) {
     uint64_t num_keys = db_get_num_keys(client->db);
     vmap_iter iter = vmap_iter_new(client->db->keys);
     client_add_reply_array(client, num_keys);

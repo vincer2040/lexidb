@@ -33,7 +33,7 @@ typedef struct {
 typedef struct {
     vstr username;
     vstr password;
-} auth_cmd;
+} auth;
 
 typedef object key_cmd;
 typedef object val_cmd;
@@ -50,16 +50,16 @@ typedef struct cmd {
         key_val_cmd set;
         key_cmd get;
         key_cmd del;
-        auth_cmd auth;
+        auth auth;
     } data;
 } cmd;
 
-int ping_cmd_fn(client* client, const cmd* cmd);
-int set_cmd_fn(client* client, const cmd* cmd);
-int get_cmd_fn(client* client, const cmd* cmd);
-int del_cmd_fn(client* client, const cmd* cmd);
-int auth_cmd_fn(client* client, const cmd* cmd);
-int keys_cmd_fn(client* client, const cmd* cmd);
+int ping_cmd(client* client, const cmd* cmd);
+int set_cmd(client* client, const cmd* cmd);
+int get_cmd(client* client, const cmd* cmd);
+int del_cmd(client* client, const cmd* cmd);
+int auth_cmd(client* client, const cmd* cmd);
+int keys_cmd(client* client, const cmd* cmd);
 void cmd_free(cmd* cmd);
 void cmd_free_full(cmd* cmd);
 

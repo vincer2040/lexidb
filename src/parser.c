@@ -178,7 +178,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.cat = C_Write;
         cmd.type = type;
-        cmd.proc = set_cmd_fn;
+        cmd.proc = set_cmd;
         cmd.data.set.key = key;
         cmd.data.set.value = value;
     } break;
@@ -202,7 +202,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.cat = C_Read;
         cmd.type = type;
-        cmd.proc = get_cmd_fn;
+        cmd.proc = get_cmd;
         cmd.data.get = key;
     } break;
     case CT_Del: {
@@ -225,7 +225,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.cat = C_Write;
         cmd.type = type;
-        cmd.proc = del_cmd_fn;
+        cmd.proc = del_cmd;
         cmd.data.del = key;
     } break;
     case CT_Auth: {
@@ -261,7 +261,7 @@ static cmd parser_parse_array_cmd(parser* p) {
         }
         cmd.type = CT_Auth;
         cmd.cat = C_Connection;
-        cmd.proc = auth_cmd_fn;
+        cmd.proc = auth_cmd;
         cmd.data.auth.username = username.data.string;
         cmd.data.auth.password = password.data.string;
     } break;
@@ -356,14 +356,14 @@ static cmd parser_parse_bulk_string_cmd(parser* p) {
         switch (cmd.type) {
         case CT_Ping:
             cmd.cat = C_Connection;
-            cmd.proc = ping_cmd_fn;
+            cmd.proc = ping_cmd;
             break;
         case CT_Info:
             cmd.cat = C_Admin;
             break;
         case CT_Keys:
             cmd.cat = C_Read;
-            cmd.proc = keys_cmd_fn;
+            cmd.proc = keys_cmd;
             break;
         default:
             unreachable();
@@ -401,14 +401,14 @@ static cmd parser_parse_simple_string_cmd(parser* p) {
         switch (cmd.type) {
         case CT_Ping:
             cmd.cat = C_Connection;
-            cmd.proc = ping_cmd_fn;
+            cmd.proc = ping_cmd;
             break;
         case CT_Info:
             cmd.cat = C_Admin;
             break;
         case CT_Keys:
             cmd.cat = C_Read;
-            cmd.proc = keys_cmd_fn;
+            cmd.proc = keys_cmd;
             break;
         default:
             unreachable();
