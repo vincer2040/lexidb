@@ -64,6 +64,10 @@ class Client:
         self.__send(ProtocolBuilder().add_simple("KEYS").get())
         print(self.__socket.recv(4096).decode())
 
+    def type(self, key):
+        self.__send(ProtocolBuilder().add_array(2).add_simple("TYPE").add_bulk(key).get())
+        print(self.__socket.recv(4096).decode())
+
     def __send(self, buf):
         self.__socket.send(buf)
 
@@ -78,6 +82,8 @@ client.set("foo", "bar")
 client.set("bar", "foo")
 
 client.set("baz", "foo")
+
+client.type("foo")
 
 client.keys()
 

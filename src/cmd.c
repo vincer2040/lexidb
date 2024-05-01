@@ -2,6 +2,7 @@
 #include "auth.h"
 #include "object.h"
 #include "server.h"
+#include "util.h"
 #include "vmap.h"
 
 int ping_cmd(client* client, const cmd* cmd) {
@@ -120,6 +121,45 @@ int keys_cmd(client* client, const cmd* cmd) {
     return 0;
 }
 
+int type_cmd(client* client, const cmd* cmd) {
+    object key_obj = cmd->data.type;
+    vstr key;
+    const object* value;
+    if (key_obj.type != OT_String) {
+        vstr err = vstr_format("invalid key type: %s, want: string",
+                               object_type_to_string(&key_obj));
+        client_add_reply_simple_error(client, &err);
+        vstr_free(&err);
+        return -1;
+    }
+    key = key_obj.data.string;
+    value = db_get_key(client->db, &key);
+    if (value == NULL) {
+        client_add_reply_none(client);
+        return 0;
+    }
+    switch (value->type) {
+    case OT_Null:
+        client_add_reply_none(client);
+        break;
+    case OT_Int:
+        client_add_reply_simple_string(client, "integer", 7);
+        break;
+    case OT_Double:
+        client_add_reply_simple_string(client, "double", 6);
+        break;
+    case OT_Boolean:
+        client_add_reply_simple_string(client, "bool", 4);
+        break;
+    case OT_String:
+        client_add_reply_simple_string(client, "string", 6);
+        break;
+    default:
+        unreachable();
+    }
+    return 0;
+}
+
 void cmd_free(cmd* cmd) {
     switch (cmd->type) {
     case CT_Get:
@@ -131,6 +171,9 @@ void cmd_free(cmd* cmd) {
     case CT_Auth:
         vstr_free(&cmd->data.auth.username);
         vstr_free(&cmd->data.auth.password);
+        break;
+    case CT_Type:
+        object_free(&cmd->data.type);
         break;
     default:
         break;
@@ -152,6 +195,9 @@ void cmd_free_full(cmd* cmd) {
     case CT_Auth:
         vstr_free(&cmd->data.auth.username);
         vstr_free(&cmd->data.auth.password);
+        break;
+    case CT_Type:
+        object_free(&cmd->data.type);
         break;
     default:
         break;

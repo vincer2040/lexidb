@@ -23,6 +23,7 @@ typedef enum {
     CT_Del,
     CT_Auth,
     CT_Keys,
+    CT_Type,
 } cmd_type;
 
 typedef struct {
@@ -51,6 +52,7 @@ typedef struct cmd {
         key_cmd get;
         key_cmd del;
         auth auth;
+        key_cmd type;
     } data;
 } cmd;
 
@@ -60,6 +62,7 @@ int get_cmd(client* client, const cmd* cmd);
 int del_cmd(client* client, const cmd* cmd);
 int auth_cmd(client* client, const cmd* cmd);
 int keys_cmd(client* client, const cmd* cmd);
+int type_cmd(client* client, const cmd* cmd);
 void cmd_free(cmd* cmd);
 void cmd_free_full(cmd* cmd);
 

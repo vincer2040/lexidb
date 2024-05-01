@@ -32,10 +32,8 @@ typedef struct {
 } cmd_type_lookup;
 
 const cmd_type_lookup array_cmd_lookups[] = {
-    {3, "SET", CT_Set},
-    {3, "GET", CT_Get},
-    {3, "DEL", CT_Del},
-    {4, "AUTH", CT_Auth},
+    {3, "SET", CT_Set},   {3, "GET", CT_Get},   {3, "DEL", CT_Del},
+    {4, "AUTH", CT_Auth}, {4, "TYPE", CT_Type},
 };
 
 const cmd_type_lookup string_cmd_lookups[] = {
@@ -264,6 +262,29 @@ static cmd parser_parse_array_cmd(parser* p) {
         cmd.proc = auth_cmd;
         cmd.data.auth.username = username.data.string;
         cmd.data.auth.password = password.data.string;
+    } break;
+    case CT_Type: {
+        object key;
+        if (len != 2) {
+            p->error = vstr_format("type expects 1 argument. have %lu", len);
+            p->has_error = 1;
+            return cmd;
+        }
+        key = parser_parse_object(p);
+        if (p->has_error) {
+            return cmd;
+        }
+        if (!parser_at_end(p)) {
+            p->error = vstr_from(
+                "expected to be at end, have more data to parse than expected");
+            p->has_error = 1;
+            object_free(&key);
+            return cmd;
+        }
+        cmd.cat = C_Read;
+        cmd.type = type;
+        cmd.proc = type_cmd;
+        cmd.data.type = key;
     } break;
     default:
         return cmd;
