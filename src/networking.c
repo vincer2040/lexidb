@@ -185,7 +185,8 @@ int client_add_reply_array(client* client, size_t len) {
     return 0;
 }
 
-int client_add_reply_simple_string(client* client, const char* string, size_t len) {
+int client_add_reply_simple_string(client* client, const char* string,
+                                   size_t len) {
     int res = builder_add_simple_string(&client->builder, string, len);
     if (res == -1) {
         return -1;
@@ -196,7 +197,8 @@ int client_add_reply_simple_string(client* client, const char* string, size_t le
 }
 
 int client_add_reply_bulk_string(client* client, const vstr* string) {
-    int res = builder_add_bulk_string(&client->builder, vstr_data(string), vstr_len(string));
+    int res = builder_add_bulk_string(&client->builder, vstr_data(string),
+                                      vstr_len(string));
     if (res == -1) {
         return -1;
     }
