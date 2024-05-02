@@ -326,6 +326,59 @@ oom:
     return hilexi_nil;
 }
 
+hilexi_string hilexi_del(hilexi* hl, const char* key) {
+    hilexi_obj obj = {0};
+    int r;
+    builder_reset(hl->builder);
+    hl->builder = builder_add_array(hl->builder, 2);
+    if (hl->builder == NULL) {
+        goto oom;
+    }
+    hl->builder = builder_add_simple_string(hl->builder, "DEL", 3);
+    if (hl->builder == NULL) {
+        goto oom;
+    }
+    hl->builder = builder_add_bulk_string(hl->builder, key, strlen(key));
+    if (hl->builder == NULL) {
+        goto oom;
+    }
+    hl->write_buf = (unsigned char*)hl->builder;
+    hl->write_buf_len = builder_len(hl->builder);
+    r = hilexi_write(hl);
+    if (r == -1) {
+        hl->has_error = 1;
+        hl->error = hilexi_string_format("error writing (errno %d) %s", errno,
+                                         strerror(errno));
+        return hilexi_nil;
+    }
+    r = hilexi_read(hl);
+    if (r == -1) {
+        hl->has_error = 1;
+        hl->error = hilexi_string_format("error reading (errno %d) %s", errno,
+                                         strerror(errno));
+        return hilexi_nil;
+        ;
+    }
+    obj = hilexi_parse(hl);
+    if (obj.type == HLOT_Error) {
+        return obj.data.string;
+    }
+    if (obj.type == HLOT_Null) {
+        return hilexi_nil;
+    }
+    if (obj.type != HLOT_String) {
+        hl->has_error = 1;
+        hl->error = hilexi_string_from("unknown type from server");
+        return hilexi_nil;
+    }
+    return obj.data.string;
+
+oom:
+    hl->has_error = 1;
+    hl->error = hilexi_string_from("oom");
+    return hilexi_nil;
+}
+
 void hilexi_close(hilexi* hl) {
     free(hl->read_buf);
     builder_free(hl->builder);

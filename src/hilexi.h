@@ -38,6 +38,7 @@ int hilexi_connnect(hilexi* hl);
 hilexi_string hilexi_ping(hilexi* hl);
 hilexi_string hilexi_set(hilexi* hl, const char* key, const char* value);
 hilexi_string hilexi_get(hilexi* hl, const char* key);
+hilexi_string hilexi_del(hilexi* hl, const char* key);
 void hilexi_close(hilexi* hl);
 
 void hilexi_obj_print(const hilexi_obj* obj);
