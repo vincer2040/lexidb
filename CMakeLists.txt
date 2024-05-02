@@ -80,6 +80,11 @@ add_library(
     src/hilexi.c
 )
 
+add_library(
+    vline
+    src/vline.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c
@@ -95,7 +100,7 @@ add_executable(
 
 add_executable(
     lexicli
-    src/lexi-cli.c
+    src/lexicli.c
 )
 
 target_link_libraries(
@@ -116,6 +121,7 @@ target_link_libraries(
 target_link_libraries(
     lexicli
     hilexi
+    vline
 )
 
 target_link_libraries(
