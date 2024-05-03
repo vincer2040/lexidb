@@ -4,7 +4,7 @@ import random
 import string
 
 N=1_000_000
-K = 16
+K = 8
 
 STRINGS = set()
 

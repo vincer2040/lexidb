@@ -3,6 +3,7 @@ include(../cmake/GoogleBenchmark.cmake)
 add_executable(
     vmap_bench
     vmap_bench.cc
+    rand_keys.c
 )
 
 target_link_libraries(
