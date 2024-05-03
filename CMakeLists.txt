@@ -97,6 +97,11 @@ add_library(
     src/murmur3.c
 )
 
+add_library(
+    tpool
+    src/tpool.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c
@@ -128,6 +133,7 @@ target_link_libraries(
     vnet
     builder
     parser
+    tpool
 )
 
 target_link_libraries(
@@ -161,4 +167,9 @@ target_link_libraries(
 target_link_libraries(
     hilexi
     m
+)
+
+target_link_libraries(
+    tpool
+    pthread
 )
