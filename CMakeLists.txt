@@ -12,6 +12,8 @@ enable_testing()
 
 add_subdirectory(tests)
 
+add_subdirectory(bench)
+
 set(CMAKE_C_COMPILER "gcc")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -std=c99 -Wall -Werror -pedantic -fstack-clash-protection \
@@ -88,6 +90,11 @@ add_library(
 add_library(
     trie
     src/trie.c
+)
+
+add_library(
+    murmur3
+    src/murmur3.c
 )
 
 add_executable(
