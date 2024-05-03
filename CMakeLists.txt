@@ -85,6 +85,11 @@ add_library(
     src/vline.c
 )
 
+add_library(
+    trie
+    src/trie.c
+)
+
 add_executable(
     lexidb
     src/lexidb.c

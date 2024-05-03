@@ -61,6 +61,11 @@ add_executable(
     builder_test.c
 )
 
+add_executable(
+    trie_test
+    trie_test.c
+)
+
 # parser does not require all of these to work, but they are
 # needed to compile
 target_link_libraries(
@@ -116,6 +121,13 @@ target_link_libraries(
     builder
 )
 
+target_link_libraries(
+    trie_test
+    trie
+    check
+    pthread
+)
+
 add_test(
     NAME parser_test
     COMMAND parser_test
@@ -146,10 +158,17 @@ add_test(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
 )
 
+add_test(
+    NAME trie_test
+    COMMAND trie_test
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/Testing
+)
+
 set_tests_properties(
     parser_test PROPERTIES TIMEOUT 30
     vec_test PROPERTIES TIMEOUT 30
     vmap_test PROPERTIES TIMEOUT 30
     config_test PROPERTIES TIMEOUT 30
     builder_test PROPERTIES TIMEOUT 30
+    trie_test PROPERTIES TIMEOUT 30
 )
