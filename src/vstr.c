@@ -116,24 +116,21 @@ const char* vstr_data(const vstr* s) {
 int vstr_cmp(const vstr* a, const vstr* b) {
     size_t alen = vstr_len(a);
     size_t blen = vstr_len(b);
+    size_t min_len = alen < blen ? alen : blen;
+    int cmp;
     const char* astr = vstr_data(a);
     const char* bstr = vstr_data(b);
-    if (alen == blen) {
-        return strncmp(astr, bstr, alen);
-    }
-    if (alen < blen) {
-        int cmp = strncmp(astr, bstr, alen);
-        if (cmp == 0) {
+    cmp = memcmp(astr, bstr, min_len);
+    if (cmp == 0) {
+        if (alen > blen) {
             return 1;
         }
-        return cmp;
-    } else {
-        int cmp = strncmp(astr, bstr, blen);
-        if (cmp == 0) {
+        if (alen < blen) {
             return -1;
         }
-        return cmp;
+        return 0;
     }
+    return cmp;
 }
 
 int vstr_push_char(vstr* s, char c) {
