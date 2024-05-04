@@ -15,4 +15,5 @@ target_link_libraries(
     siphash
     util
     murmur3
+    xxhash
 )

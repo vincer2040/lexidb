@@ -1,4 +1,5 @@
 #include <benchmark/benchmark.h>
+#include <unordered_map>
 extern "C" {
 #include "../src/vmap.h"
 #include "../src/vstr.h"
@@ -6,6 +7,7 @@ extern "C" {
 #include "../src/util.h"
 #include "../src/siphash.h"
 #include "../src/murmur3.h"
+#include "../src/xxhash.h"
 #include "rand_keys.h"
 }
 
@@ -15,7 +17,7 @@ extern "C" {
 vmap_type type;
 
 unsigned char siphash_seed[SEED_SIZE];
-uint32_t murmur_seed = 0;
+uint32_t num_seed = 0;
 
 uint64_t hash_shiphash(const void* key) {
     const char* k = vstr_data((const vstr*)key);
@@ -27,16 +29,16 @@ uint64_t hash_murmur1(const void* key) {
     uint64_t hash[2] = {0};
     const char* k = vstr_data((const vstr*)key);
     size_t k_len = vstr_len((const vstr*)key);
-    MurmurHash3_x64_128(k, k_len, murmur_seed, hash);
+    MurmurHash3_x64_128(k, k_len, num_seed, hash);
     return hash[0] ^ hash[1];
 }
 
-uint64_t hash_murmur2(const void* key) {
-    uint64_t hash[2] = {0};
+uint64_t hash_xxhash(const void* key) {
+    uint64_t hash;
     const char* k = vstr_data((const vstr*)key);
     size_t k_len = vstr_len((const vstr*)key);
-    MurmurHash3_x86_128(k, k_len, murmur_seed, hash);
-    return hash[0] ^ hash[1];
+    hash = XXH64(k, k_len, num_seed);
+    return hash;
 }
 
 int key_cmp(const void* a, const void* b) { return vstr_cmp((const vstr*)a, (const vstr*)b); }
@@ -49,7 +51,7 @@ void init(void) {
     size_t i;
     get_random_bytes(siphash_seed, SEED_SIZE);
     for (i = 0; i < SEED_SIZE; ++i) {
-        murmur_seed += siphash_seed[i];
+        num_seed += siphash_seed[i];
     }
     type.key_size = sizeof(vstr);
     type.value_size = sizeof(object);
@@ -71,14 +73,30 @@ static void benchmark_init(benchmark::State& state) {
     }
 }
 
+static void bench_unordered_map(benchmark::State& state) {
+    std::unordered_map<std::string, size_t> m;
+    size_t i, len = 367001;
+    for (i = 0; i < len; ++i) {
+        char* t = keys[i];
+        const std::string& s(t);
+        m.insert(std::pair(s, i));
+    }
+
+    const std::string& key(keys[170000]);
+
+    for (auto _ : state) {
+        const auto& x = m.find(key);
+        clobber();
+    }
+}
+
 static void bench_vmap_siphash(benchmark::State& state) {
     size_t i, len = 367001;
     vmap* map = vmap_new(&type);
     for (i = 0; i < len; ++i) {
         char* t = keys[i];
         vstr key = vstr_from(t);
-        object value = {.type=OT_Int, .data = {.integer = (int64_t)i}};
-        vmap_insert(&map, &key, &value);
+        vmap_insert(&map, &key, &i);
     }
 
     vstr key = vstr_from(keys[170000]);
@@ -99,8 +117,7 @@ static void bench_vmap_murmur1(benchmark::State& state) {
     for (i = 0; i < len; ++i) {
         char* t = keys[i];
         vstr key = vstr_from(t);
-        object value = {.type=OT_Int, .data = {.integer = (int64_t)i}};
-        vmap_insert(&map, &key, &value);
+        vmap_insert(&map, &key, &i);
     }
 
     vstr key = vstr_from(keys[170000]);
@@ -113,16 +130,14 @@ static void bench_vmap_murmur1(benchmark::State& state) {
     vmap_free(map);
 }
 
-static void bench_vmap_murmur2(benchmark::State& state) {
-    type.hash = hash_murmur2;
-
+static void bench_vmap_xxhash(benchmark::State& state) {
+    type.hash = hash_xxhash;
     size_t i, len = 367001;
     vmap* map = vmap_new(&type);
     for (i = 0; i < len; ++i) {
         char* t = keys[i];
         vstr key = vstr_from(t);
-        object value = {.type=OT_Int, .data = {.integer = (int64_t)i}};
-        vmap_insert(&map, &key, &value);
+        vmap_insert(&map, &key, &i);
     }
 
     vstr key = vstr_from(keys[170000]);
@@ -141,8 +156,7 @@ static void bench_vmap_siphash_after_rehash(benchmark::State& state) {
     for (i = 0; i < len; ++i) {
         char* t = keys[i];
         vstr key = vstr_from(t);
-        object value = {.type=OT_Int, .data = {.integer = (int64_t)i}};
-        vmap_insert(&map, &key, &value);
+        vmap_insert(&map, &key, &i);
     }
 
     vstr key = vstr_from(keys[170000]);
@@ -163,8 +177,7 @@ static void bench_vmap_murmur1_after_rehash(benchmark::State& state) {
     for (i = 0; i < len; ++i) {
         char* t = keys[i];
         vstr key = vstr_from(t);
-        object value = {.type=OT_Int, .data = {.integer = (int64_t)i}};
-        vmap_insert(&map, &key, &value);
+        vmap_insert(&map, &key, &i);
     }
 
     vstr key = vstr_from(keys[170000]);
@@ -177,16 +190,14 @@ static void bench_vmap_murmur1_after_rehash(benchmark::State& state) {
     vmap_free(map);
 }
 
-static void bench_vmap_murmur2_after_rehash(benchmark::State& state) {
-    type.hash = hash_murmur2;
-
+static void bench_vmap_xxhash_after_rehash(benchmark::State& state) {
+    type.hash = hash_xxhash;
     size_t i, len = 367002;
     vmap* map = vmap_new(&type);
     for (i = 0; i < len; ++i) {
         char* t = keys[i];
         vstr key = vstr_from(t);
-        object value = {.type=OT_Int, .data = {.integer = (int64_t)i}};
-        vmap_insert(&map, &key, &value);
+        vmap_insert(&map, &key, &i);
     }
 
     vstr key = vstr_from(keys[170000]);
@@ -202,12 +213,14 @@ static void bench_vmap_murmur2_after_rehash(benchmark::State& state) {
 /**/
 BENCHMARK(benchmark_init);
 
+BENCHMARK(bench_unordered_map);
+
 BENCHMARK(bench_vmap_siphash);
 BENCHMARK(bench_vmap_murmur1);
-BENCHMARK(bench_vmap_murmur2);
+BENCHMARK(bench_vmap_xxhash);
 
 BENCHMARK(bench_vmap_siphash_after_rehash);
 BENCHMARK(bench_vmap_murmur1_after_rehash);
-BENCHMARK(bench_vmap_murmur2_after_rehash);
+BENCHMARK(bench_vmap_xxhash_after_rehash);
 
 BENCHMARK_MAIN();

@@ -98,6 +98,11 @@ add_library(
 )
 
 add_library(
+    xxhash
+    src/xxhash.c
+)
+
+add_library(
     tpool
     src/tpool.c
 )
@@ -173,3 +178,4 @@ target_link_libraries(
     tpool
     pthread
 )
+
