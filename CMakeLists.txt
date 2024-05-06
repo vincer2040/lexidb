@@ -12,8 +12,6 @@ enable_testing()
 
 add_subdirectory(tests)
 
-add_subdirectory(bench)
-
 set(CMAKE_C_COMPILER "gcc")
 
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -std=c99 -Wall -Werror -pedantic -fstack-clash-protection \
@@ -68,11 +66,6 @@ add_library(
 )
 
 add_library(
-    vmap
-    src/vmap.c
-)
-
-add_library(
     vnet
     src/vnet.c
 )
@@ -112,7 +105,6 @@ add_executable(
     src/lexidb.c
     src/server.c
     src/configure.c
-    src/vmap_type.c
     src/connection.c
     src/networking.c
     src/cmd.c
@@ -127,7 +119,6 @@ add_executable(
 
 target_link_libraries(
     lexidb
-    vmap
     object
     siphash
     vstr
