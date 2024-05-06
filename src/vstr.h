@@ -108,6 +108,7 @@ size_t vstr_len(const vstr* s);
  * @returns the buffer contained in the vstr
  */
 const char* vstr_data(const vstr* s);
+int vstr_cmp_fast(const vstr* a, const vstr* b);
 /**
  * @brief compare two vstr's
  * @param a vstr to compare

@@ -5,8 +5,8 @@
 #include "builder.h"
 #include "ev.h"
 #include "vec.h"
-#include "vmap.h"
 #include "vstr.h"
+#include "vmap.h"
 #include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
@@ -36,7 +36,7 @@ typedef enum {
 
 typedef struct {
     uint64_t id;
-    vmap* keys;
+    // vmap* keys;
 } lexi_db;
 
 typedef struct {
@@ -130,7 +130,7 @@ void server_log(log_level level, const char* buf, size_t buf_len);
 
 /* vmap_type.c */
 void init_vmap_type(void);
-vmap_type* get_vmap_type(void);
+// vmap_type* get_vmap_type(void);
 
 /* networking.c */
 client* client_new(connection* conn);

@@ -3,7 +3,6 @@
 #include "object.h"
 #include "server.h"
 #include "util.h"
-#include "vmap.h"
 
 int ping_cmd(client* client, const cmd* cmd) {
     UNUSED(cmd);
@@ -86,7 +85,7 @@ int del_cmd(client* client, const cmd* cmd) {
 
     res = db_delete_key(client->db, &key);
 
-    if (res == VMAP_NO_KEY) {
+    if (res == 0) {
         client_add_reply_zero(client);
         return 0;
     }
@@ -109,15 +108,15 @@ int auth_cmd(client* client, const cmd* cmd) {
 }
 
 int keys_cmd(client* client, const cmd* cmd) {
-    uint64_t num_keys = db_get_num_keys(client->db);
-    vmap_iter iter = vmap_iter_new(client->db->keys);
-    client_add_reply_array(client, num_keys);
-    while (iter.cur) {
-        const vmap_entry* cur = iter.cur;
-        const vstr* key = vmap_entry_get_key(cur);
-        client_add_reply_bulk_string(client, key);
-        vmap_iter_next(&iter);
-    }
+    // uint64_t num_keys = db_get_num_keys(client->db);
+    // vmap_iter iter = vmap_iter_new(client->db->keys);
+    // client_add_reply_array(client, num_keys);
+    // while (iter.cur) {
+    //     const vmap_entry* cur = iter.cur;
+    //     const vstr* key = vmap_entry_get_key(cur);
+    //     client_add_reply_bulk_string(client, key);
+    //     vmap_iter_next(&iter);
+    // }
     return 0;
 }
 

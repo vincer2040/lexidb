@@ -113,6 +113,17 @@ const char* vstr_data(const vstr* s) {
     return s->str_data.sm.data;
 }
 
+int vstr_cmp_fast(const vstr* a, const vstr* b) {
+    size_t alen = vstr_len(a);
+    size_t blen = vstr_len(b);
+    const char* astr = vstr_data(a);
+    const char* bstr = vstr_data(b);
+    if (alen != blen) {
+        return alen - blen;
+    }
+    return memcmp(astr, bstr, alen);
+}
+
 int vstr_cmp(const vstr* a, const vstr* b) {
     size_t alen = vstr_len(a);
     size_t blen = vstr_len(b);

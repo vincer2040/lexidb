@@ -63,7 +63,7 @@ static int server_init(int argc, char** argv) {
         return -1;
     }
     server.sfd = -1;
-    init_vmap_type();
+    // init_vmap_type();
     return 0;
 }
 
@@ -90,19 +90,19 @@ static int server_configure(void) {
 
 static int server_init_databases(void) {
     uint64_t i;
-    vmap_type* vt = get_vmap_type();
+    // vmap_type* vt = get_vmap_type();
     server.databases = calloc(server.num_databases, sizeof(lexi_db));
     if (server.databases == NULL) {
         return -1;
     }
     for (i = 0; i < server.num_databases; ++i) {
         server.databases[i].id = i;
-        server.databases[i].keys = vmap_new(vt);
-        if (server.databases[i].keys == NULL) {
-            // set this so that we don't free unallocated
-            server.num_databases = i;
-            return -1;
-        }
+        // server.databases[i].keys = vmap_new(vt);
+        // if (server.databases[i].keys == NULL) {
+        //     // set this so that we don't free unallocated
+        //     server.num_databases = i;
+        //     return -1;
+        // }
     }
     return 0;
 }
@@ -377,7 +377,7 @@ static void server_free(void) {
     if (server.databases) {
         uint64_t i;
         for (i = 0; i < server.num_databases; ++i) {
-            vmap_free(server.databases[i].keys);
+            // vmap_free(server.databases[i].keys);
         }
         free(server.databases);
     }
